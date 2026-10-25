@@ -3,15 +3,40 @@ local RS=game:GetService("ReplicatedStorage")
 local Config=require(RS.Shared.Config)
 local F=require(RS.Shared.Formulas)
 local Wands=require(RS.Shared.WandData)
+local Quests=require(RS.Shared.QuestData)
 local I={}
-function I:Init(services) self.S=services; self.PotionCooldowns={} end
+function I:Init(services) self.S=services; self.PotionCooldowns={}; self.Interactions={} end
+local advice={
+    Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Right mouse raises your ward; left mouse casts Scintara.",
+    Tobb="Watch for red attack circles in Whisperwood. Shift dodges. Bring Thorn Barbs and Spider Silk to the apothecary to brew Health Draughts.",
+    Bank="Your vault keeps Gilders separate from your spending money. Deposits and withdrawals are available here.",
+    Apothecary="A Thorn Barb and Spider Silk make one Health Draught. Use it from your bag to recover health over four seconds.",
+    Duelmaster="Bring another student here for a friendly duel. Both players must accept. You keep your items, and matches end before a lethal hit.",
+}
+function I:Interact(player,name,choice)
+    if type(name)~="string" or type(choice)~="string" then return end
+    local npc=self.Interactions[name]; local d=self.S.PlayerDataService:Get(player)
+    if not npc or not d or not self.S.WorldService:Near(player,name,15) or self.S.DuelService:IsBusy(player) then return end
+    if choice=="Service" then return npc.Callback(player) end
+    local message
+    if choice=="Advice" then message=advice[name] or "Receive your wand, choose a house, then ask a professor for a lesson. Trace the rune and hit five targets with Scintara."
+    elseif choice=="Quest" then local q=Quests[d.Quest]; message=q and (q.Title..": "..q.Hint) or "You have completed the first story. Explore the woods, practise spells, and try a friendly duel."
+    elseif choice=="Hello" then message="Welcome, student. What can I help you with?"
+    else return end
+    self.S.NetworkService.UI:FireClient(player,"Dialogue",{Anchor=name,Name=npc.Name,Text=message,
+        Choices={{Id="Service",Label=npc.Action},{Id="Advice",Label="Do you have any advice?"},{Id="Quest",Label="What should I do next?"}}})
+end
 function I:Prompt(name,label,action,callback)
+    local conversational=name~="Mirror" and not name:match("^Waystone_")
+    if conversational then self.Interactions[name]={Name=label,Action=action,Callback=callback} end
     local anchor=self.S.WorldService:Anchor(name); if not anchor then warn("Missing interaction",name); return end
-    local prompt=Instance.new("ProximityPrompt"); prompt.Name="Interact"; prompt.ObjectText=label; prompt.ActionText=action
+    local prompt=Instance.new("ProximityPrompt"); prompt.Name="Interact"; prompt.ObjectText=label; prompt.ActionText=conversational and "Talk" or action
     prompt.MaxActivationDistance=12; prompt.HoldDuration=0.2; prompt.RequiresLineOfSight=false; prompt.Parent=anchor
     prompt.Triggered:Connect(function(player)
         if self.S.WorldService:Near(player,anchor,15) and self.S.PlayerDataService:Get(player)
-            and not self.S.DuelService:IsBusy(player) and self.S.NetworkService:Allow(player,"Prompt",3,5) then callback(player) end
+            and not self.S.DuelService:IsBusy(player) and self.S.NetworkService:Allow(player,"Prompt",3,5) then
+                if conversational then self:Interact(player,name,"Hello") else callback(player) end
+            end
     end)
 end
 function I:Unseal(player,part)
@@ -31,6 +56,7 @@ function I:Unseal(player,part)
     self.S.NetworkService.FX:FireAllClients("Blast",pos,"Aegara",4)
 end
 function I:Start()
+    self.S.NetworkService.Handlers.Interact=function(player,name,choice) self:Interact(player,name,choice) end
     self:Prompt("Oakhart","Odric Oakhart","Wands",function(player)
         local d=self.S.PlayerDataService:Get(player)
         if d.HasWand then self.S.WandService:Deliver(player); return self.S.NetworkService.UI:FireClient(player,"Wandery") end
@@ -107,6 +133,7 @@ function I:Start()
         if type(id)~="string" or not d or not self.S.CombatService:CanAct(s) or self.S.DuelService:IsBusy(player) or (d.Inventory[id] or 0)<1 then return end
         if id=="Health Draught" then
             if os.clock()<(self.PotionCooldowns[player] or 0) then return self.S.NetworkService:Notice(player,"Potions share a 30-second cooldown.") end
+            if s.Humanoid.Health>=s.Humanoid.MaxHealth then return self.S.NetworkService:Notice(player,"Your health is already full.") end
             self.PotionCooldowns[player]=os.clock()+30; d.Inventory[id]=d.Inventory[id]-1
             task.spawn(function()
                 for _=1,4 do task.wait(1); if self.S.CombatService.States[player]~=s or s.Humanoid.Health<=0 or self.S.DuelService:IsBusy(player) then return end; self.S.CombatService:Heal(player,s,s.Humanoid.MaxHealth*0.1) end

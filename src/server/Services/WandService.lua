@@ -5,9 +5,9 @@ local Quests=require(RS.Shared.QuestData)
 local F=require(RS.Shared.Formulas)
 local W={}
 function W:Init(services) self.S=services end
--- The client also sends the wand's name, so a stale bag button cannot act on a different wand.
-function W:Valid(d,index,name)
-    return F.Finite(index) and index%1==0 and index>=1 and index<=#d.Wands and (name==nil or Wands.Name(d.Wands[index])==name)
+-- Names plus a case revision protect selections even when two wands look identical.
+function W:Valid(d,index,name,revision)
+    return (revision==nil or revision==(d.WandRevision or 0)) and F.Finite(index) and index%1==0 and index>=1 and index<=#d.Wands and (name==nil or Wands.Name(d.Wands[index])==name)
 end
 -- Replaces the wand model in the character's hand with the equipped wand.
 function W:Attach(player)
@@ -22,6 +22,7 @@ function W:Attach(player)
 end
 function W:Use(player,index)
     local d=self.S.PlayerDataService:Get(player)
+    d.WandRevision=(d.WandRevision or 0)+1
     d.EquippedWand=index; d.Wand=Wands.Label(d.Wands[index])
     local s=self.S.CombatService.States[player]; if s then s.StaticHits=0 end
     self:Attach(player); self.S.CombatService:UpdateStats(player,false); self.S.ProgressionService:Refresh(player)
@@ -30,6 +31,7 @@ end
 function W:Grant(player,wand)
     local d=self.S.PlayerDataService:Get(player)
     if not d or #d.Wands>=Wands.Capacity then return false end
+    d.WandRevision=(d.WandRevision or 0)+1
     d.Wands[#d.Wands+1]=wand
     if d.EquippedWand==0 then self:Use(player,#d.Wands) else self.S.ProgressionService:Refresh(player) end
     return true
@@ -74,15 +76,16 @@ function W:Commission(player,id)
     local wand=Wands.Make(id); self:Grant(player,wand)
     self.S.NetworkService:Notice(player,"Oakhart hands you a "..Wands.Name(wand)..". Equip it from your bag.")
 end
-function W:Equip(player,index,name)
+function W:Equip(player,index,name,revision)
     local d=self.S.PlayerDataService:Get(player); local s=self.S.CombatService.States[player]
-    if not d or not s or not self:Valid(d,index,name) or index==d.EquippedWand then return end
+    if not d or not s or not self:Valid(d,index,name,revision) or index==d.EquippedWand then return end
     if self.S.DuelService:IsBusy(player) or os.clock()-s.LastCombat<5 then return self.S.NetworkService:Notice(player,"Wands can't be swapped during combat.") end
     self:Use(player,index); self.S.NetworkService:Notice(player,"Equipped your "..Wands.Name(d.Wands[index]))
 end
-function W:Discard(player,index,name)
+function W:Discard(player,index,name,revision)
     local d=self.S.PlayerDataService:Get(player)
-    if not d or not self:Valid(d,index,name) or index==d.EquippedWand then return end
+    if not d or not self:Valid(d,index,name,revision) or index==d.EquippedWand then return end
+    d.WandRevision=(d.WandRevision or 0)+1
     local wand=table.remove(d.Wands,index)
     if d.EquippedWand>index then d.EquippedWand=d.EquippedWand-1 end
     self.S.NetworkService:Notice(player,"Discarded your "..Wands.Name(wand)); self.S.ProgressionService:Refresh(player)
@@ -98,8 +101,12 @@ function W:Buy(player)
 end
 function W:Start()
     local handlers=self.S.NetworkService.Handlers
-    handlers.EquipWand=function(player,index,name) if type(name)=="string" then self:Equip(player,index,name) end end
-    handlers.DiscardWand=function(player,index,name) if type(name)=="string" then self:Discard(player,index,name) end end
+    handlers.EquipWand=function(player,index,selection)
+        if type(selection)=="table" and type(selection.Name)=="string" and F.Finite(selection.Revision) then self:Equip(player,index,selection.Name,selection.Revision) end
+    end
+    handlers.DiscardWand=function(player,index,selection)
+        if type(selection)=="table" and type(selection.Name)=="string" and F.Finite(selection.Revision) then self:Discard(player,index,selection.Name,selection.Revision) end
+    end
     handlers.BuyWand=function(player) self:Buy(player) end
     handlers.CommissionWand=function(player,id) if type(id)=="string" then self:Commission(player,id) end end
 end

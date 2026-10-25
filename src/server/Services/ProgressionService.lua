@@ -22,7 +22,9 @@ function P:Learn(player, id, quiet)
     local d = self.S.PlayerDataService:Get(player); local sp = Spells[id]
     if not d or not sp or not sp.Implemented or d.Level < sp.UnlockLevel or d.Spells[id] then return false end
     d.Spells[id] = {Mastery = 1, Hits = 0}
-    if id ~= "Scintara" and id ~= "Aegara" then
+    local assigned=false
+    for _,value in pairs(d.Loadout) do if value==id then assigned=true end end
+    if id ~= "Scintara" and id ~= "Aegara" and not assigned then
         for i = 1,4 do local key = "Slot"..i; if d.Loadout[key] == "" then d.Loadout[key] = id; break end end
     end
     if not quiet then self.S.NetworkService:Notice(player, "Learned " .. sp.DisplayName .. " · " .. id) end
@@ -99,10 +101,11 @@ end
 function P:Start()
     self.S.NetworkService.Handlers.Loadout = function(player, slot, id)
         local d = self.S.PlayerDataService:Get(player)
-        if not d or type(slot) ~= "string" or type(id) ~= "string" or not d.Spells[id] then return end
+        if not d or type(slot) ~= "string" or type(id) ~= "string" or not d.Spells[id] or not Spells[id] or not Spells[id].Implemented then return end
         if slot ~= "Ward" and not slot:match("^Slot[1-4]$") then return end
         if slot == "Ward" and Spells[id].School ~= "Ward" then return end
         d.Loadout[slot] = id; self:Refresh(player)
+        self.S.NetworkService:Notice(player,id.." assigned to "..slot)
     end
     self.S.NetworkService.Handlers.Attribute = function(player, name)
         local d = self.S.PlayerDataService:Get(player)

@@ -296,6 +296,46 @@ check(NService:Allow(player,"Cast",0,2),"bucket first token")
 check(NService:Allow(player,"Cast",0,2),"bucket second token")
 check(not NService:Allow(player,"Cast",0,2),"bucket burst limit")
 
+-- A delayed discard must not delete the identical wand that shifted into its slot.
+record.Wands={{Wood="Ash",Core="Frostfang",Rarity="Common"},{Wood="Rowan",Core="Emberplume",Rarity="Rare"},{Wood="Rowan",Core="Emberplume",Rarity="Rare"}}
+record.EquippedWand=1
+local revision=record.WandRevision or 0
+local sameName=Wands.Name(record.Wands[2])
+WS:Discard(p,2,sameName,revision); check(#record.Wands==2,"current bag revision can discard")
+WS:Discard(p,2,sameName,revision); check(#record.Wands==2,"stale discard cannot delete identical replacement")
+WS:Equip(p,2,sameName,revision); check(record.EquippedWand==1,"stale equip rejected after case changes")
+WS:Equip(p,2,sameName,record.WandRevision); check(record.EquippedWand==2,"fresh bag selection equips")
+
+-- Learning a starter already assigned by the profile must not consume a second slot.
+record.Spells.Glimmora=nil; record.Loadout={Slot1="Glimmora",Slot2="",Slot3="",Slot4=""}
+check(P:Learn(p,"Glimmora",true),"learn preassigned starter")
+check(record.Loadout.Slot2=="","starter learning preserves empty slots")
+
+-- NPC choices are validated again on the server, including after walking away.
+local interactions=require(ROOT.."/src/server/Services/InteractionService.lua")
+local nearby,busy,used=true,false,0
+local dialogue
+interactions:Init({PlayerDataService=deps.PlayerDataService,
+    WorldService={Near=function() return nearby end}, DuelService={IsBusy=function() return busy end},
+    NetworkService={UI={FireClient=function(_,_,kind,info) dialogue={kind,info} end}}})
+interactions.Interactions.Tobb={Name="Tobb",Action="Ask about Whisperwood",Callback=function() used=used+1 end}
+interactions:Interact(p,"Tobb","Hello")
+check(dialogue[1]=="Dialogue" and #dialogue[2].Choices==3,"NPC conversation offers service, advice and quest choices")
+interactions:Interact(p,"Tobb","Advice"); check(dialogue[2].Text:find("Shift",1,true),"Tobb gives combat advice")
+interactions:Interact(p,"Tobb","Quest"); check(type(dialogue[2].Text)=="string","NPC provides quest guidance")
+interactions:Interact(p,"Tobb","Service"); check(used==1,"NPC service executes once")
+nearby=false; interactions:Interact(p,"Tobb","Service"); check(used==1,"remote NPC service rejected")
+nearby=true; busy=true; interactions:Interact(p,"Tobb","Service"); check(used==1,"NPC service rejected during duel")
+busy=false; interactions:Interact(p,"Unknown","Service"); interactions:Interact(p,"Tobb","Unknown"); interactions:Interact(p,{},"Service")
+check(used==1,"unknown NPCs and choices are ignored")
+
+-- More than four friendly units must not swallow a projectile.
+C.Targets={}; lane={}
+for i=1,6 do local friend=target(other); C.Targets[friend.Model]=friend; lane[i]={Parent=friend.Model} end
+local enemy=target(nil); enemy.MonsterId="Thornimp"; C.Targets[enemy.Model]=enemy; lane[7]={Parent=enemy.Model}
+hit=S:Trace(player,Vector3.zero,Vector3.new(0,0,10),0.8,{FilterDescendantsInstances={}})
+check(hit and hit.Instance==lane[7],"bolts pass through a crowd of allies")
+
 -- Wand bodies, with just enough of Instance, CFrame, Color3 and Enum to count parts.
 local CFm={}; CFm.__mul=function() return setmetatable({},CFm) end
 CFrame={new=function() return setmetatable({},CFm) end,Angles=function() return setmetatable({},CFm) end}
@@ -317,4 +357,5 @@ local n,tip=build(storm); check(n.Prong==2 and n.Cap==2 and n.Coil==4 and n.Band
 n,tip=build(hearth); check(n.Leaf==1 and n.Bud==1 and n.Stem==1 and n.Root==4 and n.Knot==3 and n.Core==1 and n.Band==2 and tip.Shape=="Ball","Hearthroot body")
 n,tip=build(widow); check(n.Leg==8 and n.Claw==8 and n.Silk==3 and n.Mandible==2 and n.Collar==1 and not n.Thorn and tip.Shape=="Block","Widow's Bite body")
 n=build({Wood="Blackthorn",Core="Emberplume",Rarity="Common"}); check(n.Thorn==3 and not n.Band and not n.Leg and not n.Collar,"catalogue wands build as before")
+total=total+dofile(ROOT.."/tests/client_input.lua")
 print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits).")

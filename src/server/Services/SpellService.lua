@@ -31,7 +31,8 @@ end
 -- Bolts and beams pass through units the caster cannot affect: allies outside a duel,
 -- other students' lesson targets and defeated monsters.
 function S:Trace(player,origin,direction,radius,params)
-    for _=1,4 do
+    local limit=1; for _ in pairs(self.S.CombatService.Targets) do limit=limit+1 end
+    for _=1,limit do
         local hit
         if radius then hit=workspace:Spherecast(origin,radius,direction,params) else hit=workspace:Raycast(origin,direction,params) end
         local target=hit and self.S.CombatService:Resolve(hit.Instance)
@@ -163,7 +164,7 @@ function S:Execute(player,spell,aim,spoken)
     if not data or not C:CanAct(s) or C:Has(s,"Silenced") then return end
     local origin=s.Root.Position+Vector3.new(0,1.2,0)
     local delta=aim-origin; local dir=delta.Magnitude>0.01 and delta.Unit or s.Root.CFrame.LookVector
-    if spell.Type=="Projectile" then self:Projectile(player,spell,origin+dir*2,dir,spoken); return end
+    if spell.Type=="Projectile" then self:Projectile(player,spell,origin,dir,spoken); return end
     if spell.Id=="Aegara" then
         s.Shield=F.Power(40,data,spell,spoken); s.ShieldUntil=os.clock()+2
         self.S.NetworkService.FX:FireAllClients("Ward",s.Model,2)

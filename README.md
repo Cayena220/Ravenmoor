@@ -10,7 +10,8 @@ spell handlers. It is a development build, not the completed 18-week launch road
 2. In **Roblox Studio**, open `Wandbound-Ravenmoor-Academy.rbxlx` using **File → Open from File**.
 3. Press **Play (F5)**. Use Play, rather than Run, so Studio creates a player.
 4. Close the welcome panel. Walk to **Oakhart's Wandery**, the shop on the left of the village square. Use its interaction prompt to receive a wand.
-5. Follow the gold quest marker: Mirror of Choosing → Professor Quill → Training Yard → Tobb → Whisperwood.
+5. NPC prompts open conversations: select their service, ask for advice, or ask what to do next.
+6. Follow the gold quest marker: Mirror of Choosing → Professor Quill → Training Yard → Tobb → Whisperwood.
 
 No toolbox models, external scripts, paid assets, packages, plugins, asset IDs,
 or Rojo installation are required to open this place. The map is already embedded
@@ -62,7 +63,7 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Gesture lesson | Drag one stroke | Hold RT + left stick, X to submit | Drag one stroke |
 
 In the spellbook, click **1–4** beneath a learned spell to equip it. Ward spells
-also offer **W** for the right-mouse ward slot. Basic Spark Bolt stays bound.
+also offer **Ward** for the right-mouse / LT ward slot. Basic Spark Bolt stays bound.
 Spell controls pause while a menu or text box has focus.
 
 Spoken casting recognizes an exact learned incantation in general chat, such as
@@ -150,7 +151,7 @@ that name on a live experience unless you intend to start a separate save namesp
 ## Verification status
 
 Completed here: XML integrity and source parity checks; all 27 source files parsed;
-170 mocked logic assertions; all 25 classroom target positions checked against
+196 mocked logic assertions; all 25 classroom target positions checked against
 solid map geometry; shop doors checked against their prompts; houses checked clear of
 roads, lanes and each other; map kept within 1,800 parts. No imported executable assets or numeric asset requires exist.
 

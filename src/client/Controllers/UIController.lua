@@ -48,7 +48,7 @@ function U:Close()
     if self.C.InputController then self.C.InputController:CameraMode() end
 end
 function U:Open(title,menu)
-    self:Close(); self.Menu=menu; self.Panel.Visible=true; self.PanelTitle.Text=title
+    self:Close(); if self.C.InputController then self.C.InputController.Holding=false end; self.Menu=menu; self.Panel.Visible=true; self.PanelTitle.Text=title
     for _,child in ipairs(self.Body:GetChildren()) do if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end end
     self.Body.CanvasPosition=Vector2.zero
     if self.C.InputController then self.C.InputController:CameraMode() end
@@ -74,16 +74,17 @@ function U:WandRow(index,wand,equipped)
     WandModel.Build(wand,at,true).Parent=view
     view.CurrentCamera=make("Camera",view,{FieldOfView=40,CFrame=CFrame.lookAt(center+Vector3.new(3.3,0.6,0),center)})
     local name=Wands.Name(wand)
+    local selection={Name=name,Revision=self.Data.WandRevision or 0}
     text(row,name,15,palette.Ink,{Position=UDim2.fromOffset(130,4),Size=UDim2.new(1,-138,0,24),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.AtEnd})
     text(row,Wands.Describe(wand),13,Color3.fromRGB(94,87,73),{Position=UDim2.fromOffset(130,28),Size=UDim2.new(1,-138,0,32),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
     if equipped then
         text(row,"EQUIPPED",12,palette.Gold,{Position=UDim2.fromOffset(130,62),Size=UDim2.fromOffset(120,30),Font=Enum.Font.GothamBold})
         return
     end
-    button(row,"Equip",function() self:Action("EquipWand",index,name) end,{Position=UDim2.fromOffset(130,62),Size=UDim2.fromOffset(84,30),TextSize=13,BackgroundColor3=palette.Gold})
+    button(row,"Equip",function() self:Action("EquipWand",index,selection) end,{Position=UDim2.fromOffset(130,62),Size=UDim2.fromOffset(84,30),TextSize=13,BackgroundColor3=palette.Gold})
     local armed,discard=false,nil
     discard=button(row,"Discard",function()
-        if armed then self:Action("DiscardWand",index,name) else armed=true; discard.Text="Confirm?" end
+        if armed then self:Action("DiscardWand",index,selection) else armed=true; discard.Text="Confirm?" end
     end,{Position=UDim2.fromOffset(222,62),Size=UDim2.fromOffset(84,30),TextSize=13,BackgroundColor3=Color3.fromRGB(224,212,187)})
 end
 function U:SkillTree()
@@ -107,7 +108,7 @@ function U:SkillTree()
 end
 function U:Spellbook()
     self:Open("THE RAVENMOOR SPELLBOOK", "Spells"); self:Tabs()
-    self:Paragraph("Select a learned spell, then choose a slot. W is your ward slot. Type a learned incantation in chat for +10% power.",58)
+    self:Paragraph("Select a learned spell, then choose a slot. The Ward button assigns your right-mouse / LT slot. Type a learned incantation in chat for +10% power.",58)
     local list={}; for _,s in pairs(Spells) do list[#list+1]=s end
     table.sort(list,function(a,b) if a.UnlockLevel==b.UnlockLevel then return a.Id<b.Id end return a.UnlockLevel<b.UnlockLevel end)
     for _,s in ipairs(list) do
@@ -121,8 +122,8 @@ function U:Spellbook()
         if learned and s.Id~="Scintara" then
             local slots={"Slot1","Slot2","Slot3","Slot4"}; if s.School=="Ward" then slots[#slots+1]="Ward" end
             for i,slot in ipairs(slots) do
-                button(row,slot=="Ward" and "W" or tostring(i),function() self:Action("Loadout",slot,s.Id); self:Toast(s.Id.." assigned to "..slot) end,
-                    {Size=UDim2.fromOffset(45,30),Position=UDim2.fromOffset(12+(i-1)*52,68),BackgroundColor3=palette.Gold})
+                button(row,slot=="Ward" and "Ward" or tostring(i),function() self:Action("Loadout",slot,s.Id) end,
+                    {Size=UDim2.fromOffset(45,30),Position=UDim2.fromOffset(12+(i-1)*52,68),BackgroundColor3=self.Data.Loadout[slot]==s.Id and Color3.fromRGB(148,190,148) or palette.Gold})
             end
         end
     end
@@ -157,7 +158,9 @@ function U:Show(menu)
         local ids={}; for id,count in pairs(d.Inventory) do if count>0 then ids[#ids+1]=id end end; table.sort(ids)
         if #ids==0 then self:Paragraph("Your bag is empty. Woodland creatures drop ingredients and rare spell tomes.",75) end
         for _,id in ipairs(ids) do
-            button(self.Body,id.." ×"..d.Inventory[id]..((id=="Health Draught" or id:find("Tome")) and "  ·  Use" or "  ·  Material"),function() self:Action("UseItem",id) end)
+            if id=="Health Draught" or id=="Frigora Tome" or id=="Somnara Tome" then
+                button(self.Body,id.." ×"..d.Inventory[id].."  ·  Use",function() self:Action("UseItem",id) end)
+            else self:Paragraph(id.." ×"..d.Inventory[id].."  ·  Crafting material",38) end
         end
     elseif menu=="House" then
         self:Paragraph((d.House~="" and d.House or "Unsorted").."\nPersonal contribution: "..d.HousePoints.." House Points",66)
@@ -354,7 +357,7 @@ function U:UpdateHUD()
         self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
         self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
         local keys={Basic="LMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="RMB",Dodge="SHIFT"}
-        if UIS.GamepadEnabled then keys={Basic="RT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="LT",Dodge="LB"} end
+        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="LT",Dodge="LB"} end
         for _,slot in ipairs(self.SpellSlots) do
             local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
             local remaining=math.max(0,(self.Cooldowns[id] or 0)-os.clock())
@@ -382,7 +385,7 @@ function U:UpdateHUD()
         local hum=boss:FindFirstChildOfClass("Humanoid")
         if hum then self.BossLabel.Text=boss.Name.." · Phase "..tostring(boss:GetAttribute("Phase") or 1); self.BossFill.Size=UDim2.new(math.clamp(hum.Health/hum.MaxHealth,0,1),-12,0,7) end
     end
-    self.Crosshair.Visible=not self:IsOpen()
+    self.Crosshair.Visible=not self:IsOpen() and (not self.C.InputController or self.C.InputController.Locked)
 end
 function U:Welcome()
     self:Open("WANDBOUND · RAVENMOOR ACADEMY","Welcome")
@@ -396,7 +399,7 @@ function U:Start()
     self:Build(); self:Layout(); self.Root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() self:Layout() end)
     self.Remotes.Profile.OnClientEvent:Connect(function(data)
         self.Data=data
-        if self.Menu and ({Skills=true,Journal=true,Bag=true,Settings=true,Bank=true,Shop=true,House=true,Library=true,Wandery=true})[self.Menu] then
+        if self.Menu and ({Spells=true,Skills=true,Journal=true,Bag=true,Settings=true,Bank=true,Shop=true,House=true,Library=true,Wandery=true})[self.Menu] then
             -- Re-render in place: keep the scroll position once the new layout has been measured.
             local menu=self.Menu; local scroll=self.Body.CanvasPosition; self:Show(menu)
             task.spawn(function() Run.RenderStepped:Wait(); if self.Menu==menu then self.Body.CanvasPosition=scroll end end)
@@ -410,6 +413,13 @@ function U:Start()
     end)
     self.Remotes.UI.OnClientEvent:Connect(function(kind,info)
         if kind=="Toast" then self:Toast(info)
+        elseif kind=="Dialogue" then
+            self:Open(string.upper(info.Name),"Dialogue")
+            self:Paragraph(info.Text,110)
+            for _,choice in ipairs(info.Choices) do
+                button(self.Body,choice.Label,function() self:Close(); self:Action("Interact",info.Anchor,choice.Id) end)
+            end
+            button(self.Body,"Goodbye",function() self:Close() end)
         elseif kind=="Sorting" then self:Sorting()
         elseif kind=="Lesson" then self:Lesson(info)
         elseif kind=="GestureResult" then if info.Pass then self:Close() else self:Toast("Rune accuracy: "..info.Score.."%. Clear the canvas and try again.") end

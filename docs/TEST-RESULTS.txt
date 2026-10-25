@@ -1,7 +1,10 @@
-Wandbound 0.1.0 — validation performed 2026-10-21
+Cloud validation — 2026-10-25
+Command: python3 tools/validate.py
 
-PASS: 100 headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, progression, locks, rate limits).
-PASS: place XML, 935 instances, 23 embedded sources, 19 interaction anchors, classroom clearance.
-PASS: all 23 source files compile with the Lua 5.4 parser (Luau-compatible subset).
+PASS: 196 headless assertions, including input routing, NPC interaction distance/duel checks, starter loadout assignment, crowded projectile tracing and stale inventory selections.
+PASS: all 27 source files compile with the Lua 5.4 parser.
+PASS: place XML, 2026 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 1740 map parts.
+PASS: updated source scripts synchronized into the playable .rbxlx.
 
-These checks ran outside Roblox Studio. Engine playtests are not completed.
+NOTE: the embedded place map differs from world/Map.rbxmx (pre-existing); the map was not replaced.
+NOT RUN: Roblox Studio, real GUI/camera/input, physics, live DataStore, multiplayer and device integration. Follow docs/PLAYTEST.md.

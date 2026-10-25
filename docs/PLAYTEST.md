@@ -100,3 +100,17 @@ Use Studio's server/client test controls with two players.
 
 There is no automatic publishing, monetization, external telemetry or account
 connection in this project. This place has not been published for you.
+
+## Input, inventory and conversation regressions (requires Studio)
+
+These engine checks have not been run by the cloud test suite.
+
+1. Start a fresh Play session. Talk to Oakhart, ask for advice, then select Wands. Confirm the starter wand and three spells are awarded once. Glimmora occupies only slot 1; slots 2–4 remain free.
+2. Use B → K → M to switch directly between bag, spells and map. Press the same key again to close. Type these letters in chat without opening menus.
+3. Hold LMB or gamepad RT to repeat Scintara. Vary trigger pressure; casting should continue until release. Open a menu, focus chat, or switch away from the window while holding: casting must stop and require a fresh press.
+4. Unlock the cursor with Ctrl and aim at a dummy away from screen center. The spell should follow the pointer. Relock to aim with the crosshair. Test with a controller plugged in while using the mouse; labels should follow the active input.
+5. Assign spells using the spellbook. Confirm the selected slot highlights only after the server updates the profile, then cast with 1–4 or X/Y/B/RB. Ward means RMB/LT. Check Shift dodges without enabling Roblox shift lock.
+6. In a multiplayer test, cast through at least five friendly players toward a monster. Bolts should reach the monster. Cast while facing a nearby wall; bolts should not start on its far side.
+7. Equip and discard wands, including identical copies. Rapidly repeat a confirmed discard under simulated network latency: only the selected wand should be removed. The equipped wand remains protected.
+8. Materials in the bag are informational. Use a Health Draught at full health: quantity should remain unchanged. Take damage and use it again: one is consumed, healing runs over four seconds, and the shared cooldown applies.
+9. Talk to Tobb, each professor, the banker, apothecary and duelmaster. Check advice, quest guidance, and the service choice. Walk out of interaction range before selecting a service: no transaction or lesson should start. Verify first-wand, sorting, lesson and Tobb quest progression still completes.

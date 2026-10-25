@@ -16,18 +16,28 @@ function I:CameraMode()
     local character=self.Player.Character; local hum=character and character:FindFirstChildOfClass("Humanoid")
     if hum then hum.CameraOffset=not open and Vector3.new(1.6,0.5,0) or Vector3.zero end
 end
+function I:ToggleMenu(menu)
+    local ui=self.C.UIController
+    self.Holding=false
+    if ui.Menu==menu then ui:Close() else ui:Show(menu) end
+end
 function I:Aim()
     local camera=workspace.CurrentCamera; local character=self.Player.Character
     local root=character and character:FindFirstChild("HumanoidRootPart")
     if not camera or not root then return nil end
     local screen=camera.ViewportSize/2
     local ray=camera:ViewportPointToRay(screen.X,screen.Y)
+    if not self.Locked and UIS:GetLastInputType()~=Enum.UserInputType.Touch
+        and not tostring(UIS:GetLastInputType()):find("Gamepad") then
+        local mouse=UIS:GetMouseLocation()
+        ray=camera:ScreenPointToRay(mouse.X,mouse.Y)
+    end
     local params=RaycastParams.new(); params.FilterType=Enum.RaycastFilterType.Exclude
     local ignored={character}; if self.C.EffectsController.Folder then ignored[#ignored+1]=self.C.EffectsController.Folder end
     params.FilterDescendantsInstances=ignored
     local result=workspace:Raycast(ray.Origin,ray.Direction*220,params)
     local point=result and result.Position or ray.Origin+ray.Direction*170
-    if UIS.TouchEnabled or UIS.GamepadEnabled then
+    if UIS:GetLastInputType()==Enum.UserInputType.Touch or tostring(UIS:GetLastInputType()):find("Gamepad") then
         local runtime=workspace:FindFirstChild("Runtime"); local monsters=runtime and runtime:FindFirstChild("Monsters")
         local best=math.cos(math.rad(10))
         if monsters then for _,model in ipairs(monsters:GetChildren()) do
@@ -58,7 +68,7 @@ function I:UseSlot(slot)
         return
     end
     local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
-    if not id or id=="" then return end
+    if not id or id=="" then return ui:Toast("This slot is empty. Open the spellbook (K) to assign a spell.") end
     if not d.HasWand then return ui:Toast("Visit Oakhart in Hollowmere to receive your wand.") end
     if (ui.Cooldowns[id] or 0)>os.clock() then return end
     local aim=self:Aim(); if aim then RS.Remotes.Cast:FireServer(id,aim); self.LastCast=os.clock() end
@@ -76,8 +86,8 @@ function I:Start()
         Dodge={Enum.KeyCode.LeftShift,Enum.KeyCode.ButtonL1},
     }
     for slot,keys in pairs(bindings) do
-        CAS:BindAction("Wandbound_"..slot,function(_,state,input)
-            if slot=="Basic" and state~=Enum.UserInputState.Begin then self.Holding=false end
+        CAS:BindActionAtPriority("Wandbound_"..slot,function(_,state,input)
+            if slot=="Basic" and (state==Enum.UserInputState.End or state==Enum.UserInputState.Cancel) then self.Holding=false end
             if self.C.UIController:IsOpen() or UIS:GetFocusedTextBox() then self.Holding=false; return Enum.ContextActionResult.Pass end
             if input.UserInputType==Enum.UserInputType.MouseButton1 then
                 local pos=UIS:GetMouseLocation()
@@ -85,24 +95,24 @@ function I:Start()
                     if gui:IsA("GuiButton") then return Enum.ContextActionResult.Pass end
                 end
             end
-            if slot=="Basic" then self.Holding=state==Enum.UserInputState.Begin end
+            if slot=="Basic" and state==Enum.UserInputState.Begin then self.Holding=true end
             if state==Enum.UserInputState.Begin then self:UseSlot(slot) end
             return Enum.ContextActionResult.Sink
-        end,false,table.unpack(keys))
+        end,false,Enum.ContextActionPriority.High.Value,table.unpack(keys))
     end
     local menus={Book={"Spells",Enum.KeyCode.K,Enum.KeyCode.DPadUp},Bag={"Bag",Enum.KeyCode.B,Enum.KeyCode.DPadLeft},Map={"Map",Enum.KeyCode.M,Enum.KeyCode.DPadRight}}
     for action,entry in pairs(menus) do
         CAS:BindAction("Wandbound_"..action,function(_,state)
-            if state==Enum.UserInputState.Begin and not UIS:GetFocusedTextBox() then
-                if self.C.UIController:IsOpen() then self.C.UIController:Close() else self.C.UIController:Show(entry[1]) end
-            end
+            if UIS:GetFocusedTextBox() then return Enum.ContextActionResult.Pass end
+            if state==Enum.UserInputState.Begin then self:ToggleMenu(entry[1]) end
             return Enum.ContextActionResult.Sink
         end,false,entry[2],entry[3])
     end
     UIS.InputBegan:Connect(function(input,processed)
         if not processed and input.KeyCode==Enum.KeyCode.LeftControl then self.Locked=not self.Locked; self:CameraMode() end
     end)
-    UIS.TextBoxFocused:Connect(function() self:CameraMode() end)
+    UIS.WindowFocusReleased:Connect(function() self.Holding=false end)
+    UIS.TextBoxFocused:Connect(function() self.Holding=false; self:CameraMode() end)
     UIS.TextBoxFocusReleased:Connect(function() task.defer(function() self:CameraMode() end) end)
     self.Player.CharacterAdded:Connect(function() self.Holding=false; task.delay(0.5,function() self:CameraMode() end) end)
     self.Player.CameraMinZoomDistance=5; self.Player.CameraMaxZoomDistance=14
