@@ -1,0 +1,1628 @@
+=====================================================================================
+   WANDBOUND: RAVENMOOR ACADEMY
+   Roblox Game Design Document and Build Plan
+   Version 1.0  -  October 21, 2026
+   Builder: solo developer (Luau scripter)
+=====================================================================================
+
+HOW TO READ THIS FILE
+  - Every number (damage, mana, HP, cooldowns) is a STARTING value. Put them in a
+    spreadsheet and tune them during playtests (see Section 16).
+  - Damage, healing and shield numbers are base values at level 1. They grow with
+    the formulas in Appendix A.
+  - All names in this document are original, so the game can be published safely.
+    Section 17 lists the names you must NOT use.
+
+
+TABLE OF CONTENTS
+   1. Game Overview
+   2. Setting, Story and NPCs
+   3. Houses
+   4. World and Terrain Design
+   5. Characters
+   6. Spells and Skills
+   7. Learning Spells
+   8. Monsters and PvE
+   9. PvP (Player vs Player)
+  10. Progression and Economy
+  11. Monetization
+  12. Technical Architecture (Luau)
+  13. UI / UX
+  14. Audio and VFX
+  15. Roadmap (18 weeks + updates)
+  16. Testing and Launch
+  17. Staying Publish-Safe
+   A. Formula Sheet
+   B. Spell Quick Reference
+   C. Monster Quick Reference
+   D. Glossary
+
+
+=====================================================================================
+1. GAME OVERVIEW
+=====================================================================================
+
+Title (working):  Wandbound: Ravenmoor Academy
+Pitch:            Enroll at a hidden school of magic, learn real spells in class, master
+                  them against monsters in the wilds, and prove yourself against other
+                  students in the dueling arena.
+Genre:            Action RPG with PvE (monsters, bosses, dungeons) and PvP (duels,
+                  ranked arena, open-PvP wilds, house battles).
+Platforms:        PC, mobile, console (gamepad). Mobile first for performance.
+Target players:   Ages 10-16+, fans of wizard-school fantasy and spell combat.
+Session length:   20-40 minutes. A class runs every few minutes, so there is always
+                  something to do.
+Server size:      Main world 30 players. Dungeon 1-4. Ranked arena 2-6.
+
+CORE LOOP
+
+     Attend class --> Learn a spell --> Use it in fights --> Mastery + loot
+          ^                                                       |
+          |                                                       v
+          +------ New zones / higher rank / House Points <--------+
+
+WHAT MAKES IT STAND OUT
+  1. Spoken casting: type a spell's incantation in chat to cast it for +10% power.
+  2. Classes that actually teach: you learn spells by tracing wand gestures in class,
+     not just by buying them.
+  3. Combos: spells react with each other (freeze then shock = Shatter).
+  4. House rivalry: every action earns House Points for a weekly House Cup.
+  5. Fair ranked PvP: the arena levels everyone to the same stats, so skill wins.
+
+
+=====================================================================================
+2. SETTING, STORY AND NPCs
+=====================================================================================
+
+THE WORLD
+  Ravenmoor Academy of Arcane Arts sits on a cliff above Mirrorlake, hidden from the
+  ordinary world. Students arrive by sky-ferry at Hollowmere Village, a small wizard
+  town at the foot of the castle. Under the castle lie seven ancient seals that hold
+  back a darkness called the Hollow.
+
+THE VILLAIN
+  Malachar Vane, a former Ravenmoor teacher, was expelled for studying the forbidden
+  Shadow Arts. He leads a secret group called the Hollow Circle and wants to break
+  all seven seals to take the Hollow's power for himself.
+
+MAIN STORY: 7 CHAPTERS (one per school year)
+  Ch 1  The Lantern Wakes      (Year 1)  Arrive, get sorted, first wand, first spells.
+                                         The Lantern of Ravenmoor flickers: a seal is
+                                         weakening in Whisperwood.
+  Ch 2  Whispers in the Wood   (Year 2)  Fight through Whisperwood, find the Hollow
+                                         Circle's camp, defeat Mother Vexweave who
+                                         guards the first seal. Reward: Tonitra.
+  Ch 3  The Drowned Archive    (Year 3)  A lost library under Mirrorlake. The Mirrorlake
+                                         Leviathan wakes.
+  Ch 4  Light in the Frost     (Year 4)  Climb Frostspire Peaks, learn the Spirit Warden
+                                         to drive off the Rimewraiths, defeat Glacior.
+  Ch 5  Beneath the Stones     (Year 5)  Enter the Sunken Catacombs and face Lich Warden
+                                         Morvane, Vane's lieutenant.
+  Ch 6  The Marsh Remembers    (Year 6)  Shadowfen Marsh. The Marsh Hag offers you the
+                                         Shadow Arts. Your choice changes the dialogue.
+  Ch 7  The Seventh Seal       (Year 7)  Final 4-player raid against Malachar Vane.
+                                         Graduation ceremony.
+
+  Launch ships with Chapters 1-2. One new chapter comes with each big update.
+
+KEY NPCs
+  Headmistress Elowen Thorne    Head of the school, gives main-story quests.
+  Professor Ignatia Rook        Hexcraft (attack spells).
+  Professor Bram Holloway       Warding (defense spells).
+  Professor Wendeline Quill     Charms (utility spells).
+  Healer Mabry Fenn             Restoration (healing spells).
+  Professor Corvin Ashgrove     Alteration (control spells).
+  Master Silas Murk             Potions (cauldron brewing).
+  Tobb Brambleworth             Groundskeeper, beast lore, monster hunting quests.
+  Odric Oakhart                 Wandmaker in Hollowmere.
+  Duelmaster Kestrel Vey        Runs the Dueling Club and the Crucible.
+  The Marsh Hag                 Teaches the Shadow Arts (Chapter 6).
+
+
+=====================================================================================
+3. HOUSES
+=====================================================================================
+
+  +------------+-----------+----------------+---------+------------------------------+
+  | House      | Trait     | Colors         | Emblem  | Perk (small on purpose)      |
+  +------------+-----------+----------------+---------+------------------------------+
+  | Emberclaw  | Courage   | crimson / gold | firecat | +5% offensive spell damage   |
+  | Stoneroot  | Loyalty   | amber / black  | bear    | +5% max HP and shield power  |
+  | Skyquill   | Wisdom    | blue / silver  | owl     | -5% spell cooldowns          |
+  | Nightfang  | Ambition  | green / silver | wyvern  | +5% Gilders and XP from duels|
+  +------------+-----------+----------------+---------+------------------------------+
+
+  House perks are turned OFF in ranked Crucible matches.
+
+SORTING: THE MIRROR OF CHOOSING
+  - Happens in the Great Hall during the tutorial.
+  - The player answers 5 personality questions. Each answer adds points to houses.
+    Example: "A door is locked. Do you: (a) break it down [Emberclaw], (b) wait for
+    your friends [Stoneroot], (c) study the lock [Skyquill], (d) find another way in
+    [Nightfang]?"
+  - The mirror shows the result. The player may accept it or pick any house.
+  - Keep houses balanced: if one house has 35%+ of active players this week, it shows
+    a small "this house is crowded" note (never force a house).
+  - House change: once per 30 days from the Headmistress.
+
+HOUSE POINTS AND THE HOUSE CUP
+  Earn points for your house:
+    Attend a class ...................... +5
+    Complete a daily quest .............. +10
+    Win a duel (Dueling Club) ........... +5
+    Win a ranked match .................. +15
+    Defeat a boss ....................... +25
+    Win a House War ..................... +500 (whole house)
+  - Totals are global across all servers. The Cup resets every Sunday 00:00 UTC.
+  - The winning house gets: a banner in the Great Hall for a week, +5% XP buff for
+    its members, and a badge for players who contributed 100+ points.
+  - Each house has its own common room in the castle (decorated in house colors).
+
+
+=====================================================================================
+4. WORLD AND TERRAIN DESIGN
+=====================================================================================
+
+MAP LAYOUT (main world, about 2048 x 2048 studs)
+
+                        FROSTSPIRE PEAKS  (levels 20-35)
+                     /\        /\    /\        /\
+     +---------------------------------------------------------------+
+     |                         |                                     |
+     |   WHISPERWOOD FOREST    |        RAVENMOOR CASTLE             |
+     |   (levels 5-20, PvE)    |        (safe zone)                  |
+     |                         |-------------------------------------|
+     |                         |        CASTLE GROUNDS               |
+     |-------------------------|        Mirrorlake, Training Yard,   |
+     |                         |        Ruins of Old Ravenmoor       |
+     |   SHADOWFEN MARSH       |-------------------------------------|
+     |   (levels 35-50,        |        HOLLOWMERE VILLAGE           |
+     |    open PvP)            |        (spawn, safe zone)           |
+     +---------------------------------------------------------------+
+
+  Separate places (own servers, reached by teleport):
+     Sunken Catacombs  - dungeon, 1-4 players, levels 30-40
+     The Crucible      - ranked PvP arena
+
+ZONES
+
+  +-------------------+--------+---------+---------------------------+-----------------+
+  | Zone              | Levels | PvP     | Terrain materials         | Mood            |
+  +-------------------+--------+---------+---------------------------+-----------------+
+  | Hollowmere Village| 1+     | Off     | Cobblestone, Grass, Brick,| Warm, cozy,     |
+  |                   |        |         | WoodPlanks                | light haze      |
+  | Ravenmoor Castle  | 1+     | Off     | Slate, Rock, Limestone,   | Candle-lit,     |
+  |                   |        |         | Brick                     | grand           |
+  | Castle Grounds    | 1-10   | Off*    | LeafyGrass, Grass, Sand,  | Bright, open    |
+  |                   |        |         | Water                     |                 |
+  | Whisperwood Forest| 5-20   | Duels   | LeafyGrass, Mud, Ground,  | Thick fog, dark |
+  |                   |        |         | Rock                      | green           |
+  | Frostspire Peaks  | 20-35  | Duels   | Snow, Glacier, Ice, Rock, | Cold blue, wind |
+  |                   |        |         | Basalt                    | and snowfall    |
+  | Shadowfen Marsh   | 35-50  | OPEN    | Mud, Water, Ground, dark  | Purple-green    |
+  |                   |        |         | LeafyGrass                | fog, eerie      |
+  | Sunken Catacombs  | 30-40  | Off     | Slate, Cobblestone,       | Pitch dark,     |
+  |                   |        |         | Limestone                 | needs Glimmora  |
+  | The Crucible      | any    | Ranked  | Marble, Slate (built)     | Arena lights    |
+  +-------------------+--------+---------+---------------------------+-----------------+
+  * The Ruins of Old Ravenmoor in Castle Grounds become a PvP area only during a
+    House War event, and only for players who step inside.
+
+LANDMARKS PER ZONE
+  Hollowmere Village
+    - Sky-ferry docks (spawn point), Oakhart's Wandery, Vaultkeep Bank, Tailor (robes
+      and hats), Apothecary (ingredients), Familiar Emporium, Waystone (fast travel),
+      notice board (daily quests).
+  Ravenmoor Castle
+    - Great Hall (floating candles, house tables, Mirror of Choosing), 5 classrooms,
+      Library (with a locked Restricted Shelf), Potions dungeon, 4 common rooms,
+      Dueling Club hall, Headmistress tower, Crucible portal.
+    - A tall central tower that can be seen from every zone. Players use it to find
+      their way home.
+  Castle Grounds
+    - Mirrorlake (world boss arena), Training Yard (practice dummies), Greenhouses
+      (herb gathering), Groundskeeper's hut, Ruins of Old Ravenmoor (House War),
+      a flying pitch (empty at launch, used later for the flying sport).
+  Whisperwood Forest
+    - Giant hollow tree, Moonwell clearing, wisp swamp, Hollow Circle camp,
+      Vexweave's Grotto (boss arena).
+  Frostspire Peaks
+    - Frozen waterfall, abandoned star observatory, Crystal caves, Wyrm's Roost (boss).
+  Shadowfen Marsh
+    - Ruined chapel, Marsh Hag's hut, Bounty Camp (safe outpost with a bounty board).
+  Sunken Catacombs (dungeon)
+    - Three wings (Bone Halls, Flooded Crypt, Armory of the Damned) and the Lich's
+      Throne room.
+  The Crucible (arena place)
+    - Three arena maps: Moonlit Courtyard, Sunken Colosseum, Floating Isles.
+
+TERRAIN WORKFLOW (do the steps in this order)
+  1. Greybox: block out every zone with plain parts first. Walk it at player speed.
+     Scale guide: player about 5 studs tall, doors 8-10 studs, corridors 12+ studs
+     wide (spell combat needs room), arenas 80-120 studs across.
+  2. Base terrain: use the Terrain Editor (Generate, or Import a heightmap +
+     colormap made in a free tool like Gaea or World Machine).
+  3. Sculpt: Grow, Erode, Smooth, Flatten. Make cliffs between zones so players use
+     the intended paths.
+  4. Paint: paint materials per the zone table. Use MaterialService and
+     MaterialVariants to make unique looks (mossy rock, cracked ice, swamp mud).
+  5. Water: Terrain water for Mirrorlake and the marsh. Set Terrain.WaterColor,
+     WaterReflectance, WaterTransparency and WaterWaveSize per mood.
+  6. Foliage: trees and rocks as MeshParts (not hundreds of parts). Turn on
+     Terrain.Decoration for animated grass.
+  7. Buildings: build modular kits (wall, window, arch, stair, roof pieces) and reuse
+     them. This keeps the castle consistent and the memory low.
+  8. Lighting: Lighting.Technology = Future. Use Atmosphere, Sky, Bloom,
+     ColorCorrection and SunRays. A client script changes Atmosphere and
+     ColorCorrection when the player enters a new zone (tween over 2 seconds).
+
+DAY / NIGHT AND WEATHER
+  - One in-game day = 20 real minutes (Lighting.ClockTime moves on the server).
+  - Night: Moonhowlers deal +30% damage, Lanternwisps glow and are easier to see,
+    20% more monsters spawn in Whisperwood.
+  - Rain (random, about 20% of the time in Whisperwood and Shadowfen): everyone
+    outside is Wet, which makes lightning spells stronger (see combos, Section 6).
+  - Snowstorms in Frostspire: lower visibility, players slowly become Chilled unless
+    near a campfire.
+
+PERFORMANCE RULES
+  - Workspace.StreamingEnabled = true. Important interactables (Waystones, class
+    doors) use ModelStreamingMode = Atomic or Persistent.
+  - The castle and big landmarks use Model.LevelOfDetail = StreamingMesh, so they
+    show as a low-detail shape from far away.
+  - Part budget: under 15,000 parts per zone. Prefer MeshParts and reuse meshes.
+  - Few real lights: under 30 PointLights/SpotLights visible at once. Use glowing
+    Neon parts and LightEmission on particles to fake light.
+  - Zone detection: invisible box parts with a "Zone" attribute, checked with
+    workspace:GetPartBoundsInBox a few times a second (or the ZonePlus module).
+
+
+=====================================================================================
+5. CHARACTERS
+=====================================================================================
+
+AVATAR
+  - R15 rig (needed for the cast animations).
+  - Players keep their own Roblox avatar. The game adds a robe in their house colors
+    (layered clothing) and their wand in the right hand.
+  - Gear has two layers: stat gear and appearance. Players can wear any look they
+    like on top of their real gear.
+
+CHARACTER CREATION / FIRST 10 MINUTES (tutorial funnel)
+  1. Arrive by sky-ferry at Hollowmere docks (short cutscene).
+  2. Oakhart's Wandery: "the wand chooses you". The player gets a random Common wand
+     (random wood + core) and learns Scintara, Aegara and Glimmora.
+  3. Tailor: pick robe trim and hat style.
+  4. Walk up to the castle. Sorting in the Great Hall (Mirror of Choosing).
+  5. First class: Charms with Professor Quill (teaches the gesture minigame).
+  6. Training Yard: combat tutorial (basic attack, ward, dodge, aiming) vs. dummies.
+  7. First quest: help Tobb clear Thornimps at the edge of Whisperwood.
+
+CORE STATS
+  HP        Health. At 0 HP you are knocked out (see "Knock-outs" below).
+  Mana      Spent to cast spells. Regenerates over time, faster out of combat.
+  Stamina   Spent to dodge-roll (35 per dodge). Regenerates quickly.
+
+ATTRIBUTES (2 points per level, free respec once per day at the Library)
+  Power      +2% spell damage per point.
+  Focus      +5 max mana and +0.2 mana regen per second per point.
+  Vitality   +10 max HP per point.
+  Agility    +0.2% crit chance and +0.25% move speed per point (move speed cap +15%).
+
+LEVELS AND YEARS
+  Levels 1-50, grouped into school years:
+    Year 1: levels 1-7      Year 5: levels 29-35
+    Year 2: levels 8-14     Year 6: levels 36-42
+    Year 3: levels 15-21    Year 7: levels 43-50
+    Year 4: levels 22-28
+  At level 50 the player can Graduate (Prestige): reset to level 1, keep all spells,
+  gear and cosmetics, get a prestige star badge and +2% XP per prestige (max 5).
+  The level cap starts at 20 for launch and rises with each update.
+
+KNOCK-OUTS
+  - Safe/PvE zones: at 0 HP you are knocked out. After 5 seconds you wake up at the
+    last Waystone you touched. You lose nothing.
+  - Dungeon: you are "downed" for 15 seconds. A teammate can revive you with
+    Resurga. If not, you respawn at the dungeon entrance.
+  - Duels: the loser stops at 1 HP. No death, no loss.
+  - Shadowfen: you drop 10% of the Gilders you are carrying (not banked) as a bag
+    anyone can pick up, then respawn at the Bounty Camp.
+
+WANDS
+  Every wand = a wood + a core + a rarity.
+
+  Woods                     Cores
+    Ash          +3% Power    Emberplume (firebird feather)   +5% fire and Burn damage
+    Willow       +3% healing  Wyrmscale                       +4% all spell damage
+    Rowan        +3% wards    Moonmane                        +5% healing and Cleanse
+    Blackthorn   +3% crit     Stormglass                      +5% lightning damage
+    Silverbirch  +5% mana regen Frostfang                     +5% slow duration
+    Ironoak      +5% max HP   Voidpearl                       +5% Shadow Arts damage,
+    Heartwood    +2% to all                                   -10% Corruption gain
+    (crafted only)
+
+  Rarity      Bonus multiplier   Where it comes from
+    Common        x1.0            Starter wand, shop
+    Uncommon      x1.25           Shop, normal monsters
+    Rare          x1.5            Elite monsters, quests
+    Epic          x2.0            Bosses, crafting
+    Legendary     x2.5            Rare boss drops, crafting
+    Mythic        x3.0            Seasonal top ranks, Chapter finales (unique glow)
+
+  Wand bonus = (wood bonus + core bonus) x rarity multiplier.
+  In ranked matches, wand bonuses are capped at Rare.
+
+GEAR SLOTS
+  Wand      Main stat source (see above).
+  Robe      Vitality and armor.
+  Hat       Focus.
+  Amulet    Power.
+  Ring      One special effect (for example +10% Burn duration, +5% dodge distance).
+  Familiar  A pet that follows you and gives one small passive bonus.
+
+FAMILIARS (no paid random eggs; see Section 11)
+  Owl         500 Gilders (Familiar Emporium)   +10% Gilders from quests
+  Cat         500 Gilders                       +5% stamina regen
+  Toad        300 Gilders                       -5% Burn and Chilled duration on you
+  Fox         1,500 Gilders                     +3% move speed
+  Raven       Chapter 2 quest reward            +5% loot luck
+  Salamander  Rotbark Sentinel rare drop        +10% Burn damage
+  Wyrmling    Glacior rare drop (Legendary)     +2% all damage
+  Familiar bonuses are off in ranked matches. Familiars are drawn only on clients
+  (no server cost).
+
+ANIMATIONS TO MAKE (Animation Editor or Moon Animator)
+  - Wand idle, walk and run with wand.
+  - Cast: quick flick (projectiles), swish (beams), thrust (heavy spells),
+    raise (area spells), two-hand channel (Solarion, Animor).
+  - Ward pose (shield up), dodge roll, hit reaction, knockdown/get up.
+  - Airborne flail (Aerovanta), sleeping (Somnara), frog form (Mutara).
+  - Emotes: bow (duel start), cheer, house salute.
+
+
+=====================================================================================
+6. SPELLS AND SKILLS
+=====================================================================================
+
+LOADOUT AND CONTROLS
+  +-----------------+-------------------+---------------------+-------------------+
+  | Action          | PC                | Gamepad             | Mobile            |
+  +-----------------+-------------------+---------------------+-------------------+
+  | Basic attack    | Left mouse        | R2                  | Big cast button   |
+  | (Scintara)      |                   |                     |                   |
+  | Ward slot       | Right mouse       | L2                  | Shield button     |
+  | Spell slots 1-4 | 1, 2, 3, 4        | X, Y, B, R1         | 4 buttons around  |
+  |                 |                   |                     | the cast button   |
+  | Dodge roll      | Shift             | L1                  | Dodge button      |
+  | Jump            | Space             | A                   | Jump button       |
+  | Spellbook       | K                 | D-pad up            | Menu              |
+  | Inventory       | B                 | D-pad left          | Menu              |
+  | Map             | M                 | D-pad right         | Menu              |
+  | Aim lock camera | Ctrl (toggle)     | always on           | always on         |
+  +-----------------+-------------------+---------------------+-------------------+
+  - The Ward slot (right mouse) only accepts Ward spells. Slots 1-4 accept any spell.
+  - Camera: over-the-shoulder with a center crosshair (MouseBehavior = LockCenter).
+  - Aim assist on gamepad and mobile: projectiles bend slightly toward the nearest
+    enemy inside a 10-degree cone in front of the crosshair.
+
+CASTING RULES
+  - Each spell has a mana cost, a cooldown, a cast time (most are 0.15-0.3 seconds)
+    and a type: Projectile, Beam, Area, Self, Target, Object or Summon.
+  - Projectiles travel (no instant hits) so players can dodge, ward or reflect them.
+  - You can move while casting most spells. Heavy spells (Solarion, Animor) root
+    you while you cast.
+  - Silenced: cannot cast. Rooted: cannot move but can cast.
+  - Dodge roll: 10 studs, 0.25 seconds where you cannot be hit (0.2 in PvP).
+
+SPOKEN CASTING (chat incantations)
+  - Typing a learned spell's incantation in chat (for example "Flamara") casts it at
+    where you are aiming, with +10% power and +0.3 seconds cast time.
+  - It uses the normal mana and cooldown, so it cannot be spammed.
+  - The server detects it (see Section 12), so it cannot be faked.
+  - Players can turn this off in Settings so normal chat does not cast spells.
+
+STATUS EFFECTS
+  Burn       Damage over time (fire).
+  Chilled    30% slower movement (frost).
+  Wet        From rain, water or the Leviathan's splash. Lightning does +30%.
+  Silenced   Cannot cast spells.
+  Rooted     Cannot move.
+  Airborne   Lifted up, cannot move or dodge.
+  Asleep     Cannot act. Any damage wakes the target.
+  Feared     Runs away from the caster, cannot act.
+  Shielded   Damage hits the shield first.
+
+  Crowd control (CC) = Silenced, Rooted, Airborne, Asleep, Feared, frog form.
+  Diminishing returns: the 2nd CC within 10 seconds lasts 50%, the 3rd lasts 25%,
+  then the target is immune to CC for 5 seconds. Bosses are immune to CC.
+
+COMBOS
+  Shatter       Chilled target hit by Tonitra: +50% damage and 0.5 second stun.
+  Conduct       Wet target hit by any lightning: +30% damage.
+  Combust       Burning target hit by Ruptara: the Burn spreads to everyone in the blast.
+  Juggle        Airborne target hit by any Hex: +25% damage.
+  Anchored      Rooted target hit by Ruptara: no knockback, but +20% damage.
+  Players discover combos by playing. When a combo triggers for the first time, the
+  name pops up and it is added to the Spellbook's "Combos" page.
+
+SPELL LIST (29 spells in 6 schools)
+  Columns: Lvl = unlock level, CD = cooldown in seconds.
+
+  HEXES (attack)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Spell           | Incant.   | Lvl | Mana | CD   | Type       | Effect                         |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Spark Bolt      | Scintara  |  1  |  4   | 0.6  | Projectile | 10 dmg. Basic attack.          |
+  | Flame Lash      | Flamara   |  4  |  15  | 5    | Projectile | 18 dmg + Burn 4/s for 3s.      |
+  | Frost Shard     | Frigora   |  8  |  18  | 6    | Projectile | 22 dmg + Chilled 2s.           |
+  | Blast Hex       | Ruptara   |  12 |  25  | 9    | Projectile | 30 dmg in 8-stud blast,        |
+  |                 |           |     |      |      | (explodes) | knockback.                     |
+  | Chain Lightning | Tonitra   |  15 |  30  | 10   | Beam       | 26 dmg, jumps to 2 more        |
+  |                 |           |     |      |      |            | targets (-25% per jump).       |
+  | Vortex Hex      | Vortexa   |  25 |  40  | 18   | Area       | Pulls enemies within 12 studs  |
+  |                 |           |     |      |      |            | to the center, 15 dmg/s for 2s.|
+  | Solar Nova      | Solarion  |  30 |  70  | 60   | Area       | 1s cast, 80 dmg in 15 studs.   |
+  |                 |           |     |      |      |            | Ultimate.                      |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+  WARDS (defense)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Ward Shield     | Aegara    |  1  |  12  | 6    | Self       | Absorbs 40 dmg for 2s.         |
+  | Mirror Ward     | Speculo   |  10 |  20  | 12   | Self       | Reflects the first projectile  |
+  |                 |           |     |      |      |            | that hits you within 0.6s.     |
+  | Stoneskin       | Durassa   |  18 |  25  | 20   | Self       | -30% damage taken for 5s,      |
+  |                 |           |     |      |      |            | -20% move speed.               |
+  | Bastion Dome    | Murallis  |  20 |  45  | 30   | Area       | 10-stud dome blocks enemy      |
+  |                 |           |     |      |      |            | projectiles for 4s.            |
+  | Spirit Warden   | Custos    |  30 |  50  | 90   | Summon     | Guardian animal spirit for 10s.|
+  |                 | Lumen     |     |      |      |            | Rimewraiths flee and take x2   |
+  |                 |           |     |      |      |            | dmg. Blocks 1 hit per nearby   |
+  |                 |           |     |      |      |            | ally. Animal shape = your      |
+  |                 |           |     |      |      |            | Sorting quiz answers.          |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+  CHARMS (utility)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Light Orb       | Glimmora  |  1  |  5   | 2    | Self       | Toggle light (1 mana/s).       |
+  |                 |           |     |      |      | (toggle)   | Reveals hidden runes and       |
+  |                 |           |     |      |      |            | Shade Stalkers.                |
+  | Unseal          | Resero    |  3  |  8   | 3    | Object     | Opens locked doors and chests. |
+  |                 |           |     |      |      |            | Reveals Mimic Chests.          |
+  | Swiftstep       | Velocis   |  5  |  10  | 12   | Self       | +35% move speed for 4s.        |
+  | Disarm          | Excido    |  6  |  18  | 14   | Projectile | 8 dmg + Silenced 1.5s.         |
+  |                 |           |     |      |      |            | The key duel counter.          |
+  | Lift            | Aerovanta |  9  |  20  | 12   | Projectile | Airborne 1.5s.                 |
+  | Pull            | Tractum   |  14 |  15  | 10   | Beam       | Pulls an item, loot bag or     |
+  |                 |           |     |      |      |            | enemy 15 studs toward you      |
+  |                 |           |     |      |      |            | (not bosses).                  |
+  | Blink           | Translo   |  22 |  25  | 14   | Self       | Teleport up to 20 studs where  |
+  |                 |           |     |      |      |            | you aim (needs line of sight). |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+  RESTORATION (healing)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Mend            | Vitara    |  3  |  20  | 8    | Target     | Heals 25 HP (self or ally).    |
+  | Cleanse         | Purgo     |  11 |  15  | 15   | Target     | Removes Burn, Chilled,         |
+  |                 |           |     |      |      |            | Silenced, Rooted, Feared.      |
+  | Renewal Aura    | Renovo    |  24 |  40  | 30   | Area       | Allies within 12 studs heal    |
+  |                 |           |     |      |      |            | 8 HP/s for 5s.                 |
+  | Second Wind     | Resurga   |  33 |  60  | 120  | Target     | Revives a downed ally at 30%   |
+  |                 |           |     |      |      |            | HP. PvE only.                  |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+  ALTERATION (control)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Stone Bind      | Saxifra   |  7  |  20  | 12   | Projectile | Rooted 1.5s.                   |
+  | Slumber         | Somnara   |  16 |  25  | 16   | Projectile | Asleep 3s (damage wakes).      |
+  | Critter Curse   | Mutara    |  28 |  45  | 25   | Projectile | Turns target into a frog for   |
+  |                 |           |     |      |      |            | 2s: cannot cast, 50% slower.   |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+  SHADOW ARTS (level 35+, only in Shadowfen and in duels where both players turn on
+  "Shadow rules". Each cast adds Corruption.)
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+  | Umbral Lash     | Umbrexa   |  35 |  30  | 8    | Beam       | 30 dmg, heals you 50% of the   |
+  |                 |           |     |      |      |            | damage. +10 Corruption.        |
+  | Hex of Dread    | Terrora   |  38 |  35  | 20   | Projectile | Feared 1.5s. +15 Corruption.   |
+  | Soul Siphon     | Animor    |  42 |  50  | 30   | Beam       | Steals 15 mana/s for 3s        |
+  |                 |           |     |      |      | (channel)  | (you are rooted). +20          |
+  |                 |           |     |      |      |            | Corruption.                    |
+  +-----------------+-----------+-----+------+------+------------+--------------------------------+
+
+CORRUPTION (Shadow Arts cost)
+  - A meter from 0 to 100. It drops by 1 per minute (2 per minute inside the castle).
+  - 50+: shop prices +20% and your healing spells are 25% weaker.
+  - 100: you are Marked. You get a red aura, a bounty is placed on you, and players
+    in Shadowfen can attack you even with the level-gap protection.
+  - Cleanse it fully with the Purification Shrine quest in the castle chapel.
+
+TALENT TREES (one small tree per school, Shadow Arts has none)
+  - 1 talent point every 5 levels (10 points at level 50).
+  - Each tree has 3 tiers with 2 choices per tier (6 talents). 10 points fills about
+    1.5 trees, so every player picks a specialty.
+  - Free respec once per day at the Library, otherwise 500 Gilders.
+
+  Example: Hexcraft tree
+    Tier 1: Kindling     (+15% Burn damage)        OR  Cold Snap  (+0.5s Chilled)
+    Tier 2: Overcharge   (Tonitra jumps +1 target) OR  Wide Blast (+3 studs Ruptara)
+    Tier 3: Spellweaver  (combos deal +15%)        OR  Glass Cannon (+10% Hex damage,
+                                                                   -10% max HP)
+  Other trees in one line each:
+    Warding       stronger and longer shields, Speculo window +0.2s, dome heals.
+    Charms        shorter utility cooldowns, longer Silenced, Blink distance.
+    Restoration   bigger heals, Cleanse also heals, Resurga revives at 50%.
+    Alteration    longer CC, Mutara spreads to a 2nd target, Saxifra adds damage.
+
+
+=====================================================================================
+7. LEARNING SPELLS
+=====================================================================================
+
+FOUR WAYS TO LEARN A SPELL
+  1. Classes (most spells). A professor teaches it in a timed class at the castle.
+  2. Spell Tomes. Found in the Library's Restricted Shelf (quest), as monster drops,
+     or bought in shops. Reading a tome teaches the spell if your level is high
+     enough.
+  3. Story quests. Big spells come from the main story (Tonitra, Spirit Warden).
+  4. Achievements. First boss kills and first dungeon clears (Murallis, Resurga).
+  See Appendix B for where every spell is learned.
+
+CLASSES
+  - A class starts every 5 real minutes, rotating through the 6 subjects (Hexcraft,
+    Warding, Charms, Restoration, Alteration, Potions).
+  - A bell rings and a countdown shows on the HUD. Players walk (or use the castle
+    Waystone) to the classroom.
+  - Each class lasts about 3 minutes:
+      a) Lecture (30s): the professor shows the spell, the gesture and the incantation.
+      b) Practice (60s): the gesture tracing minigame.
+      c) Test (60s): cast the spell at moving targets. Hit 5 targets to pass.
+  - Rewards: XP, +5 House Points, and the spell (if you passed and meet its level).
+  - If you already know the spell taught, you get bonus Mastery progress instead.
+  - The class teaches the spell that fits the highest Year among the students
+    present, with a lower-level spell offered to anyone who is not high enough.
+
+GESTURE TRACING MINIGAME
+  - A dotted wand path appears on screen (circle, zigzag, spiral, star...).
+  - The player drags the mouse or finger along the path in one stroke.
+  - Score = how close the stroke stays to the path (sample 32 points, measure
+    distance to the nearest path point). 70% or better passes.
+  - Harder spells have longer, more complex gestures. Shadow Arts gestures are
+    shown only in Shadowfen.
+
+SPELL MASTERY (getting better at a spell by using it)
+  - Every spell has Mastery levels 1-5. You gain progress each time it hits an enemy.
+      Mastery 1: start      Mastery 2: 25 hits    Mastery 3: 75 hits
+      Mastery 4: 150 hits   Mastery 5: 300 hits
+  - Each Mastery level adds +5% to the spell's power (damage, heal or shield).
+  - At Mastery 3 and Mastery 5, pick 1 of 2 upgrades for that spell (can be swapped
+    later at the Library for Gilders).
+
+  Upgrade examples
+    Scintara  M3: Rapid (cooldown 0.45s)          OR  Piercing (passes through 1 enemy)
+              M5: Twin Spark (2 bolts, 60% each)  OR  Charged (hold 1s for 3x damage)
+    Flamara   M3: Wildfire (Burn spreads nearby)  OR  Searing (Burn +50% damage)
+              M5: Twin Flame (2 projectiles)      OR  Firebird Lash (leaves a fire trail)
+    Aegara    M3: Sturdy (+50% absorb)            OR  Riposte (blocked damage fires a
+                                                      bolt back)
+              M5: Lasting (3s duration)           OR  Shared (also shields 1 nearby ally)
+    Vitara    M3: Quick Mend (0.1s cast)          OR  Lingering (+3 HP/s for 3s)
+              M5: Twin Mend (heals 2 targets)     OR  Overheal (extra heal becomes shield)
+  Design the rest the same way: one choice that makes it stronger, one that changes
+  how it plays.
+
+
+=====================================================================================
+8. MONSTERS AND PvE
+=====================================================================================
+
+MONSTER RANKS
+  Normal       Everyday enemies. Groups of 1-4.
+  Elite        Tougher, has a special trick. Glows with a gold outline.
+  Boss         Big fight with phases. Has a boss health bar at the top of the screen.
+  World Boss   Server-wide event. Everyone on the server can join.
+
+WHISPERWOOD FOREST (levels 5-20)
+  Thornimp           Lvl 5-8    Small thorny goblins in groups of 3. Melee scratch and
+                                thorn throw. Drops: Thorn Barb, Gilders.
+  Gloomspider        Lvl 8-12   Drops from the trees to ambush. Web spit = Chilled.
+                                Drops: Spider Silk, rare Spell Tome (Frigora).
+  Lanternwisp        Lvl 10-14  Floating light. Blinks around, fires mana-burn orbs.
+                                Easier to see at night. Drops: Wisp Essence, rare
+                                Spell Tome (Somnara).
+  Moonhowler         Lvl 12-16  Wolf, hunts in pairs, pounce attack. +30% damage at
+                                night. Drops: Moonhowler Fang.
+  Rotbark Sentinel   Lvl 18     ELITE. Walking tree giant. Slow, ground-slam area
+                                attack. Takes x1.5 fire damage. Drops: Heartwood
+                                (wand crafting), rare Salamander familiar.
+  Mother Vexweave    Lvl 20     BOSS. Giant spider queen in Vexweave's Grotto.
+                                Phase 1 (100-60%): spits webs that root, leaps.
+                                Phase 2 (60-25%): hides in the ceiling and spawns
+                                  broodlings (weak Gloomspiders). Burn them with fire.
+                                Phase 3 (25-0%): enrage, faster attacks, poison pools.
+                                Drops: Epic wand "Widow's Bite", Murallis on first
+                                kill, title "Webcutter".
+
+FROSTSPIRE PEAKS (levels 20-35)
+  Snowmaw            Lvl 20-24  Yeti. Throws boulders, roars to knock players back.
+                                Drops: Snowmaw Pelt.
+  Rimewraith         Lvl 24-30  Cloaked frost spirit. Its aura drains 5 mana/s from
+                                players near it. Spirit Warden makes it flee and take
+                                double damage. Drops: Frost Lily, Rime Essence.
+  Frost Troll        Lvl 26-30  Heavy club slam. Regenerates HP unless it is Burning.
+                                Drops: Troll Hide.
+  Ice Wyrmling       Lvl 28-32  Young frost dragon. Flies, frost breath cone.
+                                Drops: Frostfang (wand core), rare Wyrmscale.
+  Crystal Golem      Lvl 33     ELITE. Reflects projectiles that hit its front. Hit it
+                                from behind. Drops: Stormglass (wand core).
+  Glacior the        Lvl 35     BOSS on Wyrm's Roost.
+  Frostwyrm                     Phase 1: ground fight, tail swipes, frost breath.
+                                Phase 2: flies, rains ice spikes (watch the shadows).
+                                Phase 3: blizzard, hide behind ice pillars to avoid
+                                  freezing.
+                                Drops: Legendary wand cores, rare Wyrmling familiar.
+
+SUNKEN CATACOMBS (dungeon, levels 30-40, 1-4 players)
+  Enemy HP and damage scale with party size: 1 player 40%, 2 players 60%,
+  3 players 80%, 4 players 100%.
+  Skeletal Acolyte   Lvl 30-34  Casts weak bolts. Raised again by Lich Warden
+                                Morvane unless finished with fire.
+  Bone Hound         Lvl 30-34  Fast skeletal dog, runs at healers.
+  Cursed Armor       Lvl 32-36  Immune to crowd control. Big slow hits.
+  Mimic Chest        Lvl 34     Looks like a loot chest. Bites. Resero reveals it.
+  Lich Warden        Lvl 40     DUNGEON BOSS.
+  Morvane                       Phase 1: shadow bolts, summons Skeletal Acolytes.
+                                Phase 2: the room goes dark, only Glimmora light shows
+                                  his position.
+                                Phase 3: he steals one player's spells for 10s; the
+                                  team must protect that player.
+                                Drops: Epic/Legendary gear, Resurga on first clear.
+
+SHADOWFEN MARSH (levels 35-50, open PvP)
+  Bog Lurker         Lvl 36-40  Hides in mud, grabs and roots players.
+  Marsh Hag          Lvl 42     ELITE (also the Shadow Arts teacher in Chapter 6,
+                                hostile version spawns after). Curses add Corruption.
+  Shade Stalker      Lvl 44-50  Invisible until close. Glimmora reveals it.
+                                Drops: Voidpearl (wand core).
+
+WORLD EVENT: THE MIRRORLAKE LEVIATHAN
+  - Rises from Mirrorlake every 2 hours for 10 minutes. A server-wide message warns
+    players 2 minutes before.
+  - Level 30 World Boss. Everyone who joins is level-synced to 30, so new players can
+    help too (their stats are scaled up for the event).
+  - Its splash attacks make everyone Wet, so lightning spells do extra damage (the
+    event teaches the combo system).
+  - Rewards are based on contribution (damage, healing, shielding). Everyone who helps
+    gets at least a chest.
+  - Castle Grounds stay a safe zone during the event (no PvP).
+
+MONSTER AI
+  States: Idle -> Patrol -> Chase -> Attack -> Return
+    Idle/Patrol    Wanders near its spawner.
+    Chase          A player came within aggro range (15-30 studs, depends on type)
+                   or attacked it.
+    Attack         In range: uses its attacks with cooldowns.
+    Return         Too far from its spawner (leash 80 studs) or target lost. Walks
+                   back and heals to full.
+  Threat: the monster attacks whoever has the most threat. Damage = 1 threat per
+  point, healing an ally = 0.5 threat per point, Aegara/Murallis on an ally = taunt.
+
+SPAWNERS
+  - Invisible parts in Workspace/MonsterSpawners with attributes:
+      MonsterId = "Gloomspider", MaxAlive = 4, RespawnTime = 30, Radius = 40
+  - The server only spawns monsters near players (skip spawners with no player
+    within 300 studs). Cap: 25 active monsters per zone.
+  - Elites respawn every 5 minutes, zone bosses every 10 minutes (each player can loot
+    a boss once per respawn).
+
+LOOT
+  - Each monster has a loot table in ServerStorage (never on the client).
+  - Loot is personal: each player who helped gets their own drop roll.
+  - Drop example (Gloomspider): Gilders 100%, Spider Silk 60%, Uncommon gear 8%,
+    Frigora Spell Tome 1%.
+  - Rare drops show a colored beam so players notice them.
+
+
+=====================================================================================
+9. PvP (PLAYER VS PLAYER)
+=====================================================================================
+
+SAFE AND PvP ZONES
+  - Hollowmere Village, Ravenmoor Castle and Castle Grounds: no PvP (except the House
+    War area during the event).
+  - Whisperwood and Frostspire: no free-for-all PvP, but players can challenge each
+    other to a duel anywhere in these zones.
+  - Shadowfen Marsh: open PvP.
+  - Everyone gets 5 seconds of spawn protection (ends early if they cast a spell).
+
+DUELING CLUB (friendly duels)
+  - In the castle Dueling Club hall, or use the "Challenge to Duel" prompt on another
+    player in Whisperwood or Frostspire.
+  - Both players bow, a 3-2-1 countdown starts, first to drop to 1 HP loses.
+  - Options: best of 1 or best of 3, "Shadow rules" on/off (both must be level 35+).
+  - Nothing is lost. The winner gets +5 House Points (max 10 duels per hour count).
+
+THE CRUCIBLE (ranked arena)
+  - Join the queue from the Crucible portal in the castle.
+  - Modes: 1v1 at launch, 2v2 in Update 1, 3v3 in Update 3.
+  - Fair rules: everyone is level-synced to 50 with the same stat budget, wand
+    bonuses capped at Rare, no house or familiar perks, no potions, no Shadow Arts.
+    Players must still have learned the spells they use, and at least 12 spells to
+    queue.
+  - Matchmaking rating (MMR) starts at 1000 and uses Elo (see Appendix A).
+  - Tiers:
+      Bronze Wand    0-1099
+      Silver Wand    1100-1299
+      Gold Wand      1300-1499
+      Platinum Wand  1500-1699
+      Diamond Wand   1700-1899
+      Archmage       1900+
+  - Seasons last 8 weeks. End-of-season rewards: robe trims, wand glow effects,
+    titles. Top 100 players get a Mythic wand appearance.
+  - Leaving a match early counts as a loss.
+
+SHADOWFEN MARSH (open-PvP wilds)
+  - Higher rewards: +50% Gilders and XP from monsters, rare wand cores.
+  - Death penalty: drop 10% of carried Gilders (bank your Gilders first).
+  - Level-gap protection: you cannot attack a player 10 or more levels below you,
+    unless they attacked you first or they are Marked (Corruption 100).
+  - Bounties: a player who knocks out 5 players without dying gets a bounty. Whoever
+    knocks them out gets the bounty in Gilders. The Bounty Camp board shows the top
+    bounties on the server.
+
+HOUSE WAR (event)
+  - Every 2 hours (one hour after each Leviathan), for 15 minutes.
+  - Happens in the Ruins of Old Ravenmoor (Castle Grounds). Only players who walk in
+    take part.
+  - 3 control points. Standing on a point with no enemies captures it. Each held point
+    gives your house 1 point per second.
+  - Players are level-synced to 30 during the event.
+  - The winning house gets +500 House Points. Every participant gets XP and a chest.
+
+PvP BALANCE RULES
+  - Spell damage against players is x0.7. Healing during PvP is x0.8.
+  - Crowd control diminishing returns (see Section 6).
+  - Target time-to-kill in a fair 1v1: 30-60 seconds. If fights end faster, lower
+    damage. If they drag on, lower healing.
+  - Track pick rate and win rate for every spell (Section 16). A spell above 55% win
+    rate in ranked gets looked at.
+
+
+=====================================================================================
+10. PROGRESSION AND ECONOMY
+=====================================================================================
+
+XP
+  XP needed for the next level = floor(100 x Level^1.5)
+    Level 1 -> 2:   100 XP
+    Level 10 -> 11: 3,162 XP
+    Level 20 -> 21: 8,944 XP
+  XP sources: monsters, quests, classes, duels, ranked matches, events.
+  Target pace for a normal player: level 10 in about 2 hours, level 20 in about 8-10
+  hours.
+
+CURRENCIES
+  Gilders     Main currency, earned by playing. Used for shops, crafting, respecs.
+  Starshards  Premium currency, bought with Robux (also given in small amounts by the
+              Spellbook Pass). Used only for cosmetics and convenience.
+
+  Gilder sinks (to keep the economy healthy): wand and gear shop, crafting fees,
+  talent/attribute respecs, robe dyes, familiar purchases, Waystone fast travel
+  (25 Gilders), Mastery upgrade swaps.
+
+VAULTKEEP BANK
+  - In Hollowmere. Deposited Gilders are safe and are never dropped in Shadowfen.
+  - Extra item storage tabs (first tab free, more tabs with Gilders or a game pass).
+
+QUESTS
+  Main      The 7 chapters (Section 2). Each chapter = 6-10 quests.
+  Side      NPC errands. Example: Master Murk needs 10 Spider Silk.
+  Daily     3 random tasks, reset every day. Example: defeat 15 Thornimps, win 2
+            duels, brew 1 potion.
+  Weekly    Bigger tasks. Example: defeat Mother Vexweave 3 times, attend 10 classes,
+            take part in a House War.
+  Objective types to build: Kill, Collect, Talk to, Reach a place, Cast a spell,
+  Win a duel, Brew a potion, Attend a class.
+
+CRAFTING SKILLS (each has levels 1-10, separate from character level)
+  Herbology     Gather herbs in the Greenhouses and the wilds (Frost Lily in
+                Frostspire, Bog Myrtle in Shadowfen). Higher level = more per pick.
+  Potioncraft   Brew potions at a cauldron (see below).
+  Wandcrafting  Unlocks at level 20. Combine a wood and a core at Oakhart's workbench.
+                Material tier and skill level decide the wand's rarity.
+
+POTIONS (cauldron minigame)
+  Health Draught     Thorn Barb + Spider Silk       Heals 40% HP over 4s.
+  Mana Tonic         Wisp Essence + Spider Silk     Restores 50 mana.
+  Swiftness Elixir   Moonhowler Fang + Wisp Essence +20% move speed for 30s.
+  Ironskin Brew      Snowmaw Pelt + Frost Lily      -15% damage taken for 60s.
+  Minigame: add ingredients in the right order, then stir with 3 timed button presses
+  on a moving bar. Result quality: Common, Fine (+15% effect) or Perfect (+30%).
+  Potions have a 30-second shared cooldown and are banned in ranked.
+
+LEADERBOARDS
+  All-time: Level, total Prestige, Duels won.
+  Weekly/Season: House Points earned, Crucible rating, Leviathan damage.
+
+
+=====================================================================================
+11. MONETIZATION (NOT PAY-TO-WIN)
+=====================================================================================
+
+RULE: Robux never buys PvP power. Cosmetics and convenience only.
+
+GAME PASSES (one-time purchase)
+  - Wizard VIP: VIP robe set, name color, VIP lounge in the castle, +1 bank tab.
+  - Extra Outfit Slots: save 5 more appearance outfits.
+  - Common Room Decorator: decorate a private study room in your common room.
+  - 2x XP (PvE only): optional. It speeds up leveling but gives no ranked advantage
+    because ranked is level-synced. Remove it if testers say it feels unfair.
+
+DEVELOPER PRODUCTS (buy many times)
+  - Starshard packs.
+  - Spellbook Pass premium track (if not bought with Starshards).
+
+SPELLBOOK PASS (season pass, 8 weeks, matches the ranked season)
+  - 50 tiers, earned with Pass XP from dailies and weeklies.
+  - Free track: Gilders, potions, some cosmetics.
+  - Premium track: robe sets, wand glows, spell color variants (visual only),
+    familiar skins, emotes, some Starshards back.
+
+PRIVATE SERVERS
+  - Allow them at a low price. Players use them to practice duels with friends.
+
+ROBLOX POLICY NOTES
+  - Paid random items (loot boxes): Roblox requires the odds to be shown before
+    purchase, and some countries restrict them. This plan avoids paid random items
+    completely. Familiars and wands from monsters are fine because they are not paid.
+  - Fill in the Experience maturity questionnaire (Creator Dashboard). This game has
+    fantasy combat with no blood or gore, which should get a mild label.
+  - Roblox also pays creators by how long Roblox Premium members play the game
+    (Premium Payouts). Good retention = extra income.
+  - Trading (post-launch, if added): both players must confirm twice, show the items
+    clearly, and log all trades to fight scams.
+
+
+=====================================================================================
+12. TECHNICAL ARCHITECTURE (LUAU)
+=====================================================================================
+
+TOOLS
+  - Roblox Studio for building, terrain, UI layout and animation.
+  - Optional but recommended: Rojo + VS Code + Git for code (version history, real
+    editor). Wally for packages. Build the map in Studio; Rojo only syncs scripts.
+  - Packages: ProfileStore (player data, by loleris), Signal and Trove (by sleitnick).
+  - Framework: use a simple service/controller loader (shown below). Knit is no
+    longer maintained, so do not start a new project on it.
+
+PLACES IN THE EXPERIENCE
+  1. Main World    Hub, castle, all open zones. 30 players.
+  2. Catacombs     Dungeon. Reserved server per party.
+  3. Crucible      Ranked arena. Reserved server per match.
+
+EXPLORER STRUCTURE (Main World)
+
+  game
+  |-- Workspace
+  |   |-- Map
+  |   |   |-- Hollowmere
+  |   |   |-- Castle
+  |   |   |-- Grounds
+  |   |   |-- Whisperwood
+  |   |   |-- Frostspire
+  |   |   `-- Shadowfen
+  |   |-- Zones               (invisible boxes with a "Zone" attribute)
+  |   |-- Spawns
+  |   |-- Waystones
+  |   |-- NPCs
+  |   |-- MonsterSpawners     (parts with MonsterId, MaxAlive, RespawnTime, Radius)
+  |   |-- Interactables       (doors, chests, cauldrons, class doors, herb nodes)
+  |   `-- Runtime             (live monsters and drops, created by scripts)
+  |
+  |-- ReplicatedStorage
+  |   |-- Shared
+  |   |   |-- Config            (combat rules per zone, global constants)
+  |   |   |-- SpellData         (all 29 spells as data)
+  |   |   |-- ItemData          (wands, gear, potions, ingredients, familiars)
+  |   |   |-- MonsterData       (stats and attacks; NOT loot tables)
+  |   |   |-- QuestData
+  |   |   |-- Formulas          (damage, XP, HP, mana - shared by client and server)
+  |   |   `-- Util
+  |   |-- Remotes
+  |   |-- Assets
+  |   |   |-- VFX
+  |   |   |-- Projectiles
+  |   |   |-- Animations
+  |   |   `-- Sounds
+  |   `-- Packages              (Wally shared packages)
+  |
+  |-- ServerScriptService
+  |   |-- Main.server           (loads and starts all services)
+  |   `-- Services
+  |       |-- PlayerDataService
+  |       |-- CombatService
+  |       |-- SpellService
+  |       |-- MonsterService
+  |       |-- ClassService
+  |       |-- QuestService
+  |       |-- HouseService
+  |       |-- PvPService
+  |       |-- MatchmakingService
+  |       |-- EconomyService
+  |       |-- ZoneService
+  |       `-- TelemetryService
+  |
+  |-- ServerStorage
+  |   |-- MonsterModels
+  |   |-- LootTables
+  |   |-- BossArenas
+  |   `-- ServerPackages
+  |
+  |-- StarterPlayer
+  |   |-- StarterPlayerScripts
+  |   |   |-- Main.client       (loads and starts all controllers)
+  |   |   `-- Controllers
+  |   |       |-- InputController
+  |   |       |-- CameraController
+  |   |       |-- CastController
+  |   |       |-- VFXController
+  |   |       |-- UIController
+  |   |       |-- AudioController
+  |   |       |-- MinigameController
+  |   |       `-- PetController
+  |   `-- StarterCharacterScripts (custom Animate script)
+  |
+  |-- StarterGui
+  |   |-- HUD, Spellbook, Inventory, QuestLog, Map, Shop, Duel, Ranked,
+  |   |-- House, Sorting, Minigames, Settings
+  |
+  |-- Lighting                  (Atmosphere, Sky, Bloom, ColorCorrection, SunRays)
+  `-- SoundService              (SoundGroups: Music, Ambience, SFX, UI)
+
+SERVICES (server)
+  PlayerDataService    Load/save player data with ProfileStore. Data migrations.
+  CombatService        HP, mana, stamina, statuses, damage/heal pipeline, knock-outs,
+                       combat rules per zone.
+  SpellService         Cast validation, cooldowns, projectile/beam/area logic, chat
+                       incantations.
+  MonsterService       Spawners, AI state machines, threat, loot drops.
+  ClassService         Class schedule, lessons, gesture tests, teaching spells.
+  QuestService         Quest state, objectives, rewards.
+  HouseService         Sorting, House Points, House Cup, House War.
+  PvPService           Duels, Shadowfen rules, bounties, Corruption.
+  MatchmakingService   Ranked queue, MMR, reserved servers, teleports.
+  EconomyService       Gilders, Starshards, shops, crafting, potions, Robux purchases.
+  ZoneService          Zone detection, safe zones, Waystones, day/night, weather.
+  TelemetryService     Wrapper around Roblox AnalyticsService events.
+
+CONTROLLERS (client)
+  InputController      Key/gamepad/touch bindings with ContextActionService.
+  CameraController     Over-the-shoulder camera and crosshair aim.
+  CastController       Reads aim, sends cast requests, shows the cast right away
+                       (prediction), cancels it if the server rejects it.
+  VFXController        Plays spell effects from SpellFx events, with object pooling.
+  UIController         HUD and menus.
+  AudioController      Zone ambience, music, spell sounds.
+  MinigameController   Gesture tracing and cauldron minigames.
+  PetController        Familiars that follow players (client only).
+
+SERVICE LOADER
+  -- ServerScriptService/Main.server.lua
+  local services = {}
+  for _, module in script.Parent.Services:GetChildren() do
+      if module:IsA("ModuleScript") then
+          services[module.Name] = require(module)
+      end
+  end
+  for _, service in services do
+      if service.Init then service:Init(services) end
+  end
+  for _, service in services do
+      if service.Start then task.spawn(service.Start, service) end
+  end
+  (Main.client.lua does the same for Controllers.)
+
+REMOTES (ReplicatedStorage/Remotes)
+  CastSpell       RemoteEvent            client -> server  (spellId, aimPos)
+  AimUpdate       UnreliableRemoteEvent  client -> server  (aimPos, ~10 per second,
+                                                            used for chat casts)
+  SpellFx         UnreliableRemoteEvent  server -> clients (casterId, spellId, origin,
+                                                            direction, speed)
+  CastRejected    RemoteEvent            server -> client  (spellId, reason)
+  DamageNumber    UnreliableRemoteEvent  server -> clients
+  StatusChanged   RemoteEvent            server -> clients
+  LearnSpell      RemoteFunction         client -> server  (after a passed class test)
+  SetLoadout      RemoteEvent            client -> server  (slot, spellId)
+  ChooseUpgrade   RemoteEvent            client -> server  (spellId, tier, choice)
+  DuelRequest / DuelRespond / QueueRanked / LeaveQueue
+  PurchaseItem    RemoteFunction         client -> server  (shopId, itemId)
+  Tip: most world interactions use ProximityPrompt. Its Triggered event fires on the
+  server, so those need no remote at all.
+
+SPELL DATA (example entry)
+  -- ReplicatedStorage/Shared/SpellData.lua
+  local SpellData = {}
+
+  SpellData.Flamara = {
+      Id = "Flamara",
+      DisplayName = "Flame Lash",
+      School = "Hex",
+      Element = "Fire",
+      UnlockLevel = 4,
+      ManaCost = 15,
+      Cooldown = 5,
+      CastTime = 0.25,
+      Type = "Projectile",
+      Damage = 18,
+      Speed = 120,       -- studs per second
+      Range = 150,       -- studs
+      Radius = 1.5,      -- spherecast radius
+      Status = { Name = "Burn", Dps = 4, Duration = 3 },
+  }
+
+  return SpellData
+
+CASTING FLOW (server-authoritative)
+  1. Client: player presses a key. CastController plays the cast animation and a
+     local projectile right away (so it feels instant), then fires CastSpell.
+  2. Server: SpellService checks everything (code below). If it fails, it sends
+     CastRejected and the client removes its local effect.
+  3. Server: spends mana, starts the cooldown, then simulates the projectile itself:
+     every Heartbeat it moves the projectile forward (speed x dt) and checks for hits
+     with workspace:Spherecast. No projectile Part is created on the server.
+  4. Server: fires SpellFx to all other clients so they draw the same projectile.
+  5. Server: on a hit, CombatService.ApplyDamage runs the formula, the target's shield
+     absorbs first, statuses are applied, and DamageNumber is sent.
+  6. If hits feel unfair for players with high ping, later add "rewind": store each
+     target's positions for the last 0.5s and check the hit against where the target
+     was when the caster fired.
+
+CAST VALIDATION (example)
+  -- ServerScriptService/Services/SpellService.lua (excerpt)
+  local MAX_AIM_SLACK = 15 -- extra studs allowed beyond the spell's range
+
+  local function isBadVector(v)
+      return v.X ~= v.X or v.Y ~= v.Y or v.Z ~= v.Z -- NaN check
+  end
+
+  local function validateCast(player, spellId, aimPos)
+      if typeof(spellId) ~= "string" or typeof(aimPos) ~= "Vector3" then
+          return false, "BadInput"
+      end
+      if isBadVector(aimPos) then return false, "BadInput" end
+
+      local spell = SpellData[spellId]
+      if not spell then return false, "UnknownSpell" end
+
+      local data = PlayerDataService.GetData(player)
+      if not data or not data.Spells[spellId] then return false, "NotLearned" end
+
+      local state = CombatService.GetState(player)
+      if not state or state.KnockedOut or state.Statuses.Silenced then
+          return false, "CannotCast"
+      end
+      if state.Mana < spell.ManaCost then return false, "NoMana" end
+
+      local now = os.clock()
+      if now < (state.Cooldowns[spellId] or 0) then return false, "OnCooldown" end
+
+      local rules = ZoneService.GetRules(player)
+      if spell.School == "Shadow" and not rules.AllowShadowArts then
+          return false, "NotAllowedHere"
+      end
+
+      local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+      if not root then return false, "NoCharacter" end
+      if (aimPos - root.Position).Magnitude > spell.Range + MAX_AIM_SLACK then
+          return false, "OutOfRange"
+      end
+
+      state.Mana -= spell.ManaCost
+      state.Cooldowns[spellId] = now + spell.Cooldown
+      return true
+  end
+
+COMBAT RULES PER ZONE (in Shared/Config)
+  Each zone or place has a rules table that CombatService reads:
+    Hollowmere  = { PvP = false }
+    Whisperwood = { PvP = "DuelsOnly" }
+    Shadowfen   = { PvP = true, PvPMult = 0.7, AllowShadowArts = true,
+                    GoldDropOnKO = 0.10, LevelGapProtection = 10 }
+    Crucible    = { PvP = true, PvPMult = 0.7, LevelSync = 50, AllowPotions = false,
+                    PerksOff = true, WandRarityCap = "Rare" }
+  Adding a new zone = adding one rules table, not new combat code.
+
+CHAT INCANTATIONS
+  - On the server, set a ShouldDeliverCallback on the TextChannel used for general
+    chat. When a message matches an incantation the sender has learned, call the same
+    validateCast with the player's last AimUpdate position and add the +10% "Spoken"
+    bonus. Let the message deliver normally.
+  - Respect the player's "Spoken casting" setting (stored in their data).
+
+PLAYER DATA (ProfileStore template)
+  local Template = {
+      Version = 1,
+      Level = 1, XP = 0, Prestige = 0,
+      House = "",                    -- "" until sorted
+      Attributes = { Power = 0, Focus = 0, Vitality = 0, Agility = 0, Unspent = 0 },
+      Talents = {},                  -- [talentId] = true
+      Spells = {},                   -- [spellId] = { Mastery = 1, Hits = 0, Upgrades = {} }
+      Loadout = { Ward = "", Slot1 = "", Slot2 = "", Slot3 = "", Slot4 = "" },
+      Gilders = 0, BankGilders = 0, Starshards = 0,
+      Inventory = {},                -- list of { Id, ItemId, Rarity, Wood, Core }
+      Equipped = { Wand = "", Robe = "", Hat = "", Amulet = "", Ring = "", Familiar = "" },
+      Appearance = {},
+      Crafting = { Herbology = 1, Potioncraft = 1, Wandcrafting = 0 },
+      Quests = { Active = {}, Done = {} },
+      Corruption = 0,
+      Ranked = { MMR = 1000, Wins = 0, Losses = 0, Season = 1, Games = 0 },
+      Settings = { SpokenCasting = true, CameraShake = true, Sensitivity = 1 },
+      PurchaseHistory = {},          -- receipt ids, so Robux purchases are never granted twice
+  }
+  Rules:
+  - ProfileStore's session lock stops item duplication between servers.
+  - Before teleporting to the Catacombs or the Crucible, end the player's session so
+    the next server can load the data.
+  - Bump Version and write a migration function whenever the template changes.
+  - MarketplaceService.ProcessReceipt: if the player's data is not loaded yet, return
+    NotProcessedYet. Check PurchaseHistory so a receipt is never granted twice.
+  - In Studio: Game Settings > Security > enable Studio access to API services, or
+    data will not save while testing.
+
+RANKED MATCHMAKING
+  - MemoryStoreService sorted map "Ranked1v1": key = userId, sort value = MMR.
+  - Every few seconds a server reads the map and looks for 2 players within +/-100
+    MMR. The range widens by 50 every 10 seconds of waiting.
+  - It claims both players with UpdateAsync (so two servers cannot grab the same
+    player), calls TeleportService:ReserveServer for the Crucible place, and
+    teleports both with TeleportAsync (TeleportOptions.ReservedServerAccessCode).
+    MessagingService tells the other player's server to teleport them.
+  - The Crucible server reports the result and updates both players' MMR.
+
+GLOBAL DATA
+  - House Points: each server adds its points to a DataStore key per house with
+    UpdateAsync once per minute (not on every point).
+  - Weekly/season leaderboards: MemoryStore sorted maps.
+  - All-time leaderboards: OrderedDataStore.
+
+PERFORMANCE
+  - Object pooling: keep a pool of projectile visuals and effect parts on each client.
+    Reuse them instead of creating and destroying.
+  - Use ParticleEmitter:Emit(n) bursts instead of always-on emitters.
+  - Monsters: the server runs AI 5-10 times per second (not every frame). Animations
+    play on clients.
+  - Familiars and damage numbers exist only on clients.
+  - Send VFX through UnreliableRemoteEvents (they are small and fine to drop).
+
+ANTI-EXPLOIT CHECKLIST
+  [ ] Never trust numbers from the client: no damage, HP, mana or cooldowns from it.
+  [ ] Check the type of every remote argument (typeof), plus NaN and string length.
+  [ ] Rate-limit every remote per player (for example CastSpell max 10 per second).
+  [ ] Cooldowns and mana live on the server.
+  [ ] Check movement: if a player moves farther than possible between checks,
+      pull them back. Blink (Translo) is validated on the server.
+  [ ] Loot tables, server configs and admin tools live in ServerStorage /
+      ServerScriptService, never in ReplicatedStorage.
+  [ ] ProcessReceipt is safe to run twice (PurchaseHistory).
+  [ ] Free models: before using one, search it for hidden scripts, require(...) with
+      a number, getfenv and loadstring. These are backdoors.
+  [ ] Log suspicious events (impossible speed, too many remote calls) with
+      TelemetryService and review them.
+
+
+=====================================================================================
+13. UI / UX
+=====================================================================================
+
+STYLE
+  - Parchment panels with brass frames, accent color = player's house.
+  - Fonts: Fondamento or Garamond for titles, BuilderSans for numbers and small text.
+  - Big touch buttons on mobile (at least 60x60 pixels). Test with Studio's device
+    emulator.
+
+HUD LAYOUT
+
+  +-----------------------------------------------------------------------------+
+  | [House crest] Emberclaw 12,450 pts          [ Next class: Charms 1:42 ]  [M] |
+  |                                                                  [minimap]   |
+  |                                                                             |
+  |                                    +                                         |
+  |                               (crosshair)                                    |
+  |                                                                             |
+  | Quest: Clear 10 Thornimps (6/10)                                            |
+  |                                                                             |
+  | HP   [##############------]  420 / 600                                     |
+  | MANA [#########-----------]  140 / 220        STAMINA [########--]          |
+  |                                                                             |
+  |  [LMB Scintara] [1 Flamara] [2 Frigora] [3 Excido] [4 Vitara] [RMB Aegara]  |
+  |                  (cooldown sweeps darken each button while it recharges)     |
+  +-----------------------------------------------------------------------------+
+
+SCREENS
+  Spellbook       Tabs per school. Learned spells (drag into the loadout), locked
+                  spells with "how to learn" text, Mastery bars, upgrade choices,
+                  Combos page, talent trees.
+  Inventory       Character view with the 6 gear slots, item list with rarity
+                  colors, Appearance tab, item compare tooltip.
+  Quest Log       Main / Side / Daily / Weekly. "Track" button adds a waypoint arrow.
+  Map             Zones, Waystones (click to fast travel), event timers (Leviathan,
+                  House War), boss icons.
+  Shop            One layout reused by every shop NPC. Buy/sell, Gilders shown.
+  Class Overlay   Lecture text, gesture minigame, test score.
+  Cauldron        Ingredient slots, stir timing bar, quality result.
+  Duel            Invite popup (accept/decline, best of 1/3, Shadow rules), 3-2-1
+                  countdown, result screen.
+  Ranked          Queue button, estimated wait, tier badge, MMR, season timer.
+  House           House standings, House Cup timer, top contributors.
+  Sorting         The Mirror of Choosing quiz.
+  Knock-out       "You were knocked out" + respawn timer.
+  Boss Bar        Boss name, HP bar with phase markers.
+  Settings        Graphics, mouse/aim sensitivity, keybinds, camera shake, Spoken
+                  casting on/off, music/SFX volume, color-blind mode.
+
+ACCESSIBILITY
+  - Every element also has an icon and shape, not only a color (color-blind mode
+    adds patterns to spell effects).
+  - Text size slider, camera shake toggle, reduced flashing option.
+
+
+=====================================================================================
+14. AUDIO AND VFX
+=====================================================================================
+
+ELEMENT STYLE GUIDE
+  +--------------+----------------+-------------------------------+---------------------+
+  | Element      | Color          | Visuals                       | Sound               |
+  +--------------+----------------+-------------------------------+---------------------+
+  | Arcane       | violet-white   | Sparkle Trail, small flash    | Soft "zip"          |
+  | (Scintara,   |                |                               |                     |
+  | Charms)      |                |                               |                     |
+  | Fire         | orange / red   | Embers, heat flicker, Trail   | Whoosh + crackle    |
+  | Frost        | icy blue       | Shards, mist puff on hit      | Crystal chime, crack|
+  | Lightning    | yellow-white   | Jagged Beam segments, flash   | Sharp crack, thunder|
+  | Ward         | gold           | Hex-pattern bubble (ForceField| Low hum, "clang" on |
+  |              |                | material sphere)              | block               |
+  | Restoration  | soft green     | Rising motes, ring on ground  | Warm chime          |
+  | Alteration   | teal           | Stone dust, spinning rings    | Deep thrum          |
+  | Shadow       | purple-black   | Smoke tendrils, dark Beam     | Whispers            |
+  +--------------+----------------+-------------------------------+---------------------+
+
+VFX RULES
+  - Projectiles: a small MeshPart or Attachment with a Trail and one ParticleEmitter.
+  - Beams: the Beam object between two Attachments; for Tonitra, chain several
+    short Beams with random offsets for a jagged look.
+  - Hits: ParticleEmitter:Emit(20) burst + small screen shake for the caster.
+  - Glow: use LightEmission on particles and Neon material. Max 1 PointLight per
+    projectile, none on low graphics.
+  - Every incantation has a voice-style sound (a whispered word or chant) that plays
+    on cast.
+
+MUSIC AND AMBIENCE
+  - Use original music or tracks from the Creator Store's licensed music library.
+  - Zone tracks: Village (cozy strings), Castle (choir and organ), Whisperwood (low
+    drones, owls, wind), Frostspire (howling wind, chimes), Shadowfen (frogs, bubbles,
+    whispers), boss fights (fast drums), Crucible (arena crowd).
+  - AudioController crossfades the music over 3 seconds when the zone changes.
+
+
+=====================================================================================
+15. ROADMAP (SOLO, ABOUT 18 WEEKS TO LAUNCH)
+=====================================================================================
+
+PHASE 0 - SETUP
+  Week 1   Rojo + Git, folder structure, service/controller loader, Config, Formulas,
+           ProfileStore data template, empty HUD.
+
+PHASE 1 - COMBAT PROTOTYPE
+  Week 2   InputController, CastController, CastSpell remote, SpellService
+           validation, mana and cooldowns. Scintara and Aegara working.
+  Week 3   Server projectile simulation, CombatService damage pipeline, statuses
+           (Burn, Chilled, Rooted, Silenced), training dummies, damage numbers.
+  Week 4   Flamara, Frigora, Excido, Vitara, Saxifra. Cast animations, VFX, sounds,
+           over-the-shoulder camera, dodge roll.
+           MILESTONE: fighting a dummy is fun for 5 minutes.
+
+PHASE 2 - WORLD AND MONSTERS
+  Week 5   Greybox the launch map. Sculpt and paint Castle Grounds and Whisperwood.
+           Mirrorlake water.
+  Week 6   Hollowmere Village, castle exterior, Great Hall, classrooms, Library.
+           Lighting and atmosphere per zone. StreamingEnabled tests on a phone.
+  Week 7   MonsterService (AI, spawners, threat), the 5 Whisperwood monsters, loot,
+           XP and leveling, Mother Vexweave boss fight.
+
+PHASE 3 - LEARNING AND HOUSES
+  Week 8   ClassService (schedule, lessons), professor NPCs, gesture minigame,
+           Spellbook UI, loadout editing.
+  Week 9   Sorting quiz, house robes, House Points, House Cup. Mastery and upgrades.
+           Talent trees.
+  Week 10  Everything saves. Add all spells up to level 20.
+           MILESTONE v0.1: 2-hour playtest with friends.
+
+PHASE 4 - PvP
+  Week 11  Dueling Club and duel challenges, combat rules per zone, CC diminishing
+           returns.
+  Week 12  Crucible place, reserved servers, MemoryStore queue, MMR and tiers.
+  Week 13  House War event. Balance pass using PvP results.
+
+PHASE 5 - CONTENT AND POLISH
+  Week 14  Shops, wands (wood + core), gear, familiars, potions + cauldron minigame,
+           Vaultkeep Bank, Waystones.
+  Week 15  Chapters 1-2 main story, side quests, dailies and weeklies, quest log and
+           waypoints. Tutorial funnel.
+  Week 16  Game passes, Starshards, Spellbook Pass season 1. Mobile and gamepad
+           controls. Settings. Performance pass on a low-end phone.
+
+PHASE 6 - TEST AND LAUNCH
+  Week 17  Closed beta: bugs, exploit testing, balance tuning, analytics check.
+  Week 18  Icon, thumbnails, short trailer, maturity questionnaire, launch, watch
+           the numbers, hotfix.
+
+v0.1 PROTOTYPE CHECKLIST (end of week 10)
+  [ ] Village, castle (Great Hall, 3 classrooms, Library), Grounds, Whisperwood
+  [ ] Casting, ward, dodge, aiming on PC
+  [ ] All 19 spells that unlock at levels 1-20
+  [ ] 5 Whisperwood monsters + Mother Vexweave
+  [ ] Classes with the gesture minigame
+  [ ] Sorting, houses, House Points
+  [ ] Leveling to 20, Mastery, saving
+
+v1.0 LAUNCH CHECKLIST (week 18)
+  [ ] Everything in v0.1
+  [ ] Dueling Club, Crucible ranked 1v1, House War
+  [ ] Shops, wands, gear, familiars, potions, bank
+  [ ] Chapters 1-2, side quests, dailies, weeklies
+  [ ] Spellbook Pass season 1, game passes
+  [ ] Mobile and gamepad controls
+  [ ] Tutorial under 10 minutes, tested with new players
+
+IF YOU FALL BEHIND, CUT THESE FIRST (move them to Update 1)
+  House War, talent trees, the cauldron minigame (make brewing one click),
+  2 of the 3 Crucible arena maps.
+
+UPDATES AFTER LAUNCH (about every 4 weeks)
+  Update 1   Mirrorlake Leviathan world event, Crucible 2v2, Chapter 3, anything cut.
+  Update 2   Frostspire Peaks, level cap 35, Chapter 4, spells up to level 35
+             (Spirit Warden, Solar Nova and the rest).
+  Update 3   Sunken Catacombs dungeon, level cap 40, Chapter 5, Crucible 3v3.
+  Update 4   Shadowfen Marsh, Shadow Arts and Corruption, level cap 50, Chapter 6.
+  Update 5   Chapter 7 raid (Malachar Vane), Graduation/Prestige, a flying sport on
+             the flying pitch.
+  Every 8 weeks: a new ranked season and Spellbook Pass.
+
+
+=====================================================================================
+16. TESTING AND LAUNCH
+=====================================================================================
+
+TESTING IN STUDIO
+  - Test > Clients and Servers with 2-4 players to test duels, combos and threat.
+  - Device emulator (phones, tablets) and a real low-end phone for performance.
+  - Unit tests: use Jest Lua for the Formulas module (damage, XP, Elo) so balance
+    changes never break the math.
+  - Exploit test: try to fire remotes with wrong values from the command bar on a
+    test client. Every bad call should be rejected.
+
+PLAYTEST MILESTONES
+  Week 4    Solo combat feel. Is casting satisfying? Is aiming easy?
+  Week 7    First 20 minutes with 3 friends. Do they understand where to go?
+  Week 10   v0.1, 2 hours with 5-10 testers. Where do they get bored?
+  Week 13   PvP with 10+ testers. Any spell too strong?
+  Week 17   Closed beta with 30-50 testers. Bugs, exploits, economy.
+  Ask testers: What was the most fun? What was confusing? When did you want to quit?
+  Which spell is "broken"?
+
+BALANCE SPREADSHEET
+  One row per spell: damage, mana, cooldown, damage per second, damage per mana,
+  PvP pick rate, PvP win rate.
+  Targets:
+    Normal monster (same level)   dies in 5-8 seconds
+    Elite monster                 30-45 seconds
+    Zone boss                     3-5 minutes solo, 1.5-2 minutes with 3 players
+    Fair 1v1 duel                 30-60 seconds
+
+ANALYTICS (Roblox AnalyticsService, through TelemetryService)
+  Funnel:   joined, wand received, sorted, first class, combat tutorial done, first
+            quest done, reached level 5, first boss kill.
+  Economy:  every Gilder and Starshard earned (source) and spent (sink).
+  Custom:   spell casts and win rates, deaths per zone, class attendance, queue wait
+            times, chat-cast usage.
+  Watch:    Day 1 and Day 7 retention, average session length, where new players quit.
+
+LAUNCH CHECKLIST
+  [ ] Game icon (512x512) and 3+ thumbnails, short trailer
+  [ ] Description and short update log
+  [ ] Maturity questionnaire done
+  [ ] API services and DataStores working in the live game
+  [ ] Data saves on leave and on server shutdown (BindToClose)
+  [ ] Test purchases of every pass and product
+  [ ] Soft launch to friends and a small group first
+  [ ] Roblox group for the game (community, updates)
+  [ ] Ads Manager / sponsored ads budget (optional)
+  [ ] Plan the first update before launch day
+
+
+=====================================================================================
+17. STAYING PUBLISH-SAFE
+=====================================================================================
+
+Harry Potter is owned by Warner Bros. and J.K. Rowling. Roblox removes games that use
+its names, logos or music when the owners report them. This is general guidance, not
+legal advice.
+
+NEVER USE THESE (or close copies)
+  Places:      Hogwarts, Hogsmeade, Diagon Alley, Gringotts, Ollivanders,
+               Platform 9 3/4, Hogwarts Express
+  Houses:      Gryffindor, Hufflepuff, Ravenclaw, Slytherin, the Sorting Hat
+  Spells:      Expelliarmus, Stupefy, Protego, Lumos, Nox, Accio, Alohomora,
+               Wingardium Leviosa, Expecto Patronum, Avada Kedavra, Crucio, Imperio,
+               Sectumsempra, Petrificus Totalus, Incendio, Reducto, Confringo,
+               Episkey, Aguamenti, Ascendio, Glacius, Levicorpus
+  Creatures:   Dementor, Patronus, Hippogriff, Thestral, Acromantula, Basilisk,
+               Boggart, Inferi
+  People:      Harry Potter, Hermione, Ron, Dumbledore, Snape, Hagrid, Voldemort,
+               Death Eaters
+  Other:       Quidditch, Golden Snitch, Muggle, Horcrux, Floo powder, Butterbeer,
+               Galleons/Sickles/Knuts, Nimbus/Firebolt brooms, the Elder Wand, the
+               "phoenix feather / dragon heartstring / unicorn hair" wand cores,
+               the movie logo font, the movie music (Hedwig's Theme), a lightning-bolt
+               scar with round glasses as a character look
+
+FINE TO USE (general fantasy, owned by nobody)
+  Wands, robes, pointy hats, spellbooks, potions, cauldrons, owls, cats, toads,
+  brooms, a magic school, school houses and a house cup, castles, dragons, trolls,
+  spiders, wolves, ghosts, Latin-sounding spell words that you invent yourself.
+
+ALSO
+  - Do not copy the films' castle shape, crests or house color+animal combinations
+    exactly.
+  - Free Creator Store models can hide backdoor scripts (see the checklist in
+    Section 12). Check every model you insert, or build your own.
+
+
+=====================================================================================
+APPENDIX A. FORMULA SHEET
+=====================================================================================
+
+PLAYER
+  MaxHP        = 100 + 10 x Level + 10 x Vitality
+  MaxMana      = 100 + 2 x Level + 5 x Focus
+  ManaRegen/s  = 4 + 0.2 x Focus        (x2 after 5 seconds out of combat)
+  Stamina      = 100, dodge costs 35, regen 20/s after 1 second
+  WalkSpeed    = 16 x (1 + 0.0025 x Agility), max +15%
+  CritChance   = 5% + 0.2% x Agility (max 25%), crit damage x1.5
+
+DAMAGE / HEALING / SHIELDS
+  LevelScale   = 1 + 0.08 x (Level - 1)
+  Final = Base
+        x LevelScale
+        x (1 + 0.02 x Power)
+        x (1 + 0.05 x (Mastery - 1))
+        x (1 + WandBonus + HouseBonus + TalentBonus)
+        x ElementOrComboBonus
+        x Crit (1.5 if crit)
+        x PvPMult (0.7 vs players, 1.0 vs monsters; healing 0.8 in PvP)
+        x (1 - TargetResist)
+  Example: level 10, Power 10, Mastery 2, Flamara (18 base) vs a monster:
+    18 x 1.72 x 1.2 x 1.05 = about 39 damage before the Burn.
+
+COOLDOWNS
+  Cooldown = Base x (1 - HouseCDR - TalentCDR), never below 50% of Base
+
+XP AND LEVELS
+  XP to next level = floor(100 x Level^1.5)
+
+MONSTERS
+  HP      = (50 + 25 x Level) x RankMult
+            RankMult: Normal 1, Elite 3, Boss 15, Dungeon Boss 20, World Boss 50
+  Damage  = (5 + 2 x Level) x (Normal 1, Elite 1.5, Boss 2.5)
+  XP      = (10 + 5 x Level) x (Normal 1, Elite 4, Boss 25)
+  Gilders = 2 + Level x (Normal 1, Elite 5, Boss 50)
+  Dungeon scaling by party size: 40% / 60% / 80% / 100% for 1 / 2 / 3 / 4 players
+
+RANKED (Elo)
+  Expected = 1 / (1 + 10 ^ ((OpponentMMR - YourMMR) / 400))
+  NewMMR   = MMR + K x (Result - Expected)     Result: 1 win, 0 loss
+  K = 48 for your first 10 games, then 32
+
+CROWD CONTROL
+  Diminishing returns within 10 seconds: 100% -> 50% -> 25% -> immune for 5 seconds
+
+
+=====================================================================================
+APPENDIX B. SPELL QUICK REFERENCE (29 spells)
+=====================================================================================
+
+  +--------------+---------------+-------------+-----+--------------------------------------+
+  | Incantation  | Spell         | School      | Lvl | Learned from                         |
+  +--------------+---------------+-------------+-----+--------------------------------------+
+  | Scintara     | Spark Bolt    | Hex         |  1  | Tutorial (first wand)                |
+  | Aegara       | Ward Shield   | Ward        |  1  | Tutorial (first wand)                |
+  | Glimmora     | Light Orb     | Charm       |  1  | Tutorial (first wand)                |
+  | Resero       | Unseal        | Charm       |  3  | Charms class                         |
+  | Vitara       | Mend          | Restoration |  3  | Restoration class                    |
+  | Flamara      | Flame Lash    | Hex         |  4  | Hexcraft class                       |
+  | Velocis      | Swiftstep     | Charm       |  5  | Charms class                         |
+  | Excido       | Disarm        | Charm       |  6  | Dueling Club intro quest             |
+  | Saxifra      | Stone Bind    | Alteration  |  7  | Alteration class                     |
+  | Frigora      | Frost Shard   | Hex         |  8  | Hexcraft class / Gloomspider tome    |
+  | Aerovanta    | Lift          | Charm       |  9  | Charms class                         |
+  | Speculo      | Mirror Ward   | Ward        |  10 | Warding class                        |
+  | Purgo        | Cleanse       | Restoration |  11 | Restoration class                    |
+  | Ruptara      | Blast Hex     | Hex         |  12 | Hexcraft class                       |
+  | Tractum      | Pull          | Charm       |  14 | Library Restricted Shelf quest       |
+  | Tonitra      | Chain Light.  | Hex         |  15 | Main quest, Chapter 2                |
+  | Somnara      | Slumber       | Alteration  |  16 | Alteration class / Lanternwisp tome  |
+  | Durassa      | Stoneskin     | Ward        |  18 | Warding class                        |
+  | Murallis     | Bastion Dome  | Ward        |  20 | First Mother Vexweave kill           |
+  | Translo      | Blink         | Charm       |  22 | Charms class                         |
+  | Renovo       | Renewal Aura  | Restoration |  24 | Restoration class                    |
+  | Vortexa      | Vortex Hex    | Hex         |  25 | Hexcraft class                       |
+  | Mutara       | Critter Curse | Alteration  |  28 | Alteration class                     |
+  | Solarion     | Solar Nova    | Hex         |  30 | Year 5 exam (main quest)             |
+  | Custos Lumen | Spirit Warden | Ward        |  30 | Main quest, Chapter 4                |
+  | Resurga      | Second Wind   | Restoration |  33 | First Sunken Catacombs clear         |
+  | Umbrexa      | Umbral Lash   | Shadow      |  35 | Marsh Hag questline, Chapter 6       |
+  | Terrora      | Hex of Dread  | Shadow      |  38 | Marsh Hag questline, Chapter 6       |
+  | Animor       | Soul Siphon   | Shadow      |  42 | Marsh Hag questline, Chapter 6       |
+  +--------------+---------------+-------------+-----+--------------------------------------+
+  Count by school: Hex 7, Ward 5, Charm 7, Restoration 4, Alteration 3, Shadow 3.
+  Spells up to level 20 (launch): 19.
+
+
+=====================================================================================
+APPENDIX C. MONSTER QUICK REFERENCE
+=====================================================================================
+
+  HP uses the formula in Appendix A.
+  +----------------------+--------------+--------+-------------+---------------+
+  | Monster              | Zone         | Level  | Rank        | HP            |
+  +----------------------+--------------+--------+-------------+---------------+
+  | Thornimp             | Whisperwood  | 5-8    | Normal      | 175-250       |
+  | Gloomspider          | Whisperwood  | 8-12   | Normal      | 250-350       |
+  | Lanternwisp          | Whisperwood  | 10-14  | Normal      | 300-400       |
+  | Moonhowler           | Whisperwood  | 12-16  | Normal      | 350-450       |
+  | Rotbark Sentinel     | Whisperwood  | 18     | Elite       | 1,500         |
+  | Mother Vexweave      | Whisperwood  | 20     | Boss        | 8,250         |
+  | Snowmaw              | Frostspire   | 20-24  | Normal      | 550-650       |
+  | Rimewraith           | Frostspire   | 24-30  | Normal      | 650-800       |
+  | Frost Troll          | Frostspire   | 26-30  | Normal      | 700-800       |
+  | Ice Wyrmling         | Frostspire   | 28-32  | Normal      | 750-850       |
+  | Crystal Golem        | Frostspire   | 33     | Elite       | 2,625         |
+  | Glacior the Frostwyrm| Frostspire   | 35     | Boss        | 13,875        |
+  | Skeletal Acolyte     | Catacombs    | 30-34  | Normal      | 800-900       |
+  | Bone Hound           | Catacombs    | 30-34  | Normal      | 800-900       |
+  | Cursed Armor         | Catacombs    | 32-36  | Normal      | 850-950       |
+  | Mimic Chest          | Catacombs    | 34     | Normal      | 900           |
+  | Lich Warden Morvane  | Catacombs    | 40     | Dungeon Boss| 21,000 (4 pl.)|
+  | Bog Lurker           | Shadowfen    | 36-40  | Normal      | 950-1,050     |
+  | Marsh Hag            | Shadowfen    | 42     | Elite       | 3,300         |
+  | Shade Stalker        | Shadowfen    | 44-50  | Normal      | 1,150-1,300   |
+  | Mirrorlake Leviathan | Grounds      | 30     | World Boss  | 40,000        |
+  +----------------------+--------------+--------+-------------+---------------+
+
+
+=====================================================================================
+APPENDIX D. GLOSSARY
+=====================================================================================
+
+  Airborne          Status: lifted into the air, cannot move or dodge.
+  Corruption        0-100 meter that rises when you use Shadow Arts.
+  Crowd control/CC  Effects that stop a player acting (Silenced, Rooted, Asleep...).
+  Elo / MMR         Rating number used to match ranked players of similar skill.
+  Gilders           The main currency, earned in play.
+  House Points      Points players earn for their house. The top house wins the Cup.
+  Level Sync        Setting everyone to the same level and stats for fair fights.
+  Marked            Corruption at 100. Has a bounty and can be attacked by anyone in
+                    Shadowfen.
+  Mastery           Levels 1-5 of skill with one spell, earned by hitting with it.
+  ProfileStore      Luau module for saving player data with session locking.
+  Reserved server   A private server made by script, used for dungeons and ranked.
+  Rojo              Tool that syncs code files from VS Code into Roblox Studio.
+  Spoken casting    Casting a spell by typing its incantation in chat.
+  Starshards        Premium currency bought with Robux, cosmetics only.
+  StreamingEnabled  Roblox setting that only loads the parts of the map near you.
+  Threat            How much a monster wants to attack you.
+  Waystone          Fast-travel stone. Also your respawn point after a knock-out.
+
+=====================================================================================
+END OF DOCUMENT
+=====================================================================================

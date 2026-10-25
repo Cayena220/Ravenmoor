@@ -1,0 +1,6 @@
+# Roblox Studio's open-file lock (machine name and session id)
+*.rbxlx.lock
+# Backups written by tools/sync_scripts.py
+*.rbxlx.bak
+*.rbxlx.bak-*
+__pycache__/

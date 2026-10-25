@@ -1,0 +1,7 @@
+Wandbound 0.1.0 — validation performed 2026-10-21
+
+PASS: 100 headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, progression, locks, rate limits).
+PASS: place XML, 935 instances, 23 embedded sources, 19 interaction anchors, classroom clearance.
+PASS: all 23 source files compile with the Lua 5.4 parser (Luau-compatible subset).
+
+These checks ran outside Roblox Studio. Engine playtests are not completed.

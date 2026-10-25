@@ -1,0 +1,36 @@
+{
+  "name": "Wandbound",
+  "tree": {
+    "$className": "DataModel",
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": true
+      },
+      "Map": {
+        "$path": "world/Map.rbxmx"
+      },
+      "Markers": {
+        "$path": "world/Markers.rbxmx"
+      },
+      "Spawns": {
+        "$path": "world/Spawns.rbxmx"
+      }
+    },
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "$path": "src/server"
+    },
+    "ServerStorage": {
+      "$path": "src/serverstorage"
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/client"
+      }
+    }
+  }
+}
