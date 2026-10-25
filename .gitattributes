@@ -1,0 +1,4 @@
+# Text files are LF in the repository and in every checkout, whatever core.autocrlf says.
+# tools/sync_scripts.py compares script text byte for byte, so mixed line endings show up as false changes.
+* text=auto eol=lf
+*.png binary
