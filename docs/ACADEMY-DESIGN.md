@@ -20,7 +20,7 @@ The academy is built from the exterior concept canvas, [Academy Exterior Remodel
 | Ground | North gardens | Two avenues, the garden walk, a glasshouse, hedges and trees. |
 | 12 or 24 | House quarters | One 90 × 84 walled terrace per house: Emberclaw and Stoneroot to the west, Skyquill and Nightfang to the east. Each has a common room hall roofed in the house colour, a dorm tower with a house-colour spire, a gate, an emblem in its court, and its own stair down to an avenue. The nearest two quarters are 150 studs apart. |
 
-Every stair uses a 1-stud rise and a 2-stud run. An east walk runs from the training yard along the duel arena to the north gardens, and a path joins the west wing stair to the forest path. About one window in three is a `Lit window`, as are the pylon and fountain lanterns. WorldService switches those from Glass to Neon between 18:30 and 06:00.
+Every stair uses a 1-stud rise and a 2-stud run. An east walk runs from the training yard along the duel arena to the north gardens, and a path joins the west wing stair to the forest path. Village lamp posts line the plaza, both avenues, the garden walk and the east walk. About one window in three is a `Lit window`, and the pylon, fountain and hall lights are `Lantern`s. Between 18:30 and 06:00 WorldService turns every night light to Neon and switches on its warm light. Colours come from the shared world palette, `tools/palette.py`, and the garden trees, lamps and signs are the village's own builders.
 
 ## What moved
 
@@ -62,6 +62,6 @@ python tools/validate.py
 
 ## Validation and remaining playtests
 
-The campus has 1,491 parts (budget 1,600) and the map 3,063 (budget 3,300). The walking check floods every level with a 2.5-stud-wide, 5.5-stud-tall player that climbs at most 1.15 studs per step. It confirms routes from the arrival plaza up the stairs to all 11 halls, the 4 house courts, the Mirror, the library shelf and all five professors. The classroom target-clearance check also passes. Removing the stair steps makes the walking check fail.
+The campus has 1,501 parts (budget 1,600) and the map 3,217 (budget 3,300). The walking check floods every level with a 2.5-stud-wide, 5.5-stud-tall player that climbs at most 1.15 studs per step. It confirms routes from the arrival plaza up the stairs to all 11 halls, the 4 house courts, the Mirror, the library shelf and all five professors. The classroom target-clearance check also passes. Removing the stair steps makes the walking check fail.
 
 Still to check in Roblox Studio: walk every stair at normal speed, check the wedge string walls, gables and spires, try the camera in the halls and on the bridges, light the windows at night, finish a lesson in each classroom, use the Mirror and the library, start a duel from the Duelmaster's new spot, and profile on a phone.

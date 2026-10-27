@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Copy src/ scripts (and optionally world/Map.rbxmx and world/Markers.rbxmx) into the .rbxlx
+"""Copy src/ scripts (and optionally the world/ Map, Markers and Spawns models) into the .rbxlx
 without rebuilding the place.
 
 Works on places saved by build.py or by Roblox Studio. Only script Source text changes and
 missing scripts are added to their folders; everything else stays byte for byte. With --map,
-Workspace/Map and Workspace/Markers are also replaced by the ones from
+Workspace/Map, Workspace/Markers and Workspace/Spawns are also replaced by the ones from
 `python tools/build.py --world-only` or `python tools/upgrade_academy.py`, when they differ.
 
     python tools/sync_scripts.py           update the place (writes a .bak copy first)
-    python tools/sync_scripts.py --map     also replace Workspace/Map and Workspace/Markers
+    python tools/sync_scripts.py --map     also replace Workspace/Map, Markers and Spawns
     python tools/sync_scripts.py --check   report differences only; exit 1 when out of date
 """
 from collections import Counter
@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLACE = ROOT / 'Wandbound-Ravenmoor-Academy.rbxlx'
 MAP = ROOT / 'world' / 'Map.rbxmx'
 MARKERS = ROOT / 'world' / 'Markers.rbxmx'
+SPAWNS = ROOT / 'world' / 'Spawns.rbxmx'
 # Same mapping as default.project.json.
 FOLDERS = {'shared': 'ReplicatedStorage/Shared', 'server': 'ServerScriptService',
            'serverstorage': 'ServerStorage', 'client': 'StarterPlayer/StarterPlayerScripts'}
@@ -59,7 +60,7 @@ def scan(text):
 
 
 def map_signature(item_xml):
-    """Geometry of every part in a Map item: (class, name, position, size), rounded."""
+    """Every part in a Map item: (class, name, position, size, colour, material), rounded."""
     return signature(ET.fromstring('<r xmlns:xmime="http://www.w3.org/2005/05/xmlmime">' + item_xml + '</r>'))
 
 
@@ -72,7 +73,8 @@ def signature(root):
             continue
         out[(it.get('class'), props.find("string[@name='Name']").text,
              tuple(round(float(cf.find(k).text), 2) for k in 'XYZ'),
-             tuple(round(float(size.find(k).text), 2) for k in 'XYZ'))] += 1
+             tuple(round(float(size.find(k).text), 2) for k in 'XYZ'),
+             props.findtext("Color3uint8[@name='Color3uint8']"), props.findtext("token[@name='Material']"))] += 1
     return out
 
 
@@ -138,7 +140,7 @@ def main():
     extra = [p for p, n in nodes.items() if n['cls'] in ('Script', 'LocalScript', 'ModuleScript') and p not in known]
     map_notes = []
     if '--map' in sys.argv:
-        for where, source in (('Workspace/Map', MAP), ('Workspace/Markers', MARKERS)):
+        for where, source in (('Workspace/Map', MAP), ('Workspace/Markers', MARKERS), ('Workspace/Spawns', SPAWNS)):
             current = nodes.get(where)
             if not current:
                 raise SystemExit(f'Cannot replace {where}: it is missing from the place.')

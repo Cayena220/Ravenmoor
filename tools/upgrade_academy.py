@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Rebuild the academy campus and the map groups it touches; keep every other map group from the place.
 
-Land (the meadow runs north to the house quarters), Academy staff (teachers stand on the raised classroom
-floors), Mirror of Choosing and Ravenmoor Academy are generated fresh. Groups from earlier academy versions
-are dropped. All other map groups, Studio edits included, are copied from the current place. Also writes
+Land (the meadow runs north to the house quarters), Lamps (the campus avenues have posts too), Academy
+staff (teachers stand on the raised classroom floors), Mirror of Choosing and Ravenmoor Academy are
+generated fresh. Groups from earlier academy versions are dropped. All other map groups, Studio edits included, are copied from the current place. Also writes
 world/Markers.rbxmx and src/shared/WorldPoints.lua for the moved anchors.
 Run sync_scripts.py --map afterwards to apply the map and markers to the place.
 """
@@ -11,7 +11,7 @@ import copy
 import xml.etree.ElementTree as ET
 import build
 
-REPLACED=('Land','Academy staff','Mirror of Choosing','Ravenmoor Academy')
+REPLACED=('Land','Lamps','Academy staff','Mirror of Choosing','Ravenmoor Academy')
 RETIRED=('Classrooms','Library')
 
 

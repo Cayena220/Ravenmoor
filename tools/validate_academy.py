@@ -6,7 +6,7 @@ studs: the stairs use 1-stud steps. The walk starts on the arrival plaza.
 """
 from collections import deque
 from math import ceil, floor
-from academy import BOUNDS, COURTS, FLOORS, PLAZA, ROOMS, SCHOOLS
+from academy import ARRIVAL, BOUNDS, COURTS, FLOORS, ROOMS, SCHOOLS
 
 STEP=1.15; BODY=5.5; REACH=1.25
 # Places the campus must leave alone: the Whisperwood zone, the duel arena and the training platform.
@@ -36,7 +36,7 @@ def validate_academy(world, geometry, spots, box, name_of):
             for z in range(max(zmin,ceil(cz-hz-REACH)),min(zmax,floor(cz+hz+REACH))+1): blocks.setdefault((x,z),[]).append((bottom,top))
     def levels(cell): return floors.get(cell,set())|{0.0}   # the meadow is everywhere
     def clear(cell,h): return all(b>=h+BODY or t<=h+STEP for b,t in blocks.get(cell,()))
-    start=(round((PLAZA[0]+PLAZA[1])/2),PLAZA[3]-10,0.4)
+    start=(round((ARRIVAL[0]+ARRIVAL[1])/2),ARRIVAL[3]-10,0.4)
     assert clear(start[:2],start[2]), 'Arrival plaza blocked'
     seen={start}; queue=deque([start])
     while queue:

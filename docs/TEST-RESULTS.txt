@@ -1,16 +1,18 @@
-Local validation — 2026-10-27 (terraced academy campus)
+Local validation — 2026-10-27 (shared world palette, night lights and kit)
 Commands (PowerShell):
   $env:WANDBOUND_LUA_LIBRARY = 'C:\xampp\apache\bin\lua54.dll'
-  python tools/upgrade_academy.py
+  python tools/build.py --world-only
   python tools/sync_scripts.py --map
   python tools/validate.py
   python tools/sync_scripts.py --map --check
 
 PASS: 334 headless assertions, all in tests/headless.lua, including delayed client dependency loading, all 15 prompts, all eleven NPCs' dialogue and services, sorting, waystones, buying/brewing/using items, tome level gates, bank transactions, wand equip/discard selection payloads, and gamepad prompt/casting conflicts.
 PASS: all 27 source files compile with the Lua 5.4 parser.
-PASS: place XML, 3431 instances, 27 embedded sources, 19 interaction anchors, classroom clearance at the five new classroom halls, shop doors, 10 houses and 3063 map parts (budget 3300).
-PASS: academy campus has 1491 parts (budget 1600); a 2.5 × 5.5-stud player climbing 1-stud steps reaches all 11 academy halls, the 4 house quarters and the 7 academy quest anchors from the arrival plaza. With the stair steps removed, the same check fails.
+PASS: place XML, 3634 instances, 27 embedded sources, 19 interaction anchors, classroom clearance at the five classroom halls, shop doors, 10 houses and 3217 map parts (budget 3300).
+PASS: 195 windows and 61 lanterns light up at night; every night light is glass by day, every lantern carries a light, and no window pane is outside the pattern.
+PASS: forest trees and stones and every village part keep their positions; the map uses 118 distinct colours (was 370).
+PASS: academy campus has 1501 parts (budget 1600); a 2.5 × 5.5-stud player climbing 1-stud steps reaches all 11 academy halls, the 4 house quarters and the 7 academy quest anchors from the arrival plaza. With the stair steps removed, the same check fails.
 PASS: campus parts stay inside the world and clear of the Whisperwood zone, the duel arena and the training platform.
-PASS: place map and markers match world/Map.rbxmx and world/Markers.rbxmx; updated Config, WorldService and WorldPoints are synchronized into the playable .rbxlx.
-NOT CHECKED IN STUDIO: wedge orientation of gables, spires, window heads and stair string walls (WEDGE_FLIP must match ROOF_FLIP), walking the 1-stud stairs, lit windows at night, lessons at the moved professors, the Mirror and library at their new spots, and duels from the Duelmaster's new spot.
+PASS: place map, markers and spawns match the world/ models, colours included; updated Config, WorldService and WorldPoints are synchronized into the playable .rbxlx.
+NOT CHECKED IN STUDIO: night lights and lamp PointLights switching at dusk, LeafyGrass canopies, campus signs facing outward, wedge orientation of gables, spires, window heads and stair string walls (WEDGE_FLIP must match ROOF_FLIP), walking the 1-stud stairs, lit windows at night, lessons at the moved professors, the Mirror and library at their new spots, and duels from the Duelmaster's new spot.
 NOT RUN: Roblox Studio, real GUI/camera/input, physics, live DataStore, multiplayer and device integration. Follow docs/PLAYTEST.md.

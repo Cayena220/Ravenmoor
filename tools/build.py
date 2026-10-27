@@ -7,7 +7,9 @@ import random
 import json
 import copy
 import sys
-from academy import build_academy
+from types import SimpleNamespace
+from academy import build_academy, LAMPS
+from palette import *  # noqa: F401,F403 (world colour tokens)
 
 ROOT = Path(__file__).resolve().parents[1]
 RNG = random.Random(31021)
@@ -56,7 +58,6 @@ MATERIAL = {'Plastic':256, 'SmoothPlastic':272, 'Neon':288, 'Wood':512, 'WoodPla
             'Marble':784, 'Basalt':788, 'Slate':800, 'Concrete':816, 'Limestone':820, 'Granite':832,
             'Brick':848, 'Cobblestone':880, 'Rock':896, 'CorrodedMetal':1040, 'Grass':1280, 'Sand':1296,
             'Metal':1088, 'Glass':1568, 'LeafyGrass':1284}
-STONE=(80,91,109); DARK=(45,55,71); ROOF=(47,75,91); GOLD=(202,160,83)
 
 def part(parent, name, pos, size, color, material='SmoothPlastic', shape=1, yaw=0, collide=True, transparent=0, query=True, cls='Part', pitch=0, roll=0):
     p=item(parent,cls,name)
@@ -76,7 +77,7 @@ def label(parent, title, subtitle='', offset=4, distance=100):
     prop(gui,'bool','AlwaysOnTop',False); prop(gui,'float','MaxDistance',distance)
     t=item(gui,'TextLabel','Title'); prop(t,'UDim2','Size',(1,0,1,0)); prop(t,'float','BackgroundTransparency',1)
     prop(t,'string','Text',title+ ('\n'+subtitle if subtitle else '')); prop(t,'float','TextSize',17)
-    prop(t,'bool','TextWrapped',True); prop(t,'Color3','TextColor3',(249,231,191)); prop(t,'float','TextStrokeTransparency',0.4)
+    prop(t,'bool','TextWrapped',True); prop(t,'Color3','TextColor3',NAMEPLATE_TEXT); prop(t,'float','TextStrokeTransparency',0.4)
     return gui
 
 def model(parent,name):
@@ -114,13 +115,29 @@ def npc(parent,name,pos,color):
 FACING = {'+Z': (1, 0), '+X': (0, 1), '-X': (0, -1), '-Z': (-1, 0)}
 ROOF_FLIP = False  # Set True if Studio shows the roof wedges forming a valley instead of a peak.
 TRIM = {'collide': False, 'query': False}
-BEAM=(74,54,40); PLINTH=(118,112,104); GLASS=(246,201,120); IRON=(52,54,58)
 FLOWERS=((214,84,96),(240,196,86),(156,110,206),(236,236,236))
 BOTTLES=((96,214,150),(178,108,232),(236,164,72))
 
 def shade(color, k): return tuple(max(0, min(255, round(c*k))) for c in color)
 
-def sign(board, text, color=(236,205,140)):
+# ---- Shared world kit ------------------------------------------------------------------
+# Night lights: windows named 'Lit window' and lanterns named 'Lantern' (Config.NightLights) are plain
+# glass by day. WorldService turns them to Neon and switches on their lights after dark.
+WINDOWS = [0]
+
+def glazing(lit=2, of=3):
+    """Name and colour for the next window pane: `lit` in every `of` panes light up at night."""
+    WINDOWS[0] += 1
+    return ('Lit window', LAMPLIGHT) if WINDOWS[0] % of < lit else ('Window glass', NIGHT_GLASS)
+
+def light(node, brightness=1.2, reach=20):
+    """A warm PointLight, off until WorldService switches on the night light it hangs in."""
+    l=item(node,'PointLight','Warm light')
+    prop(l,'float','Brightness',brightness); prop(l,'float','Range',reach); prop(l,'Color3','Color',LAMPLIGHT)
+    prop(l,'bool','Shadows',False); prop(l,'bool','Enabled',False)
+    return l
+
+def sign(board, text, color=SIGN_TEXT):
     gui=item(board,'SurfaceGui','Sign')
     prop(gui,'token','Face',5)            # NormalId.Front: the board's -Z face
     prop(gui,'token','SizingMode',1)      # PixelsPerStud keeps the lettering square
@@ -152,7 +169,8 @@ def window(P, w, front, back, face, u, y, ww, wh, level, spec, openings):
     shutter = spec.get('shutter') if face == 'front' else None
     openings[face].append((u, ww + (2.2 if shutter else 0.6)))
     x, z = face_point(w, front, back, face, u, 0.06)
-    P('Window', x, y, z, face_size(face, ww, wh, 0.12), GLASS, 'Neon', **TRIM)
+    name, color = glazing()
+    P(name, x, y, z, face_size(face, ww, wh, 0.12), color, 'Glass', **TRIM)
     x, z = face_point(w, front, back, face, u, 0.14)
     P('Window frame', x, y-wh/2-0.12, z, face_size(face, ww+0.5, 0.24, 0.28), BEAM, 'Wood', **TRIM)
     if face != 'front': return
@@ -207,11 +225,11 @@ def door(P, front, spec):
     leaf = dw/len(leaves)
     for side in leaves:  # Swung open against the inside of the wall, out of the walkway.
         x = side*(dw/2-0.2)
-        P('Door', x, 0.7+dh/2, front-1-leaf/2, (0.25, dh-0.2, leaf), spec.get('door_color', (96,58,40)), 'WoodPlanks', **TRIM)
+        P('Door', x, 0.7+dh/2, front-1-leaf/2, (0.25, dh-0.2, leaf), spec.get('door_color', DOOR), 'WoodPlanks', **TRIM)
         if spec.get('iron_bands'):
             for y in (0.7+dh*0.3, 0.7+dh*0.75): P('Door band', x-side*0.15, y, front-1-leaf/2, (0.06, 0.3, leaf), IRON, 'Metal', **TRIM)
     if spec.get('sign'):
-        board = P('Sign', 0, 0.7+dh+0.88, front+0.36, (dw+1.5, 0.9, 0.18), (58,42,34), 'Wood', yaw=math.pi, **TRIM)
+        board = P('Sign', 0, 0.7+dh+0.88, front+0.36, (dw+1.5, 0.9, 0.18), SIGNBOARD, 'Wood', yaw=math.pi, **TRIM)
         sign(board, spec['sign'])
 
 def roof(P, w, front, back, top, spec):
@@ -222,22 +240,22 @@ def roof(P, w, front, back, top, spec):
         P('Roof', 0, top + rh/2, z, (w + 2*over, rh, half), spec['roof'], 'Slate', yaw=yaw, cls='WedgePart')
     P('Ridge', 0, top + rh + 0.12, zc, (w + 2*over + 0.4, 0.35, 0.7), shade(spec['roof'], 0.7), 'Slate', **TRIM)
     x, z = w/2 - 2.5, zc - half/2
-    P('Chimney', x, top + (rh+2.2)/2, z, (2, rh+2.2, 2), (140,82,66), 'Brick')
-    P('Chimney cap', x, top + rh + 2.4, z, (2.6, 0.4, 2.6), (60,60,64), 'Slate')
+    P('Chimney', x, top + (rh+2.2)/2, z, (2, rh+2.2, 2), BRICK, 'Brick')
+    P('Chimney cap', x, top + rh + 2.4, z, (2.6, 0.4, 2.6), SLATE, 'Slate')
 
 def timber_house(parent, name, cx, cz, facing, spec):
     """Storybook timber house: stone plinth, framed plaster storeys, gabled slate roof, chimney."""
     m = model(parent, name); P = placer(m, cx, cz, facing)
     w, d = spec['w'], spec['d']; dw, dh = spec['door']; jetty = spec.get('jetty', 0)
     P('Plinth', 0, 0.35, 0, (w+0.6, 0.7, d+0.6), PLINTH, 'Cobblestone')  # 0.7 tall: the NPCs stand on this height
-    P('Floorboards', 0, 0.72, 0, (w-1.2, 0.05, d-1.2), (138,104,72), 'WoodPlanks', **TRIM)
+    P('Floorboards', 0, 0.72, 0, (w-1.2, 0.05, d-1.2), FLOORBOARD, 'WoodPlanks', **TRIM)
     P('Door step', 0, 0.2, d/2+1.05, (dw+1, 0.4, 1.5), PLINTH, 'Granite')
     y0 = 0.7
     for level, h in enumerate(spec['heights']):
         front, back = d/2 + (jetty if level else 0), -d/2
         depth, zc = front - back, (front + back)/2
         stone = level == 0 and spec.get('ground') == 'stone'
-        color, material = ((150,150,146), 'Granite') if stone else (spec['plaster'], 'Concrete')
+        color, material = (VILLAGE_STONE, 'Granite') if stone else (spec['plaster'], 'Concrete')
         openings = {'front': [], 'back': [], 'left': [], 'right': []}
         P('Wall', 0, y0+h/2, back+0.5, (w, h, 1), color, material)
         for side in (-1, 1): P('Wall', side*(w/2-0.5), y0+h/2, zc, (1, h, depth), color, material)
@@ -270,9 +288,9 @@ def bay_window(P, spec):
     P('Display rack', u, 2.0, z+0.9, (4.8, 0.3, 0.6), BEAM, 'Wood', **TRIM)
     for i, color in enumerate(((150,112,72),(60,48,44),(214,206,190),(118,70,52),(96,80,64))):
         P('Display wand', u-2+i, 2.95+0.15*(i % 2), z+0.9, (0.14, 1.6, 0.14), color, 'Wood', **TRIM)
-    P('Bay glass', u, 3.6, z+1.62, (5.2, 3.8, 0.1), (214,232,236), 'Glass', transparent=0.45, **TRIM)
+    P('Bay glass', u, 3.6, z+1.62, (5.2, 3.8, 0.1), CLEAR_GLASS, 'Glass', transparent=0.45, **TRIM)
     for k in (-1, 1):
-        P('Bay glass', u+k*2.62, 3.6, z+0.85, (0.1, 3.8, 1.5), (214,232,236), 'Glass', transparent=0.45, **TRIM)
+        P('Bay glass', u+k*2.62, 3.6, z+0.85, (0.1, 3.8, 1.5), CLEAR_GLASS, 'Glass', transparent=0.45, **TRIM)
         P('Bay post', u+k*2.65, 3.6, z+1.6, (0.3, 3.8, 0.3), BEAM, 'Wood', **TRIM)
     P('Bay roof', u, 5.7, z+0.95, (6.2, 0.4, 2.0), spec['roof'], 'Slate', **TRIM)
 
@@ -348,22 +366,26 @@ def road_trim(parent, axis, center, width, a, b, top, gaps=((), ())):
         for r0, r1 in runs:  # Curbs collide for players but stay out of raycasts and monster steering.
             mid, length = (r0 + r1)/2, r1 - r0
             part(parent, 'Curb', (edge, top+0.15, mid) if axis == 'z' else (mid, top+0.15, edge),
-                 (0.8, 0.3, length) if axis == 'z' else (length, 0.3, 0.8), (104,108,112), 'Slate', query=False)
+                 (0.8, 0.3, length) if axis == 'z' else (length, 0.3, 0.8), CURB, 'Slate', query=False)
         verge = center + side*(width/2 + 0.6)
         part(parent, 'Verge', (verge, 0.03, (a+b)/2) if axis == 'z' else ((a+b)/2, 0.03, verge),
-             (1.2, 0.06, b-a) if axis == 'z' else (b-a, 0.06, 1.2), (104,98,70), 'Sand', **TRIM)
+             (1.2, 0.06, b-a) if axis == 'z' else (b-a, 0.06, 1.2), VERGE, 'Sand', **TRIM)
     for t in frange(a+4, b-2, 8):
         part(parent, 'Paving band', (center, top+0.01, t) if axis == 'z' else (t, top+0.01, center),
-             (width-1.6, 0.02, 0.7) if axis == 'z' else (0.7, 0.02, width-1.6), (118,110,96), 'Cobblestone', **TRIM)
+             (width-1.6, 0.02, 0.7) if axis == 'z' else (0.7, 0.02, width-1.6), ROAD_BAND, 'Cobblestone', **TRIM)
 
-def lamp(parent, x, z, side):
-    """Iron lamp post whose curved arm hangs a lantern over the road (side +1 = east, -1 = west)."""
-    part(parent,'Lamp base',(x,0.4,z),(1.2,0.8,1.2),(96,98,102),'Granite')
-    part(parent,'Lantern',(x,3.7,z),(0.35,7.4,0.35),(64,66,65),'Metal')
-    part(parent,'Lamp arm',(x+side*0.9,7.2,z),(1.8,0.18,0.18),IRON,'Metal',**TRIM)
-    part(parent,'Lamp brace',(x+side*0.45,6.75,z),(1.27,0.12,0.12),IRON,'Metal',roll=side*math.pi/4,**TRIM)
-    part(parent,'Lamp cap',(x+side*1.6,6.85,z),(0.9,0.25,0.9),(40,42,46),'Metal',**TRIM)
-    part(parent,'Lantern glass',(x+side*1.6,6.2,z),(0.6,0.9,0.6),(246,191,109),'Neon',**TRIM)
+def lamp(parent, x, z, side, axis='x'):
+    """Iron lamp post whose curved arm hangs a lantern over the path, toward `side` (+1 or -1) along `axis`.
+    The village roads and the academy avenues use the same post."""
+    dx, dz = (side, 0) if axis == 'x' else (0, side)
+    long = (lambda n: (n, 0.18, 0.18)) if axis == 'x' else (lambda n: (0.18, 0.18, n))
+    tilt = {'roll': side*math.pi/4} if axis == 'x' else {'pitch': -side*math.pi/4}
+    part(parent,'Lamp base',(x,0.4,z),(1.2,0.8,1.2),GRANITE,'Granite')
+    part(parent,'Lamp post',(x,3.7,z),(0.35,7.4,0.35),IRON,'Metal')
+    part(parent,'Lamp arm',(x+dx*0.9,7.2,z+dz*0.9),long(1.8),IRON,'Metal',**TRIM)
+    part(parent,'Lamp brace',(x+dx*0.45,6.75,z+dz*0.45),long(1.27),IRON,'Metal',**tilt,**TRIM)
+    part(parent,'Lamp cap',(x+dx*1.6,6.85,z+dz*1.6),(0.9,0.25,0.9),IRON,'Metal',**TRIM)
+    light(part(parent,'Lantern',(x+dx*1.6,6.2,z+dz*1.6),(0.6,0.9,0.6),LAMPLIGHT,'Glass',**TRIM),1.2,22)
 
 def plaza(parent, cx, cz, w, d, top):
     """Checker paving and a granite border laid flush over the village square."""
@@ -371,19 +393,19 @@ def plaza(parent, cx, cz, w, d, top):
     for i in range(8):
         for j in range(8):
             if (i + j) % 2:
-                part(parent,'Plaza tile',(cx-w/2+tw*(i+0.5),top+0.01,cz-d/2+td*(j+0.5)),(tw-0.3,0.02,td-0.3),(128,120,106),'Cobblestone',**TRIM)
+                part(parent,'Plaza tile',(cx-w/2+tw*(i+0.5),top+0.01,cz-d/2+td*(j+0.5)),(tw-0.3,0.02,td-0.3),PLAZA_TILE,'Cobblestone',**TRIM)
     for side in (-1, 1):
-        part(parent,'Plaza border',(cx+side*(w/2-0.6),top+0.015,cz),(1.2,0.03,d),(96,98,102),'Granite',**TRIM)
-        part(parent,'Plaza border',(cx,top+0.015,cz+side*(d/2-0.6)),(w-2.4,0.03,1.2),(96,98,102),'Granite',**TRIM)
+        part(parent,'Plaza border',(cx+side*(w/2-0.6),top+0.015,cz),(1.2,0.03,d),GRANITE,'Granite',**TRIM)
+        part(parent,'Plaza border',(cx,top+0.015,cz+side*(d/2-0.6)),(w-2.4,0.03,1.2),GRANITE,'Granite',**TRIM)
 
 def bench(parent, x, z, top=0.45):
-    part(parent,'Bench seat',(x,top+0.9,z),(4,0.3,1.2),(120,86,58),'WoodPlanks')
-    part(parent,'Bench back',(x,top+1.45,z+0.55),(4,0.8,0.2),(120,86,58),'WoodPlanks')
+    part(parent,'Bench seat',(x,top+0.9,z),(4,0.3,1.2),PLANK,'WoodPlanks')
+    part(parent,'Bench back',(x,top+1.45,z+0.55),(4,0.8,0.2),PLANK,'WoodPlanks')
     for side in (-1, 1): part(parent,'Bench leg',(x+side*1.6,top+0.375,z),(0.3,0.75,1.0),IRON,'Metal')
 
 def planter(parent, x, z, top=0.45):
-    part(parent,'Planter',(x,top+0.45,z),(2.4,0.9,2.4),(140,82,66),'Brick')
-    part(parent,'Shrub',(x,top+1.6,z),(2,2,2),(70,112,72),'Grass',shape=0,**TRIM)
+    part(parent,'Planter',(x,top+0.45,z),(2.4,0.9,2.4),BRICK,'Brick')
+    part(parent,'Shrub',(x,top+1.6,z),(2,2,2),HEDGE,'LeafyGrass',shape=0,**TRIM)
     part(parent,'Flowers',(x+0.5,top+2.2,z-0.4),(0.7,0.7,0.7),VILLAGE_RNG.choice(FLOWERS),shape=0,**TRIM)
 
 # Cobble lanes from the square to each shop door, and gravel paths from each cottage door.
@@ -392,35 +414,40 @@ LANES = [((49,121.9),(10,4.2)), ((127.5,120.9),(11,4.2)), ((48.5,175.9),(11,4.2)
 GARDEN_PATHS = [((41.9,128),(24.2,3)), ((58.9,186),(54.2,3)), ((66.9,72),(14.2,3)),
                 ((105.1,72),(18.2,3)), ((55,191.35),(3,7.7)), ((125,193.35),(3,3.7))]
 
-def tree(parent,x,z,scale=1):
-    m=model(parent,'Whisperwood tree')
-    part(m,'Trunk',(x,8*scale,z),(2.2*scale,16*scale,2.2*scale),(78,70,59),'Wood')
+def tree(parent,x,z,scale=1,rng=None,name='Whisperwood tree'):
+    """A trunk and three leafy canopies, each in one of the FOLIAGE tones. Each canopy still draws three
+    numbers from `rng` (the forest's stream by default), so the forest's trees and stones stay put."""
+    rng=rng or RNG; m=model(parent,name)
+    part(m,'Trunk',(x,8*scale,z),(2.2*scale,16*scale,2.2*scale),TRUNK,'Wood')
     for h,s in ((15,13),(22,11),(28,7)):
-        part(m,'Canopy',(x,h*scale,z),(s*scale,9*scale,s*scale),(46+RNG.randrange(8),74+RNG.randrange(15),65+RNG.randrange(12)),shape=0,collide=False,query=False)
+        tone=FOLIAGE[(rng.randrange(8)+rng.randrange(15)+rng.randrange(12))%3]
+        part(m,'Canopy',(x,h*scale,z),(s*scale,9*scale,s*scale),tone,'LeafyGrass',shape=0,collide=False,query=False)
     return m
 
 def make_world(workspace):
+    WINDOWS[0]=0
     world=item(workspace,'Model','Map')
     ground=model(world,'Land')
     # The meadow runs north past the academy to the house quarters (z -650).
-    part(ground,'Meadow',(0,-2,-182.5),(660,4,935),(108,130,102),'Grass')
-    part(ground,'Forest floor',(-160,0,-35),(270,0.15,410),(66,83,70),'Grass')
-    part(ground,'Academy approach',(85,0.2,55),(22,0.35,210),(146,139,121),'Cobblestone')
-    part(ground,'Forest path',(-30,0.23,18),(200,0.4,15),(126,119,98),'Cobblestone')
-    part(ground,'Village square',(88,0.25,147),(68,0.4,65),(150,140,121),'Cobblestone')
-    part(ground,'Forest path link',(72,0.23,18),(4,0.4,15),(126,119,98),'Cobblestone')
+    part(ground,'Meadow',(0,-2,-182.5),(660,4,935),MEADOW,'Grass')
+    part(ground,'Forest floor',(-160,0,-35),(270,0.15,410),FOREST_FLOOR,'Grass')
+    part(ground,'Academy approach',(85,0.2,55),(22,0.35,210),ROAD,'Cobblestone')
+    part(ground,'Forest path',(-30,0.23,18),(200,0.4,15),ROAD,'Cobblestone')
+    part(ground,'Village square',(88,0.25,147),(68,0.4,65),PLAZA,'Cobblestone')
+    part(ground,'Forest path link',(72,0.23,18),(4,0.4,15),ROAD,'Cobblestone')
     roads=item(world,'Folder','Roads')
     # Academy approach: visible from the courtyard (z -47) to the square; curb openings for the forest path and two garden paths.
     road_trim(roads,'z',85,22,-47,114.5,0.375,gaps=([(10.5,25.5),(70.5,73.5)],[(70.5,73.5)]))
     # Forest path: cobbled across the meadow, worn to dirt where it enters Whisperwood.
     road_trim(roads,'x',18,15,-25,74,0.43)
-    part(roads,'Worn path',(-77.5,0.45,18),(105,0.04,14.6),(122,100,72),'Sand',**TRIM)
+    part(roads,'Worn path',(-77.5,0.45,18),(105,0.04,14.6),WORN,'Sand',**TRIM)
     for _ in range(7):
         part(roads,'Cobble remnant',(round(VILLAGE_RNG.uniform(-124,-31),2),0.48,round(VILLAGE_RNG.uniform(12.5,23.5),2)),
-             (round(VILLAGE_RNG.uniform(1.5,3.5),2),0.03,round(VILLAGE_RNG.uniform(1.5,3),2)),(120,114,96),'Cobblestone',**TRIM)
+             (round(VILLAGE_RNG.uniform(1.5,3.5),2),0.03,round(VILLAGE_RNG.uniform(1.5,3),2)),ROAD,'Cobblestone',**TRIM)
     lamps=item(world,'Folder','Lamps')
     for z in range(-45,155,24):
         for x,side in ((70,1),(100,-1)): lamp(lamps,x,z,side)
+    for x,z,side,axis in LAMPS: lamp(lamps,x,z,side,axis)   # the academy plaza, avenues and walks
     # Invisible limits are deliberately far outside the authored play space.
     for pos,size in [((-331,35,-182.5),(2,70,935)),((331,35,-182.5),(2,70,935)),((0,35,-651),(660,70,2)),((0,35,286),(660,70,2))]:
         part(ground,'World boundary',pos,size,(0,0,0),transparent=1)
@@ -430,9 +457,9 @@ def make_world(workspace):
     plaza(village,88,147,68,65,0.45)
     for x in (76,104): bench(village,x,168)
     for x,z in ((66.5,121),(109.5,121),(57.5,176),(118.5,176)): planter(village,x,z)
-    for (x,z),(w,d) in LANES: part(village,'Shop lane',(x,0.25,z),(w,0.4,d),(150,140,121),'Cobblestone')
-    for (x,z),(w,d) in GARDEN_PATHS: part(village,'Garden path',(x,0.05,z),(w,0.1,d),(176,164,138),'Sand')
-    part(village,'Ferry dock',(90,0.5,206),(26,1,30),(107,84,63),'WoodPlanks')
+    for (x,z),(w,d) in LANES: part(village,'Shop lane',(x,0.25,z),(w,0.4,d),PLAZA,'Cobblestone')
+    for (x,z),(w,d) in GARDEN_PATHS: part(village,'Garden path',(x,0.05,z),(w,0.1,d),PATH,'Sand')
+    part(village,'Ferry dock',(90,0.5,206),(26,1,30),PLANK,'WoodPlanks')
     ferry=model(village,'Sky ferry')
     part(ferry,'Hull',(90,4,213),(20,5,29),(77,89,105),'Wood')
     part(ferry,'Deck',(90,7,213),(18,1,27),(145,116,81),'WoodPlanks')
@@ -440,17 +467,17 @@ def make_world(workspace):
     part(ferry,'Sail',(95,17,213),(9,12,0.2),(218,209,184))
     # Mirrorlake uses stylized layered geometry; custom terrain is an art milestone.
     lake=model(world,'Mirrorlake')
-    part(lake,'Shore',(218,-0.1,123),(103,1,111),(161,155,124),shape=0)
-    part(lake,'Water',(218,0.1,123),(93,0.45,100),(74,140,155),'Glass',shape=0,transparent=0.25,collide=False,query=False)
-    part(lake,'Small island',(239,0.4,105),(20,1,18),(110,125,104),shape=0)
+    part(lake,'Shore',(218,-0.1,123),(103,1,111),SHORE,shape=0)
+    part(lake,'Water',(218,0.1,123),(93,0.45,100),WATER,'Glass',shape=0,transparent=0.25,collide=False,query=False)
+    part(lake,'Small island',(239,0.4,105),(20,1,18),MEADOW,shape=0)
     tree(lake,239,105,0.75)
-    build_academy(world,part,model,label,POINTS)
+    build_academy(world,SimpleNamespace(part=part,model=model,sign=sign,light=light,glazing=glazing,tree=tree),POINTS)
     # The original hall consumed 84 draws for floating candles. Keep the forest seed stable.
     for _ in range(84): RNG.random()
     # Forest clearings and low-poly vegetation.
     forest=model(world,'Whisperwood')
     clearings=[(-75,15,29),(-147,68,32),(-216,45,32),(-210,-76,34),(-122,-87,28),(-160,-183,50)]
-    for x,z,r in clearings: part(forest,'Clearing',(x,0.2,z),(r*2,0.2,r*2),(86,95,76),shape=0)
+    for x,z,r in clearings: part(forest,'Clearing',(x,0.2,z),(r*2,0.2,r*2),CLEARING,shape=0)
     for _ in range(120):
         x=RNG.uniform(-290,-40); z=RNG.uniform(-240,150)
         if any((x-a)**2+(z-b)**2<(r+9)**2 for a,b,r in clearings): continue
@@ -459,14 +486,14 @@ def make_world(workspace):
     for _ in range(30):
         x=RNG.uniform(-290,-45); z=RNG.uniform(-245,150)
         if any((x-a)**2+(z-b)**2<(r+4)**2 for a,b,r in clearings): continue
-        part(forest,'Stone',(x,2,z),(RNG.uniform(3,8),RNG.uniform(3,7),RNG.uniform(3,8)),(83,94,94),'Rock',shape=0)
+        part(forest,'Stone',(x,2,z),(RNG.uniform(3,8),RNG.uniform(3,7),RNG.uniform(3,8)),ROCK,'Rock',shape=0)
     for side in (-1,1):
-        part(forest,'Forest gate',(-38,7,18+side*12),(4,14,4),(83,94,90),'Rock')
+        part(forest,'Forest gate',(-38,7,18+side*12),(4,14,4),ROCK,'Rock')
         part(forest,'Gate rune',(-35.8,8,18+side*12),(0.3,4,2),(126,211,184),'Neon',query=False,collide=False)
     part(forest,'Moonwell',(-216,0.7,44),(15,1,15),(114,199,191),'Neon',shape=0,query=False,collide=False)
     for i in range(9):
         a=i*math.tau/9; x=-160+math.cos(a)*47; z=-183+math.sin(a)*43
-        part(forest,'Grotto standing stone',(x,8,z),(6,16,7),(68,73,88),'Rock',yaw=a)
+        part(forest,'Grotto standing stone',(x,8,z),(6,16,7),ROCK_DARK,'Rock',yaw=a)
         part(forest,'Hollow rune',(x,15,z),(1.2,3,1.2),(195,116,188),'Neon',collide=False,query=False)
     # Rune chests are individual models used by the Resero spell handler.
     for i,(x,z) in enumerate([(118,63),(-103,66),(-180,-128)],1):
@@ -474,7 +501,7 @@ def make_world(workspace):
         part(chest,'Brass band',(x,1.9,z-1.55),(0.6,3,0.15),GOLD,'Metal')
         label(p,'SEALED CHEST','Aim and cast Resero',3,55)
     grounds=model(world,'Castle Grounds')
-    part(grounds,'Training platform',(166,0.5,-2),(50,1,36),(124,131,129),'Cobblestone')
+    part(grounds,'Training platform',(166,0.5,-2),(50,1,36),PLAZA,'Cobblestone')
     arena=model(world,'Dueling Club')
     part(arena,'Arena',(240,0.4,-145),(76,0.8,86),(116,125,135),'Marble')
     for x in (203,277): part(arena,'Edge',(x,0.95,-145),(1,0.3,86),GOLD,'Metal')
@@ -498,7 +525,7 @@ def make_world(workspace):
     label(p,'THE MIRROR OF CHOOSING','Courage · Loyalty · Wisdom · Ambition',8,90)
     for key in ('Hollowmere','Castle','Whisperwood'):
         x,y,z=POINTS['Waystone_'+key]
-        m=model(world,key+' Waystone'); p=part(m,'Stone',(x,3.5,z),(3,7,3),(79,111,123),'Slate')
+        m=model(world,key+' Waystone'); p=part(m,'Stone',(x,3.5,z),(3,7,3),RUNESTONE,'Slate')
         part(m,'Rune',(x,6.8,z),(2,2,2),(130,228,226),'Neon',shape=0,query=False,collide=False)
         label(p,key.upper()+' WAYSTONE','Attune & fast travel',6,90)
     markers=item(workspace,'Folder','Markers')
@@ -509,7 +536,7 @@ def make_world(workspace):
         marker=part(markers,key,pos,(1,1,1),(255,255,255),collide=False,transparent=1,query=False)
         if key in signs: label(marker,*signs[key],offset=5,distance=95)
     spawns=item(workspace,'Folder','Spawns')
-    spawn=part(spawns,'Hollowmere arrival',(90,0.5,184),(8,1,8),(144,151,143),'Cobblestone',cls='SpawnLocation')
+    spawn=part(spawns,'Hollowmere arrival',(90,0.5,184),(8,1,8),PLAZA,'Cobblestone',cls='SpawnLocation')
     prop(spawn,'bool','Neutral',True); prop(spawn,'float','Duration',0)
     return world,markers,spawns
 
@@ -558,7 +585,8 @@ def main():
     ET.indent(doc,space='  ')
     if not world_only: save_xml(doc,output)
     assets=ROOT/'world'; assets.mkdir(exist_ok=True)
-    for name,node in [('Map',world),('Markers',markers),('Spawns',spawns)]:
+    academy=next(n for n in world.findall('Item') if n.findtext("Properties/string[@name='Name']")=='Ravenmoor Academy')
+    for name,node in [('Map',world),('Markers',markers),('Spawns',spawns),('RavenmoorAcademy',academy)]:
         r=ET.Element('roblox',{'version':'4'}); r.append(copy.deepcopy(node)); save_xml(r,assets/(name+'.rbxmx'))
     project={'name':'Wandbound','tree':{'$className':'DataModel',
         'Workspace':{'$properties':{'StreamingEnabled':True},'Map':{'$path':'world/Map.rbxmx'},'Markers':{'$path':'world/Markers.rbxmx'},'Spawns':{'$path':'world/Spawns.rbxmx'}},

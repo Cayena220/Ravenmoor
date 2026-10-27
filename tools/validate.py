@@ -97,9 +97,17 @@ def main():
     map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart'))
     # The terraced academy campus (stairs, halls, towers, house quarters) takes the map to about 3,000 parts.
     assert map_parts<=3300, f'Map has {map_parts} parts; the budget is 3300'
+    # Night lights (Config.NightLights): every window pane can light up, all are glass by day, and every
+    # lantern carries a light for WorldService to switch on.
+    lights=[n for n in world.iter('Item') if n.get('class') in ('Part','WedgePart') and name_of(n) in ('Lit window','Lantern')]
+    assert lights and all(n.findtext("Properties/token[@name='Material']")=='1568' for n in lights), 'A night light is not glass by day'
+    assert all(n.find("Item[@class='PointLight']") is not None for n in lights if name_of(n)=='Lantern'), 'A lantern has no light'
+    assert not any(name_of(n)=='Window' for n in world.iter('Item')), 'A window pane is outside the night-light pattern'
+    lanterns=sum(1 for n in lights if name_of(n)=='Lantern')
     validate_academy(world,geometry,spots,box,name_of)
     print(f'PASS: place XML, {len(items)} instances, {len(sources)} embedded sources, {len(required)} interaction anchors, classroom clearance,')
-    print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts.')
+    print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts,')
+    print(f'      {len(lights)-lanterns} windows and {lanterns} lanterns that light up at night.')
     if signature(world)!=signature(ET.fromstring(map_item())):
         print('NOTE: the place map differs from world/Map.rbxmx. Fine if you edited it in Studio on purpose;'
               ' otherwise run python tools/sync_scripts.py --map.')

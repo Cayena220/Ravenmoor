@@ -41,20 +41,26 @@ function W:Travel(player, destination)
     d.Gilders = d.Gilders-25; d.LastWaystone = destination
     self:Teleport(player, Vector3.new(pos[1],pos[2],pos[3])); self.S.ProgressionService:Refresh(player)
 end
--- The academy's "Lit window" glass glows only at night; by day it is plain glass.
-function W:LightWindows(night)
+-- Night lights (Config.NightLights: lit windows and lanterns across the map) are plain glass by day.
+-- After dark they glow, and the lights inside them switch on.
+function W:SetNightLights(night)
     if night == self.Night then return end
     self.Night = night
-    for _, glass in ipairs(self.LitWindows) do glass.Material = night and Enum.Material.Neon or Enum.Material.Glass end
+    for _, glass in ipairs(self.NightLights) do
+        glass.Material = night and Enum.Material.Neon or Enum.Material.Glass
+        for _, light in ipairs(glass:GetChildren()) do if light:IsA("Light") then light.Enabled = night end end
+    end
 end
 function W:Start()
     self.S.NetworkService.Handlers.Travel = function(player, id) if type(id) == "string" then self:Travel(player, id) end end
     Players.PlayerRemoving:Connect(function(player) self.Movement[player] = nil end)
-    self.LitWindows = {}
+    self.NightLights = {}
+    local names = {}
+    for _, name in ipairs(Config.NightLights) do names[name] = true end
     local map = workspace:FindFirstChild("Map")
     if map then
         for _, item in ipairs(map:GetDescendants()) do
-            if item:IsA("BasePart") and item.Name == "Lit window" then table.insert(self.LitWindows, item) end
+            if item:IsA("BasePart") and names[item.Name] then table.insert(self.NightLights, item) end
         end
     end
     task.spawn(function()
@@ -62,7 +68,7 @@ function W:Start()
         while true do
             task.wait(0.5)
             Lighting.ClockTime = (9 + (os.clock()-start)/Config.DayLength*24) % 24
-            self:LightWindows(Lighting.ClockTime >= 18.5 or Lighting.ClockTime < 6)
+            self:SetNightLights(Lighting.ClockTime >= 18.5 or Lighting.ClockTime < 6)
             for _, player in ipairs(Players:GetPlayers()) do
                 local root = self:Root(player); local state = self.S.CombatService.States[player]
                 if root and state and state.Humanoid.Health > 0 then

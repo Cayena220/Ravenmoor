@@ -30,6 +30,8 @@ return {
     Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -58}, Whisperwood = {-36, 5, 20}},
     -- Players outside these limits are returned to their last position.
     WorldBounds = {MinX = -340, MaxX = 340, MinZ = -655, MaxZ = 290},
+    -- Map parts with these names are night lights: glass by day, glowing with their lights on after dark.
+    NightLights = {"Lit window", "Lantern"},
     Teachers = {
         Hex = {Name = "Professor Rook", Title = "Hexcraft", Anchor = "Teacher_Hex"},
         Ward = {Name = "Professor Holloway", Title = "Warding", Anchor = "Teacher_Ward"},

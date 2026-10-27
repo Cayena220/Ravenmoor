@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox version="4"><Item class="Folder" referent="RBX0000078F">
+<roblox version="4"><Item class="Folder" referent="RBX00000DD7">
       <Properties>
         <string name="Name">Spawns</string>
       </Properties>
-      <Item class="SpawnLocation" referent="RBX00000790">
+      <Item class="SpawnLocation" referent="RBX00000DD8">
         <Properties>
           <string name="Name">Hollowmere arrival</string>
           <Vector3 name="size">
@@ -25,7 +25,7 @@
             <R21>0</R21>
             <R22>1.0</R22>
           </CoordinateFrame>
-          <Color3uint8 name="Color3uint8">4287666063</Color3uint8>
+          <Color3uint8 name="Color3uint8">4288057472</Color3uint8>
           <token name="Material">880</token>
           <token name="shape">1</token>
           <bool name="Anchored">true</bool>

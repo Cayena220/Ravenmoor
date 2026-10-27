@@ -47,6 +47,9 @@ The village is built in `tools/build.py` from a small kit of part builders, with
 - `road_trim` adds curbs, verges and paving bands over a road bed, with curb gaps where lanes join. `lamp`, `plaza`, `bench` and `planter` dress the roads and square.
 - Trim is `CanCollide=false, CanQuery=false`, so monster steering, sight lines and spells only see the solid walls, plinths, curbs and roofs.
 - Village variation uses its own seeded random stream (`VILLAGE_RNG`), so village changes never move forest trees or castle candles.
+- Every structural colour comes from `tools/palette.py`, by family: castle and village stone, slate and metal, timber, a paving scale (road, plaza, path, worn track), ground and three foliage tones, and one warm `LAMPLIGHT`. Content colours, such as a shop's plaster or a house's colour, stay with their data.
+- The village and the academy share one kit: `glazing` (window panes, some lit at night), `light` (a warm PointLight), `lamp` (the iron lamp post, with its arm along either axis), `tree` (trunk and three leafy canopies) and `sign` (lettering on a timber board). `build_academy` receives them as `kit`.
+- Night lights are parts named in `Config.NightLights` (`Lit window`, `Lantern`). They are glass by day; WorldService turns them to Neon and switches on the lights inside them from 18:30 to 06:00.
 - Shops keep their 28×26 footprints and door lines, so `Workspace.Markers` (NPC prompts) never need to move.
 
 The 19 implemented spell IDs are data-driven. Future catalogue entries have
