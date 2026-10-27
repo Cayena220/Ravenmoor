@@ -53,9 +53,9 @@ def rotation(yaw, pitch, roll):
     return tuple(round(v, 12) + 0.0 for row in mul(mul(ry, rx), rz) for v in row)
 
 MATERIAL = {'Plastic':256, 'SmoothPlastic':272, 'Neon':288, 'Wood':512, 'WoodPlanks':528,
-            'Marble':784, 'Slate':800, 'Concrete':816, 'Granite':832, 'Brick':848,
-            'Cobblestone':880, 'Rock':896, 'Grass':1280, 'Sand':1296, 'Metal':1088,
-            'Glass':1568, 'LeafyGrass':1284}
+            'Marble':784, 'Basalt':788, 'Slate':800, 'Concrete':816, 'Limestone':820, 'Granite':832,
+            'Brick':848, 'Cobblestone':880, 'Rock':896, 'CorrodedMetal':1040, 'Grass':1280, 'Sand':1296,
+            'Metal':1088, 'Glass':1568, 'LeafyGrass':1284}
 STONE=(80,91,109); DARK=(45,55,71); ROOF=(47,75,91); GOLD=(202,160,83)
 
 def part(parent, name, pos, size, color, material='SmoothPlastic', shape=1, yaw=0, collide=True, transparent=0, query=True, cls='Part', pitch=0, roll=0):

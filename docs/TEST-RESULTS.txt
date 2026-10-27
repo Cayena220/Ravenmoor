@@ -6,10 +6,11 @@ Commands (PowerShell):
 
 PASS: 334 headless assertions, all in tests/headless.lua, including delayed client dependency loading, all 15 prompts, all eleven NPCs' dialogue and services, sorting, waystones, buying/brewing/using items, tome level gates, bank transactions, wand equip/discard selection payloads, and gamepad prompt/casting conflicts.
 PASS: all 27 source files compile with the Lua 5.4 parser.
-PASS: place XML, 2354 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 1998 map parts.
+PASS: place XML, 3067 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 2704 map parts.
 PASS: updated source scripts synchronized into the playable .rbxlx.
 
-PASS: academy geometry has 426 parts; all 14 rooms and 7 academy quest anchors have player-width walking routes.
-PASS: place and world/Map.rbxmx geometry match.
-From the 2026-10-26 academy generation (tools/upgrade_academy.py, not rerun): surrounding geometry in 16 map groups preserved; standalone model matches the full generator.
+PASS: gothic academy geometry has 1132 parts (Parts and WedgeParts, budget 1300); all 14 rooms and 7 academy quest anchors have player-width walking routes.
+PASS: place and world/Map.rbxmx geometry match (tools/sync_scripts.py --map, then --check).
+From the 2026-10-27 gothic academy generation (tools/upgrade_academy.py): surrounding geometry in 16 map groups preserved; tools/build.py make_world also builds the new academy (2704 map parts).
+NOT CHECKED IN STUDIO: wedge orientation of gables, spires and window heads (WEDGE_FLIP must match ROOF_FLIP), lit windows at night.
 NOT RUN: Roblox Studio, real GUI/camera/input, physics, live DataStore, multiplayer and device integration. Follow docs/PLAYTEST.md.

@@ -8,8 +8,8 @@ def validate_academy(world, geometry, spots, box, name_of):
     campus=next(n for n in world.findall('Item') if name_of(n)=='Ravenmoor Academy')
     names={name_of(n) for n in campus.findall('Item')}
     assert all(room[4] in names for room in ROOMS), 'Missing academy room'
-    parts=[n for n in campus.iter('Item') if n.get('class')=='Part']
-    assert len(parts)<=450, 'Academy exceeds its 450-part allocation'
+    parts=[n for n in campus.iter('Item') if n.get('class') in ('Part','WedgePart')]
+    assert len(parts)<=1300, f'Academy has {len(parts)} parts; its allocation is 1300'
     # Avatar envelope: 2.5 studs wide, 5.5 studs tall above the 0.4-stud floor.
     # Rasterize solids with clearance, then flood the connected walkable surface.
     bounds=(8,180,-273,-54)
@@ -37,4 +37,4 @@ def validate_academy(world, geometry, spots, box, name_of):
     for node in parts:
         center,half=box(node)
         assert center[0]-half[0]>-10 and center[0]+half[0]<200 and center[2]-half[2]>-285, 'Academy overlaps forest, arena or world boundary'
-    print(f'PASS: all {len(ROOMS)} academy rooms and 7 quest anchors reachable; {len(parts)} academy parts (budget 450).')
+    print(f'PASS: all {len(ROOMS)} academy rooms and 7 quest anchors reachable; {len(parts)} academy parts (budget 1300).')
