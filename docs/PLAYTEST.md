@@ -119,6 +119,6 @@ These engine checks have not been run by the cloud test suite.
 12. Buy and brew Health Draughts, then check bag quantities and consumed ingredients. Use a tome below its required level (no consumption), at its required level (learns and consumes one), and after learning the spell (no further consumption).
 13. Check the Restricted Shelf, Mirror sorting, and all three Waystone menus. Verify Library and Duelmaster spell unlocks at their required levels, and that deposits/withdrawals update the carried and banked balances in the bag.
 
-## Expanded academy
+## Academy campus
 
-Walk through the entrance, both side wings, every classroom and each house dormitory. Check that indoor cameras remain usable under the pitched roofs. Test a lesson in each classroom, the Mirror and restricted shelf. Check night lighting and mobile performance. These engine checks remain unrun in the cloud; see `ACADEMY-DESIGN.md` for the layout.
+Walk from the Main Gate up both flights of the Grand Stair, across both bridges into the classroom wings, down each wing stair, through the Keep into the Great Hall, down the back stair and up the stair of every house quarter. The stairs use 1-stud steps: no step should need a jump. Check that the cameras stay usable inside the halls and on the bridges, and that the stair string walls, gables and spires slope the right way. Test a lesson in each classroom, the Mirror, the restricted shelf and a duel from the Duelmaster's new spot south of the arena. Check night lighting and mobile performance. These engine checks remain unrun here; see `ACADEMY-DESIGN.md` for the layout.

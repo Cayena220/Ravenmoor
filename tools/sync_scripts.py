@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Copy src/ scripts (and optionally world/Map.rbxmx) into the .rbxlx without rebuilding the place.
+"""Copy src/ scripts (and optionally world/Map.rbxmx and world/Markers.rbxmx) into the .rbxlx
+without rebuilding the place.
 
 Works on places saved by build.py or by Roblox Studio. Only script Source text changes and
 missing scripts are added to their folders; everything else stays byte for byte. With --map,
-the Workspace/Map model is also replaced by the one from `python tools/build.py --world-only`.
+Workspace/Map and Workspace/Markers are also replaced by the ones from
+`python tools/build.py --world-only` or `python tools/upgrade_academy.py`, when they differ.
 
     python tools/sync_scripts.py           update the place (writes a .bak copy first)
-    python tools/sync_scripts.py --map     also replace Workspace/Map with world/Map.rbxmx
+    python tools/sync_scripts.py --map     also replace Workspace/Map and Workspace/Markers
     python tools/sync_scripts.py --check   report differences only; exit 1 when out of date
 """
 from collections import Counter
@@ -20,6 +22,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 PLACE = ROOT / 'Wandbound-Ravenmoor-Academy.rbxlx'
 MAP = ROOT / 'world' / 'Map.rbxmx'
+MARKERS = ROOT / 'world' / 'Markers.rbxmx'
 # Same mapping as default.project.json.
 FOLDERS = {'shared': 'ReplicatedStorage/Shared', 'server': 'ServerScriptService',
            'serverstorage': 'ServerStorage', 'client': 'StarterPlayer/StarterPlayerScripts'}
@@ -73,14 +76,14 @@ def signature(root):
     return out
 
 
-def map_item():
-    text = MAP.read_bytes().decode('utf-8')
+def map_item(path=MAP):
+    text = path.read_bytes().decode('utf-8')
     return text[text.index('<Item '):text.rindex('</Item>') + len('</Item>')]
 
 
-def built_map():
-    """world/Map.rbxmx's Map item, with fresh referents so they cannot collide with the place's."""
-    item = map_item()
+def built_map(path=MAP):
+    """A world/ model's item, with fresh referents so they cannot collide with the place's."""
+    item = map_item(path)
     fresh = {ref: 'RBX' + uuid.uuid4().hex.upper() for ref in re.findall(r'referent="([^"]+)"', item)}
     item = re.sub(r'referent="([^"]+)"', lambda m: f'referent="{fresh[m.group(1)]}"', item)
     return re.sub(r'(<Ref name="[^"]*">)([^<]+)(</Ref>)', lambda m: m.group(1) + fresh.get(m.group(2), m.group(2)) + m.group(3), item)
@@ -133,26 +136,28 @@ def main():
         edits.append((parent['close'], parent['close'], item)); added.append(path)
     known = {path for path, _, _ in wanted()}
     extra = [p for p, n in nodes.items() if n['cls'] in ('Script', 'LocalScript', 'ModuleScript') and p not in known]
-    map_note = None
+    map_notes = []
     if '--map' in sys.argv:
-        current = nodes.get('Workspace/Map')
-        if not current:
-            raise SystemExit('Cannot replace the map: Workspace/Map is missing from the place.')
-        start, end = current['open'], current['close'] + len('</Item>')
-        old_refs = set(re.findall(r'referent="([^"]+)"', text[start:end]))
-        outside = text[:start] + text[end:]
-        pointing_in = [ref for ref in re.findall(r'<Ref name="[^"]*">([^<]+)</Ref>', outside) if ref in old_refs]
-        inside_scripts = [p for p in extra if p.startswith('Workspace/Map/')]
-        if pointing_in or inside_scripts:  # Replacing the map would silently break or delete these.
-            raise SystemExit('Not replacing the map: ' + (f'{len(pointing_in)} references from outside point into it'
-                             if pointing_in else 'it contains scripts: ' + ', '.join(inside_scripts)))
-        old, new = map_signature(text[start:end]), map_signature(map_item())
-        if old != new:
-            edits.append((start, end, built_map()))
-            map_note = f'Workspace/Map ({sum(old.values())} parts -> {sum(new.values())} from world/Map.rbxmx)'
+        for where, source in (('Workspace/Map', MAP), ('Workspace/Markers', MARKERS)):
+            current = nodes.get(where)
+            if not current:
+                raise SystemExit(f'Cannot replace {where}: it is missing from the place.')
+            start, end = current['open'], current['close'] + len('</Item>')
+            old_refs = set(re.findall(r'referent="([^"]+)"', text[start:end]))
+            outside = text[:start] + text[end:]
+            pointing_in = [ref for ref in re.findall(r'<Ref name="[^"]*">([^<]+)</Ref>', outside) if ref in old_refs]
+            inside_scripts = [p for p in extra if p.startswith(where + '/')]
+            if pointing_in or inside_scripts:  # Replacing it would silently break or delete these.
+                raise SystemExit(f'Not replacing {where}: ' + (f'{len(pointing_in)} references from outside point into it'
+                                 if pointing_in else 'it contains scripts: ' + ', '.join(inside_scripts)))
+            old, new = map_signature(text[start:end]), map_signature(map_item(source))
+            if old != new:
+                edits.append((start, end, built_map(source)))
+                map_notes.append(f'{where} ({sum(old.values())} parts -> {sum(new.values())} from world/{source.name})')
+    map_note = ', '.join(map_notes)
     for path in updated: print('update ', path)
     for path in added: print('add    ', path)
-    if map_note: print('replace', map_note)
+    for note in map_notes: print('replace', note)
     for path in extra: print('kept   ', path, '(only in the place, not in src/)')
     if not edits:
         print('Place already matches src/' + (' and world/Map.rbxmx.' if '--map' in sys.argv else '.'))

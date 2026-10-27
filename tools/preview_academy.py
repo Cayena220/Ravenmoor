@@ -1,85 +1,86 @@
 #!/usr/bin/env python3
-"""Render a floor plan and an exterior from the exported academy's real geometry."""
+"""Render the academy campus from the exported map's real geometry (optional Pillow dependency).
+
+Writes docs/academy-exterior.png (seen from the south-east) and docs/academy-site-plan.png (straight down,
+north up). Parts, wedges and cylinders are drawn as flat-shaded solids in painter's order, so overlapping
+shapes can occasionally draw in the wrong order. These are geometry renders, not Studio screenshots.
+"""
 from pathlib import Path
+import math
 import xml.etree.ElementTree as ET
-import os
-os.environ.setdefault("MPLCONFIGDIR","/tmp/ravenmoor-matplotlib")
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from academy import ROOMS
-from validate import box, name_of
+from PIL import Image, ImageDraw
+from academy import WEDGE_FLIP
+
 ROOT=Path(__file__).resolve().parents[1]
+AREA=(-260,340,-40,650)   # east and north limits of what is drawn, in studs
+LIGHT=(-0.339,-0.551,0.763)
+PAPER=(242,232,207)
+
+
+def solids(path):
+    """(points as (east, north, up), faces, colour) for every visible part in the drawn area."""
+    for node in ET.parse(path).getroot().iter('Item'):
+        if node.get('class') not in ('Part','WedgePart'): continue
+        pr=node.find('Properties'); cf=pr.find("CoordinateFrame[@name='CFrame']"); size=pr.find("Vector3[@name='size']")
+        if float(pr.findtext("float[@name='Transparency']") or 0)>0.9: continue
+        center=[float(cf.find(k).text) for k in 'XYZ']
+        rot=[[float(cf.find(f'R{i}{j}').text) for j in range(3)] for i in range(3)]
+        half=[float(size.find(k).text)/2 for k in 'XYZ']
+        value=int(pr.findtext("Color3uint8[@name='Color3uint8']") or 0)
+        color=((value>>16)&255,(value>>8)&255,value&255)
+        if node.get('class')=='WedgePart':   # the tall face is at local +Z unless WEDGE_FLIP
+            back=-1 if WEDGE_FLIP else 1
+            local=[(-1,-1,-1),(1,-1,-1),(1,-1,1),(-1,-1,1),(-1,1,back),(1,1,back)]
+            faces=[(0,1,2,3),(3,2,5,4) if back>0 else (0,1,5,4),(0,4,5,1) if back>0 else (3,4,5,2),(0,3,4),(1,5,2)]
+        elif pr.findtext("token[@name='shape']")=='2':   # cylinder along local X, as an octagonal prism
+            local=[(end,math.cos(a),math.sin(a)) for end in (-1,1) for a in (math.tau*(k+0.5)/8 for k in range(8))]
+            faces=[tuple(range(8)),tuple(range(8,16))]+[(k,(k+1)%8,8+(k+1)%8,8+k) for k in range(8)]
+        else:
+            local=[(-1,-1,-1),(1,-1,-1),(1,-1,1),(-1,-1,1),(-1,1,-1),(1,1,-1),(1,1,1),(-1,1,1)]
+            faces=[(0,1,2,3),(4,7,6,5),(0,4,5,1),(1,5,6,2),(2,6,7,3),(3,7,4,0)]
+        points=[]
+        for l in local:
+            q=[l[i]*half[i] for i in range(3)]
+            w=[center[i]+sum(rot[i][j]*q[j] for j in range(3)) for i in range(3)]
+            points.append((w[0],-w[2],w[1]))
+        if any(AREA[0]<p[0]<AREA[1] and AREA[2]<p[1]<AREA[3] for p in points): yield points,faces,color
+
+
+def render(parts,out,yaw,pitch,width=1900):
+    c,s=math.cos(math.radians(yaw)),math.sin(math.radians(yaw)); cp,sp=math.cos(math.radians(pitch)),math.sin(math.radians(pitch))
+    view=(cp*s,cp*c,-sp)
+    def project(p):
+        xr=p[0]*c-p[1]*s; yr=p[0]*s+p[1]*c
+        return xr,-(yr*sp+p[2]*cp),yr*cp-p[2]*sp
+    polys=[]
+    for points,faces,color in parts:
+        mean=[sum(p[i] for p in points)/len(points) for i in range(3)]
+        flat=max(p[2] for p in points)<=0.6   # ground slabs and paths always sit underneath
+        for face in faces:
+            fp=[points[i] for i in face]; n=[0,0,0]
+            for i in range(len(fp)):
+                a,b=fp[i],fp[(i+1)%len(fp)]
+                n[0]+=(a[1]-b[1])*(a[2]+b[2]); n[1]+=(a[2]-b[2])*(a[0]+b[0]); n[2]+=(a[0]-b[0])*(a[1]+b[1])
+            length=math.sqrt(sum(v*v for v in n)) or 1; n=[v/length for v in n]
+            centre=[sum(p[i] for p in fp)/len(fp) for i in range(3)]
+            if sum(n[i]*(centre[i]-mean[i]) for i in range(3))<0: n=[-v for v in n]
+            if sum(n[i]*view[i] for i in range(3))>-1e-6: continue
+            lit=0.6+0.4*max(0,sum(n[i]*LIGHT[i] for i in range(3)))
+            pp=[project(p) for p in fp]
+            polys.append(((0 if flat else 1,-sum(p[2] for p in pp)/len(pp)),[(p[0],p[1]) for p in pp],tuple(min(255,int(v*lit)) for v in color)))
+    polys.sort(key=lambda t:t[0])
+    xs=[x for _,pp,_ in polys for x,_ in pp]; ys=[y for _,pp,_ in polys for _,y in pp]
+    k=(width-40)/(max(xs)-min(xs)); x0,y0=min(xs)-20/k,min(ys)-20/k
+    image=Image.new('RGB',(width,int((max(ys)-y0)*k)+20),PAPER); draw=ImageDraw.Draw(image)
+    for _,pp,color in polys: draw.polygon([((x-x0)*k,(y-y0)*k) for x,y in pp],fill=color,outline=color)
+    image.save(out)
+    print(f'{len(polys)} faces -> {out.relative_to(ROOT)}')
 
 
 def main():
-    paper='#f3efe5'; ink='#253546'; gold='#b18b4d'
-    fig,ax=plt.subplots(figsize=(11,14),facecolor=paper); ax.set_facecolor(paper)
-    ax.add_patch(Rectangle((8,54),172,220,facecolor='#dcd7c9',edgecolor=ink,lw=2))
-    for xmin,xmax,north,south,name,color in ROOMS:
-        c=tuple(v/255 for v in color)
-        ax.add_patch(Rectangle((xmin,-south),xmax-xmin,south-north,facecolor=c,alpha=.28,edgecolor=ink,lw=1.5))
-        short=name.replace(' Classroom','\nClassroom').replace(' House','\nCommon room\n& dormitory').replace(' & ','\n& ').replace('Potions Laboratory','Potions\nLaboratory')
-        ax.text((xmin+xmax)/2,-(north+south)/2,short,ha='center',va='center',fontsize=9,color=ink,fontweight='semibold')
-    # Openings are 10 studs wide, matching the traversable arches in the model.
-    for xmin,xmax,north,south,name,_ in ROOMS:
-        cx=(xmin+xmax)/2
-        portals=[]
-        if name=='Great Hall': portals=[('x',85,north),('x',85,south)]+[( 'z',edge,z) for edge in (xmin,xmax) for z in (-91,-132)]
-        elif name in ('Infirmary','Potions Laboratory'): portals=[('z',xmax,-91 if name=='Infirmary' else -132)]
-        elif name in ('Library & Archive','Staff & Headmaster'): portals=[('z',xmin,-91 if name=='Library & Archive' else -132)]
-        else:
-            portals=[('x',cx,south)]
-            if name.endswith('Classroom'): portals.append(('x',cx,north))
-        for axis,x,z in portals:
-            if axis=='x': ax.plot([x-5,x+5],[-z,-z],color='#dcd7c9',lw=4,solid_capstyle='butt')
-            else: ax.plot([x,x],[-z-5,-z+5],color='#dcd7c9',lw=4,solid_capstyle='butt')
-    # Draw furnishings from the actual export, so the plan stays tied to the model.
-    tree=ET.parse(ROOT/'world/RavenmoorAcademy.rbxmx')
-    for node in tree.findall('.//Item'):
-        if node.get('class')!='Part' or name_of(node) not in ('Bed frame','Table','Archive shelf','Blackboard','Dining bench'): continue
-        c,h=box(node)
-        ax.add_patch(Rectangle((c[0]-h[0],-c[2]-h[2]),h[0]*2,h[2]*2,facecolor='#756654',alpha=.32,edgecolor=ink,lw=.5))
-    for y,label in ((149,'SOUTH CLOISTER'),(208,'NORTH CLOISTER')):
-        ax.text(93,y,label,ha='center',va='center',fontsize=8,color=ink)
-    ax.text(170,176,'EAST\nPASSAGE',ha='center',va='center',fontsize=7,color=ink)
-    for a,b in (((85,56),(85,70)),((85,137),(85,146)),((87,154),(87,158)),((87,195),(87,203))):
-        ax.annotate('',xy=b,xytext=a,arrowprops=dict(arrowstyle='->',color=gold,lw=2))
-    ax.text(85,61,'ENTRANCE COURT',ha='center',fontsize=8,color=ink)
-    ax.text(85,125,'◇ Mirror',ha='center',fontsize=8,color=gold)
-    ax.text(146,104,'◆ Archive',ha='center',fontsize=8,color=gold)
-    ax.set_xlim(-4,194);ax.set_ylim(45,284);ax.set_aspect('equal')
-    ax.set_xlabel('World X · studs',color=ink);ax.set_ylabel('North (−world Z) · studs',color=ink)
-    ax.tick_params(colors=ink,labelsize=8);ax.spines[['top','right']].set_visible(False)
-    fig.suptitle('RAVENMOOR ACADEMY',fontsize=25,fontweight='bold',color=ink,y=.96)
-    ax.set_title('14 rooms  •  4 house suites  •  16 student beds\nGround-floor layout · roofs omitted for clarity',fontsize=11,color=ink,pad=18)
-    fig.text(.5,.035,'Open archways connect the hall, teaching cloisters and residential wing.\nExisting Mirror, professor and library quest locations are preserved.',ha='center',fontsize=10,color=ink)
-    fig.subplots_adjust(top=.88,bottom=.09)
-    fig.savefig(ROOT/'docs/academy-floor-plan.png',dpi=170,facecolor=paper);plt.close(fig)
-    fig=plt.figure(figsize=(14,10),facecolor=paper);ax=fig.add_subplot(111,projection='3d');ax.set_facecolor(paper)
-    faces=[];colors=[]
-    for node in tree.findall('.//Item'):
-        if node.get('class')!='Part':continue
-        cf=node.find("Properties/CoordinateFrame[@name='CFrame']")
-        size=node.find("Properties/Vector3[@name='size']")
-        center=[float(cf.find(k).text) for k in ('X','Y','Z')]
-        half=[float(size.find(k).text)/2 for k in ('X','Y','Z')]
-        rot=[[float(cf.find(f'R{i}{j}').text) for j in range(3)] for i in range(3)]
-        value=int(node.findtext("Properties/Color3uint8[@name='Color3uint8']"))
-        color=((value>>16&255)/255,(value>>8&255)/255,(value&255)/255)
-        verts=[]
-        for dx,dy,dz in [(-1,-1,1),(1,-1,1),(1,-1,-1),(-1,-1,-1),(-1,1,1),(1,1,1),(1,1,-1),(-1,1,-1)]:
-            local=[dx*half[0],dy*half[1],dz*half[2]]
-            v=[center[i]+sum(rot[i][j]*local[j] for j in range(3)) for i in range(3)]
-            verts.append((v[0],-v[2],v[1]))
-        for indexes,shade in [((0,1,5,4),.8),((1,2,6,5),.7),((2,3,7,6),.85),((3,0,4,7),.9),((4,5,6,7),1.0)]:
-            faces.append([verts[i] for i in indexes]);colors.append(tuple(v*shade for v in color))
-    ax.add_collection3d(Poly3DCollection(faces,facecolors=colors,edgecolors=(.1,.15,.2,.12),linewidths=.2))
-    ax.set_xlim(0,190);ax.set_ylim(45,280);ax.set_zlim(0,65);ax.set_box_aspect((190,235,90));ax.view_init(elev=36,azim=-62);ax.set_axis_off()
-    fig.suptitle('RAVENMOOR  /  EXPANDED ACADEMY',fontsize=23,color=ink,y=.92)
-    fig.text(.5,.10,'Geometry preview of the exported Roblox model\nLantern gate · Great Hall · teaching cloisters · residential wing',ha='center',fontsize=12,color=ink)
-    fig.savefig(ROOT/'docs/academy-exterior.png',dpi=160,facecolor=paper,bbox_inches='tight');plt.close(fig)
+    parts=list(solids(ROOT/'world/Map.rbxmx'))
+    render(parts,ROOT/'docs/academy-exterior.png',-35,34)
+    render(parts,ROOT/'docs/academy-site-plan.png',0,90,1400)
 
-if __name__=='__main__':main()
+
+if __name__=='__main__': main()

@@ -1,16 +1,16 @@
-Local validation — 2026-10-27
+Local validation — 2026-10-27 (terraced academy campus)
 Commands (PowerShell):
   $env:WANDBOUND_LUA_LIBRARY = 'C:\xampp\apache\bin\lua54.dll'
+  python tools/upgrade_academy.py
+  python tools/sync_scripts.py --map
   python tools/validate.py
-  python tools/sync_scripts.py --check
+  python tools/sync_scripts.py --map --check
 
 PASS: 334 headless assertions, all in tests/headless.lua, including delayed client dependency loading, all 15 prompts, all eleven NPCs' dialogue and services, sorting, waystones, buying/brewing/using items, tome level gates, bank transactions, wand equip/discard selection payloads, and gamepad prompt/casting conflicts.
 PASS: all 27 source files compile with the Lua 5.4 parser.
-PASS: place XML, 3067 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 2704 map parts.
-PASS: updated source scripts synchronized into the playable .rbxlx.
-
-PASS: gothic academy geometry has 1132 parts (Parts and WedgeParts, budget 1300); all 14 rooms and 7 academy quest anchors have player-width walking routes.
-PASS: place and world/Map.rbxmx geometry match (tools/sync_scripts.py --map, then --check).
-From the 2026-10-27 gothic academy generation (tools/upgrade_academy.py): surrounding geometry in 16 map groups preserved; tools/build.py make_world also builds the new academy (2704 map parts).
-NOT CHECKED IN STUDIO: wedge orientation of gables, spires and window heads (WEDGE_FLIP must match ROOF_FLIP), lit windows at night.
+PASS: place XML, 3431 instances, 27 embedded sources, 19 interaction anchors, classroom clearance at the five new classroom halls, shop doors, 10 houses and 3063 map parts (budget 3300).
+PASS: academy campus has 1491 parts (budget 1600); a 2.5 × 5.5-stud player climbing 1-stud steps reaches all 11 academy halls, the 4 house quarters and the 7 academy quest anchors from the arrival plaza. With the stair steps removed, the same check fails.
+PASS: campus parts stay inside the world and clear of the Whisperwood zone, the duel arena and the training platform.
+PASS: place map and markers match world/Map.rbxmx and world/Markers.rbxmx; updated Config, WorldService and WorldPoints are synchronized into the playable .rbxlx.
+NOT CHECKED IN STUDIO: wedge orientation of gables, spires, window heads and stair string walls (WEDGE_FLIP must match ROOF_FLIP), walking the 1-stud stairs, lit windows at night, lessons at the moved professors, the Mirror and library at their new spots, and duels from the Duelmaster's new spot.
 NOT RUN: Roblox Studio, real GUI/camera/input, physics, live DataStore, multiplayer and device integration. Follow docs/PLAYTEST.md.

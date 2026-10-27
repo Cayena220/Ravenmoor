@@ -71,7 +71,8 @@ function W:Start()
                     if prev and now > (prev.Grace or 0) then
                         local delta = Vector3.new(root.Position.X-prev.Pos.X,0,root.Position.Z-prev.Pos.Z).Magnitude
                         local allowance = math.max(state.Humanoid.WalkSpeed, 24)*(now-prev.Time)+20
-                        if delta > allowance or math.abs(root.Position.X) > 340 or math.abs(root.Position.Z) > 290 then
+                        local b, p = Config.WorldBounds, root.Position
+                        if delta > allowance or p.X < b.MinX or p.X > b.MaxX or p.Z < b.MinZ or p.Z > b.MaxZ then
                             self:Teleport(player, prev.Pos); root = self:Root(player)
                         end
                     end

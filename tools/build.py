@@ -82,26 +82,29 @@ def label(parent, title, subtitle='', offset=4, distance=100):
 def model(parent,name):
     m=item(parent,'Model',name); prop(m,'token','ModelStreamingMode',1); return m
 
+# Academy anchors sit 2.6 studs above their floor: the classroom wings are 20 studs up and the
+# Great Hall and Library 40 (tools/academy.py).
 POINTS={
-    'Oakhart':(49,3,121),'Mirror':(85,3,-125),'Teacher_Hex':(29,3,-180),
-    'Teacher_Ward':(58,3,-180),'Teacher_Charm':(87,3,-180),
-    'Teacher_Restoration':(116,3,-180),'Teacher_Alteration':(145,3,-180),
-    'Tobb':(-5,3,12),'Bank':(128,3,120),'Apothecary':(48,3,174),'Library':(146,3,-104),
-    'Duelmaster':(190,3,-86),'Training':(166,3,8),
+    'Oakhart':(49,3,121),'Mirror':(85,43,-292),'Teacher_Hex':(10,23,-201),
+    'Teacher_Ward':(10,23,-151),'Teacher_Charm':(10,23,-101),
+    'Teacher_Restoration':(164,23,-201),'Teacher_Alteration':(164,23,-151),
+    'Tobb':(-5,3,12),'Bank':(128,3,120),'Apothecary':(48,3,174),'Library':(9,43,-268),
+    'Duelmaster':(240,3,-94),'Training':(166,3,8),
     'ForestGate':(-58,3,15),'SpiderClearing':(-145,3,65),'Moonwell':(-216,3,44),
     'HowlerDen':(-213,3,-76),'Rotbark':(-122,3,-87),'Vexweave':(-160,3,-183),
     'Waystone_Hollowmere':(90,3,157),'Waystone_Castle':(85,3,-48),'Waystone_Whisperwood':(-36,3,20),
 }
 
 def npc(parent,name,pos,color):
+    """An NPC standing on the floor 3 studs below pos (anchors on raised floors lift the NPC with them)."""
     n=model(parent,name)
-    x,_,z=pos
-    part(n,'Robe',(x,2.5,z),(2.3,3.6,1.5),color)
-    part(n,'Head',(x,5,z),(1.6,1.6,1.6),(212,169,126),shape=0)
-    part(n,'HatBrim',(x,5.85,z),(2.6,0.25,2.4),color)
-    part(n,'HatCrown',(x,6.4,z),(1.1,1.1,1.1),color)
-    for side in (-1,1): part(n,'Sleeve',(x+side*1.5,2.9,z),(0.7,2.5,1),color)
-    part(n,'Wand',(x+1.6,2.2,z-1),(0.12,0.12,1.8),(111,78,43),'Wood')
+    x,y,z=pos; y-=3
+    part(n,'Robe',(x,y+2.5,z),(2.3,3.6,1.5),color)
+    part(n,'Head',(x,y+5,z),(1.6,1.6,1.6),(212,169,126),shape=0)
+    part(n,'HatBrim',(x,y+5.85,z),(2.6,0.25,2.4),color)
+    part(n,'HatCrown',(x,y+6.4,z),(1.1,1.1,1.1),color)
+    for side in (-1,1): part(n,'Sleeve',(x+side*1.5,y+2.9,z),(0.7,2.5,1),color)
+    part(n,'Wand',(x+1.6,y+2.2,z-1),(0.12,0.12,1.8),(111,78,43),'Wood')
     return n
 
 # ---- Storybook village kit -------------------------------------------------------------
@@ -399,9 +402,10 @@ def tree(parent,x,z,scale=1):
 def make_world(workspace):
     world=item(workspace,'Model','Map')
     ground=model(world,'Land')
-    part(ground,'Meadow',(0,-2,0),(660,4,570),(108,130,102),'Grass')
+    # The meadow runs north past the academy to the house quarters (z -650).
+    part(ground,'Meadow',(0,-2,-182.5),(660,4,935),(108,130,102),'Grass')
     part(ground,'Forest floor',(-160,0,-35),(270,0.15,410),(66,83,70),'Grass')
-    part(ground,'Academy approach',(85,0.2,10),(22,0.35,300),(146,139,121),'Cobblestone')
+    part(ground,'Academy approach',(85,0.2,55),(22,0.35,210),(146,139,121),'Cobblestone')
     part(ground,'Forest path',(-30,0.23,18),(200,0.4,15),(126,119,98),'Cobblestone')
     part(ground,'Village square',(88,0.25,147),(68,0.4,65),(150,140,121),'Cobblestone')
     part(ground,'Forest path link',(72,0.23,18),(4,0.4,15),(126,119,98),'Cobblestone')
@@ -418,7 +422,7 @@ def make_world(workspace):
     for z in range(-45,155,24):
         for x,side in ((70,1),(100,-1)): lamp(lamps,x,z,side)
     # Invisible limits are deliberately far outside the authored play space.
-    for pos,size in [((-331,35,0),(2,70,570)),((331,35,0),(2,70,570)),((0,35,-286),(660,70,2)),((0,35,286),(660,70,2))]:
+    for pos,size in [((-331,35,-182.5),(2,70,935)),((331,35,-182.5),(2,70,935)),((0,35,-651),(660,70,2)),((0,35,286),(660,70,2))]:
         part(ground,'World boundary',pos,size,(0,0,0),transparent=1)
     village=model(world,'Hollowmere')
     for name,x,z,spec in SHOPS: timber_house(village,name,x,z,'+Z',spec)
@@ -488,8 +492,9 @@ def make_world(workspace):
         head=next(o for o in n.findall('Item') if o.find("Properties/string[@name='Name']").text=='Head')
         label(head,name,title,3,90)
     mirror=model(world,'Mirror of Choosing')
-    part(mirror,'Frame',(85,6,-129),(9,12,1),GOLD,'Metal')
-    p=part(mirror,'Mirror',(85,6,-128.3),(7,10,0.3),(152,189,215),'Glass',transparent=0.2)
+    x,y,z=POINTS['Mirror']
+    part(mirror,'Frame',(x,y+3,z-4),(9,12,1),GOLD,'Metal')
+    p=part(mirror,'Mirror',(x,y+3,z-3.3),(7,10,0.3),(152,189,215),'Glass',transparent=0.2)
     label(p,'THE MIRROR OF CHOOSING','Courage · Loyalty · Wisdom · Ambition',8,90)
     for key in ('Hollowmere','Castle','Whisperwood'):
         x,y,z=POINTS['Waystone_'+key]
@@ -523,14 +528,16 @@ def save_text(path,text): path.write_text(text,encoding='utf-8',newline='\n')
 def save_xml(node,path):
     with open(path,'wb') as f: ET.ElementTree(node).write(f,encoding='utf-8',xml_declaration=True)
 
+def points_lua():
+    return 'return {\n'+''.join(f'    ["{k}"] = {{{v[0]}, {v[1]}, {v[2]}}},\n' for k,v in POINTS.items())+'}\n'
+
 def main():
     """Writes the place and world/ models. --world-only skips the place, so a Studio-saved
     place is untouched; copy the new map into it with tools/sync_scripts.py --map."""
     global counter
     counter=0
     world_only='--world-only' in sys.argv
-    points='return {\n'+''.join(f'    ["{k}"] = {{{v[0]}, {v[1]}, {v[2]}}},\n' for k,v in POINTS.items())+'}\n'
-    save_text(ROOT/'src/shared/WorldPoints.lua',points)
+    save_text(ROOT/'src/shared/WorldPoints.lua',points_lua())
     doc=ET.Element('roblox',{'version':'4'}); ET.SubElement(doc,'External').text='null'; ET.SubElement(doc,'External').text='nil'
     workspace=item(doc,'Workspace','Workspace'); prop(workspace,'bool','StreamingEnabled',True)
     prop(workspace,'float','StreamingMinRadius',96); prop(workspace,'float','StreamingTargetRadius',300)

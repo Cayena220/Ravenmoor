@@ -1,6 +1,6 @@
 # Ravenmoor Academy build kit
 
-The design reference for the academy remodel, copied from the Ravenmoor Academy design canvas: https://claude.ai/artifact/LApun141Xop1kQk68HfPpx (four artboards: castle elevation, site plan, Great Hall section and build kit). The canvas is the concept; `tools/academy.py` is what is built. [Where the build differs](#where-the-build-differs) lists the gaps.
+The design reference for the academy remodel, copied from the Ravenmoor Academy design canvas: https://claude.ai/artifact/LApun141Xop1kQk68HfPpx (four artboards: castle elevation, site plan, Great Hall section and build kit). **Superseded for layout:** the academy is now built from the exterior remodel canvas (https://claude.ai/artifact/9WsYqy3tTPN4NaBVxsGduk); see [ACADEMY-DESIGN.md](ACADEMY-DESIGN.md). Its proportions, materials, colours and lighting below still apply.
 
 ## Castle elevation at dusk
 
@@ -175,11 +175,4 @@ Build each wall from blocks 4 to 8 studs long rather than one big part, so the t
 
 ## Where the build differs
 
-The remodel in `tools/academy.py` keeps the existing room layout and quest anchors, so some canvas figures are not built yet:
-
-- **Site.** The academy stays on flat ground at the north end of the approach road. The crag, gorge, loch, viaduct, boathouse, loch stair and glasshouses are not built.
-- **Great Hall.** It keeps its existing 84 × 72-stud floor and 32-stud walls, with king-post trusses, two chandeliers and a clerestory instead of hammerbeams, six chandeliers and an undercroft.
-- **Towers.** The Rookery Tower is about 155 studs to the finial. The Starwatch Tower has a glazed lantern under a copper spire rather than an arcade and dome. There are no separate house towers or library dormers.
-- **Walls.** Room walls stay 1 stud thick, so the doors and quest positions do not move. Windows pass through the wall in a limestone surround rather than sitting in a 2-stud reveal.
-- **Windows at night.** About one window in three is a `Lit window` that WorldService switches from Glass to Neon after dark. There are no SurfaceLights.
-- **Lighting pass.** Not applied yet. The place still uses its own Lighting settings, which `EffectsController` tweens by zone. Recent Roblox versions also replace `Technology` with `LightingStyle`, so check that setting in Studio before applying the table.
+The campus layout replaced this castle plan; [ACADEMY-DESIGN.md](ACADEMY-DESIGN.md) lists how the build differs from the newer concept. The lighting pass above is still not applied: the place keeps its own Lighting settings, which `EffectsController` tweens by zone. Recent Roblox versions also replace `Technology` with `LightingStyle`, so check that setting in Studio before applying the table.

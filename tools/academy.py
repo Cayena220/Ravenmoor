@@ -1,51 +1,63 @@
-"""Ravenmoor's modular academy. Coordinates deliberately preserve existing quest anchors.
+"""Ravenmoor Academy campus, remodelled from the exterior concept canvas
+(https://claude.ai/artifact/9WsYqy3tTPN4NaBVxsGduk) and fitted to this map.
 
-Rooms, doors and furniture keep their positions, so lessons, sorting and the library work as
-before. The exterior follows the build kit: two-tone stone with limestone dressings, stepped
-buttresses, lancet windows set through the walls, steep slate roofs with stone gables, round
-towers with octagonal spires and a square clock tower. Everything is plain parts and wedges.
+Three levels climb north from the approach road: the arrival plaza and Main Gate on the meadow, two
+classroom wings 20 studs up either side of the Grand Stair, and the upper terrace 40 studs up with the
+Entrance Keep, Great Hall, Rookery Tower, Library and Starwatch Tower. Every classroom is a hall of its own,
+and each house has a separate walled quarter north of the upper terrace with its own common room, dorm
+tower, gate and stair. Stairs use a 1-stud rise and a 2-stud run. Everything is plain parts and wedges.
+Coordinates: X runs east, Z runs south (north is -Z), Y is up.
 """
 import math
 import random
 import xml.etree.ElementTree as ET
 
-# xmin, xmax, north Z, south Z, purpose, accent
-ROOMS = [
-    (43,127,-145,-73,'Great Hall',(183,145,79)),
-    (9,42,-108,-73,'Infirmary',(99,161,150)),
-    (9,42,-145,-109,'Potions Laboratory',(156,116,183)),
-    (128,179,-119,-73,'Library & Archive',(86,132,174)),
-    (128,179,-145,-120,'Staff & Headmaster',(173,127,92)),
-]
+MID=20; TOP=40            # classroom-wing and upper-terrace levels
+CX=85                     # centre line of the approach road and the Grand Stair
+# Footprints as (xmin, xmax, north Z, south Z).
+PLAZA=(45,125,-110,-50)
+LANDING=(45,125,-180,-150)
+WINGS={'West':(-18,38,-215,-60),'East':(136,192,-215,-60)}
+UPPER=(-10,180,-340,-220)
+BOUNDS=(-240,320,-630,-20)   # the area the walking check covers
 SCHOOLS=['Hex','Ward','Charm','Restoration','Alteration']
-for i,school in enumerate(SCHOOLS):
-    x=29+i*29
-    ROOMS.append((x-14,x+14,-199,-153,school+' Classroom',(99,143,163)))
 HOUSES=[('Emberclaw',(168,58,55)),('Stoneroot',(192,145,53)),('Skyquill',(63,114,180)),('Nightfang',(55,133,98))]
-for i,(house,color) in enumerate(HOUSES):
-    x=10+i*42
-    ROOMS.append((x,x+40,-273,-217,house+' House',color))
+# House quarters: centre x, z and terrace height. The front, with the gate and stair, faces the campus.
+QUARTERS=[(-190,-430,12),(-190,-580,24),(270,-430,12),(270,-580,24)]
+
+# xmin, xmax, north Z, south Z, name, accent. Teacher anchors stand 9 studs inside a classroom's north wall,
+# so the lesson targets 15 studs south of them stay inside the hall.
+ROOMS=[
+    (-14,34,-210,-174,'Hex Classroom',(99,143,163)),
+    (-14,34,-160,-124,'Ward Classroom',(99,143,163)),
+    (-14,34,-110,-74,'Charm Classroom',(99,143,163)),
+    (140,188,-210,-174,'Restoration Classroom',(99,143,163)),
+    (140,188,-160,-124,'Alteration Classroom',(99,143,163)),
+    (35,135,-305,-250,'Great Hall',(183,145,79)),
+    (-8,22,-315,-232,'Library & Archive',(86,132,174)),
+]
+FLOORS={name:(MID if name.endswith('Classroom') else TOP)+0.4 for *_,name,_ in ROOMS}
+COURTS={}   # house name -> (x, z, floor) of its private court, filled in below
+
+
+def quarter(cx,cz,h):
+    """A house quarter's layout. mx is +1 when the front faces east, -1 when it faces west."""
+    mx=1 if cx<CX else -1
+    hall=tuple(sorted((cx-mx*40,cx-mx*8)))+(cz-30,cz+14)
+    return mx,hall,(cx-mx*24,cz+28)
+
+
+for (house,color),(cx,cz,h) in zip(HOUSES,QUARTERS):
+    mx,(x0,x1,n,s),_=quarter(cx,cz,h)
+    ROOMS.append((x0,x1,n,s,house+' House',color)); FLOORS[house+' House']=h+0.4
+    COURTS[house]=(cx+mx*20,cz,h)
 
 # Build kit palette: wall stone, weathered stone, limestone dressings, plinth, slate, weathered copper.
-STONE=(118,114,104); WEATHERED=(96,94,88); DRESSED=(176,166,142); PLINTH=(92,90,84)
-SLATE=(54,60,68); RIDGE=(40,44,50); COPPER=(86,124,112); TIMBER=(88,60,40); IRON=(52,54,58); GOLD=(202,160,83)
-DARK_GLASS=(58,68,80); WARM_GLASS=(236,178,104)
+STONE=(118,114,104); DRESSED=(176,166,142); PLINTH=(92,90,84); PAVING=(145,148,145); PATH=(146,139,121)
+SLATE=(54,60,68); RIDGE=(40,44,50); COPPER=(86,124,112); IRON=(52,54,58); GOLD=(202,160,83); DARK=(38,40,44)
+DARK_GLASS=(58,68,80); WARM_GLASS=(236,178,104); WATER=(74,140,155); HEDGE=(66,92,58)
 PITCH=math.tan(math.radians(52))   # roof rise per stud of run
 TRIM={'collide':False,'query':False}
-# Covered walks between the ranges. A wall that faces a room or one of these is an inside wall.
-COVERED=[(8,180,-152.5,-145.5),(8,180,-216,-200),(160,180,-200,-152)]
-# name, centre x, z, radius, drum top, spire height, spire colour and material, windows as (bearing°, y).
-# Bearings: 0 = east, 90 = south. Windows face away from the rooms each tower is built against.
-TOWERS=[
-    ('Rookery Tower',185,-68,9,120,30,COPPER,'CorrodedMetal',[(90,20),(30,44),(150,68),(60,92),(120,110)]),
-    ('West Tower',3,-68,8,74,26,SLATE,'Slate',[(90,22),(160,40),(200,58),(120,66)]),
-    ('Gate Turret',68,-70,4.5,56,15,SLATE,'Slate',[(90,24),(130,40),(50,48)]),
-    ('Gate Turret',102,-70,4.5,56,15,SLATE,'Slate',[(90,24),(50,40),(130,48)]),
-    ('North-west Tower',7,-276,5,64,17,SLATE,'Slate',[(200,20),(250,40),(160,52)]),
-    ('Starwatch Tower',179,-276,5,92,17,COPPER,'CorrodedMetal',[(290,24),(340,48),(20,72)]),
-]
-CLOCK=(42.5,-66.5,6,84,22)   # centre x, z, half width, wall top, spire height; back face on the front wall
-GREAT_WINDOW=(74,96)         # x span kept clear on the hall front for the great window
 # Keep equal to build.ROOF_FLIP. False: a WedgePart's tall face is its back (+Z), sloping down to the front.
 WEDGE_FLIP=False
 
@@ -81,33 +93,9 @@ def _set_frame(node,center,right,up,back):
         cf.find(k).text=str(round(v,9)+0.0)
 
 
-def _open_runs(axis,fixed,out,a,b):
-    """Spans of a wall segment whose outer side is open ground, sampled every half stud."""
-    rects=[r[:4] for r in ROOMS]+COVERED
-    runs=[]; t=a+0.25
-    while t<b:
-        x,z=(t,fixed+out*2.5) if axis=='x' else (fixed+out*2.5,t)
-        if not any(x0<x<x1 and n<z<s for x0,x1,n,s in rects):
-            if runs and abs(runs[-1][1]-(t-0.25))<1e-6: runs[-1][1]=t+0.25
-            else: runs.append([t-0.25,t+0.25])
-        t+=0.5
-    return [(s,min(e,b)) for s,e in runs if e-s>=4]
-
-
-def _free_spans(axis,fixed,a,b):
-    """Parts of a facade run not covered by a tower or the great window."""
-    blocked=[]
-    for _,x,z,r,*_rest in TOWERS:
-        near,u=(z,x) if axis=='x' else (x,z)
-        if abs(near-fixed)<r+4: blocked.append((u-r-1.5,u+r+1.5))
-    cx,cz,half=CLOCK[:3]
-    near,u=(cz,cx) if axis=='x' else (cx,cz)
-    if abs(near-fixed)<half+6: blocked.append((u-half-1.5,u+half+1.5))
-    if axis=='x' and fixed==-73: blocked.append(GREAT_WINDOW)
-    spans=[(a,b)]
-    for lo,hi in blocked:
-        spans=[piece for s,e in spans for piece in ((s,min(e,lo)),(max(s,hi),e)) if piece[1]-piece[0]>0.01]
-    return spans
+def _toward(dx,dz):
+    """Yaw that turns a WedgePart's tall face toward (dx, dz)."""
+    return math.atan2(dx,dz) if not WEDGE_FLIP else math.atan2(-dx,-dz)
 
 
 def build_academy(parent, part, model, label, points):
@@ -138,6 +126,9 @@ def build_academy(parent, part, model, label, points):
         windows[0]+=1
         return ('Lit window',WARM_GLASS) if windows[0]%3==1 else ('Window glass',DARK_GLASS)
 
+    def box(group,name,x0,x1,z0,z1,y0,y1,color,material='Slate',**kw):
+        return part(group,name,((x0+x1)/2,(y0+y1)/2,(z0+z1)/2),(x1-x0,y1-y0,z1-z0),color,material,**kw)
+
     def frame_for(axis,fixed):
         def at(u,off,y): return (u,y,fixed+off) if axis=='x' else (fixed+off,y,u)
         def dims(along,tall,deep): return (along,tall,deep) if axis=='x' else (deep,tall,along)
@@ -150,229 +141,239 @@ def build_academy(parent, part, model, label, points):
         part(group,name,at(u,0,y0+h/2),dims(w,h,1.5),color,'Glass',**TRIM)
         tri(group,name,at(u-w/2,0,y0+h),at(u+w/2,0,y0+h),at(u,0,y0+h+w*0.8),color,'Glass',1.5,**TRIM)
 
-    def buttress(group,axis,fixed,out,u,top):
-        at,dims=frame_for(axis,fixed); low=top*0.45
-        o=(0,0,out) if axis=='x' else (out,0,0)
-        yaw=math.atan2(o[0],o[2]) if WEDGE_FLIP else math.atan2(-o[0],-o[2])   # tall side against the wall
-        part(group,'Buttress',at(u,out*2,low/2),dims(2.6,low,3),STONE,'Slate')
-        part(group,'Buttress',at(u,out*1.5,(top-3)/2),dims(2,top-3,2),STONE,'Slate')
-        part(group,'Buttress weathering',at(u,out*3,low+0.9),(2.6,1.8,1),DRESSED,'Limestone',yaw=yaw,cls='WedgePart',**TRIM)
-        part(group,'Buttress weathering',at(u,out*1.5,top-1.75),(2,2.5,2),DRESSED,'Limestone',yaw=yaw,cls='WedgePart',**TRIM)
+    def plaque(group,title,x,y,z):
+        p=part(group,'Room sign',(x,y,z),(7,1,0.3),GOLD,'Metal',**TRIM)
+        label(p,title,'',offset=2,distance=60)
 
-    def facade(group,axis,fixed,out,a,b,height,win=(3,10)):
-        """Outside face of a wall run: plinth, string course, cornice, weathering, buttresses and windows."""
-        at,dims=frame_for(axis,fixed); top=height+0.4; mid=(a+b)/2; run=b-a
-        part(group,'Plinth course',at(mid,out*0.9,1.9),dims(run,3,0.8),PLINTH,'Cobblestone',**TRIM)
-        part(group,'String course',at(mid,out*0.7,6.4),dims(run,0.5,0.4),DRESSED,'Limestone',**TRIM)
-        part(group,'Cornice',at(mid,out*0.85,top-0.4),dims(run,0.8,0.7),DRESSED,'Limestone',**TRIM)
-        for _ in range(int(run//10)):   # about one weathered block in four, set just proud of the face
-            w,h=rng.uniform(3,7),rng.uniform(2,4.5)
-            u=rng.uniform(a+w/2,b-w/2) if run>w else mid
-            part(group,'Weathered stone',at(u,out*0.56,rng.uniform(4.5+h/2,top-1.5-h/2)),dims(w,h,0.12),WEATHERED,'Slate',**TRIM)
-        for s,e in _free_spans(axis,fixed,a,b):
-            bays=max(1,math.ceil((e-s)/16)); width=(e-s)/bays
-            if width<6: continue
-            for k in range(1,bays): buttress(group,axis,fixed,out,s+k*width,top)
-            for k in range(bays): lancet(group,axis,fixed,s+(k+0.5)*width,7,*win)
+    def walls(group,x0,x1,z0,z1,base,height,doors,win=(3,9),spacing=13,buttresses=False,skip=()):
+        """1-stud walls standing on `base`, with 10-stud door arches 14 high, lancets, string course and cornice.
+        doors maps a side ('n', 's', 'w', 'e') to door centres along it."""
+        top=base+height+0.4
+        for key,(axis,fixed,a,b,out) in {'n':('x',z0,x0,x1,-1),'s':('x',z1,x0,x1,1),'w':('z',x0,z0,z1,-1),'e':('z',x1,z0,z1,1)}.items():
+            if key in skip: continue
+            at,dims=frame_for(axis,fixed); cursor=a; spans=[]
+            for d in sorted(doors.get(key,[])):
+                spans.append((cursor,d-5)); cursor=d+5
+                part(group,'Door arch lintel',at(d,0,(base+14+top)/2),dims(10,top-base-14,1),STONE,'Slate')
+            spans.append((cursor,b))
+            for s,e in spans:
+                if e-s<=0.01: continue
+                part(group,'Stone wall',at((s+e)/2,0,(base+top)/2),dims(e-s,top-base,1),STONE,'Slate')
+                part(group,'String course',at((s+e)/2,out*0.7,base+6.4),dims(e-s,0.5,0.4),DRESSED,'Limestone',**TRIM)
+                count=int((e-s)//spacing)
+                for k in range(count): lancet(group,axis,fixed,s+(k+0.5)*(e-s)/count,base+7,*win)
+                if buttresses and count>1:
+                    for k in range(1,count):
+                        part(group,'Buttress',at(s+k*(e-s)/count,out*1.5,base+height*0.4),dims(2.2,height*0.8,2),STONE,'Slate')
+            part(group,'Cornice',at((a+b)/2,out*0.85,top-0.4),dims(b-a,0.8,0.7),DRESSED,'Limestone',**TRIM)
+        return top
 
-    def plaque(group,title,x,z,y=11):
-        p=part(group,'Room sign',(x,y,z),(7,1,0.3),GOLD,'Metal',collide=False,query=False)
-        label(p,title,'',offset=2,distance=48)
-
-    def wall(group,axis,fixed,lo,hi,doors,height,out,win):
-        cursor=lo
-        def segment(a,b):
-            if b<=a: return
-            pos=((a+b)/2,height/2+0.4,fixed) if axis=='x' else (fixed,height/2+0.4,(a+b)/2)
-            size=(b-a,height,1) if axis=='x' else (1,height,b-a)
-            part(group,'Stone wall',pos,size,STONE,'Slate')
-            for s,e in _open_runs(axis,fixed,out,a,b): facade(group,axis,fixed,out,s,e,height,win)
-        for center in sorted(doors):
-            segment(cursor,center-5)
-            pos=(center,(height+14)/2+0.4,fixed) if axis=='x' else (fixed,(height+14)/2+0.4,center)
-            size=(10,height-14,1) if axis=='x' else (1,height-14,10)
-            part(group,'Door arch lintel',pos,size,STONE,'Slate')
-            cursor=center+5
-        segment(cursor,hi)
-
-    def roof(group,xmin,xmax,north,south,top):
-        """Steep slate roof along Z. The slabs' underside meets the wall top on the inner face and the
-        eaves drop past it; stone gables close both ends."""
-        cx=(xmin+xmax)/2; cz=(north+south)/2; half_in=(xmax-xmin)/2; half=half_in+1.5
-        slope=math.atan(PITCH); sit=0.5/math.cos(slope); depth=south-north+3; apex=top+half_in*PITCH
+    def gable_roof(group,x0,x1,z0,z1,top,color,axis,gables=STONE,material='Slate'):
+        """Steep roof with its ridge along `axis`; the slabs' underside meets the wall top on the inner face and
+        the eaves drop past it. Stone gables close both ends."""
+        slope=math.atan(PITCH); cx=(x0+x1)/2; cz=(z0+z1)/2
+        span,length=(x1-x0,z1-z0) if axis=='z' else (z1-z0,x1-x0)
+        half_in=span/2; half=half_in+1.5; sit=0.5/math.cos(slope); depth=length+3
+        apex=top+half_in*PITCH; y=top+sit+(half_in-half/2)*PITCH; hyp=round(math.hypot(half,half*PITCH),4)
         for side in (-1,1):
-            part(group,'Slate roof',(cx+side*half/2,top+sit+(half_in-half/2)*PITCH,cz),
-                 (round(math.hypot(half,half*PITCH),4),1,depth),SLATE,'Slate',roll=-side*slope)
-        part(group,'Roof ridge',(cx,apex+2*sit,cz),(1.2,0.8,depth+0.2),RIDGE,'Slate',**TRIM)
-        for z in (north,south): tri(group,'Gable',(xmin,top,z),(xmax,top,z),(cx,apex,z),STONE,'Slate',1)
+            if axis=='z': part(group,'Slate roof',(cx+side*half/2,y,cz),(hyp,1,depth),color,material,roll=-side*slope)
+            else: part(group,'Slate roof',(cx,y,cz+side*half/2),(depth,1,hyp),color,material,pitch=side*slope)
+        if axis=='z':
+            part(group,'Roof ridge',(cx,apex+2*sit,cz),(1.2,0.8,depth+0.2),RIDGE,'Slate',**TRIM)
+            for z in (z0,z1): tri(group,'Gable',(x0,top,z),(x1,top,z),(cx,apex,z),gables,material,1)
+        else:
+            part(group,'Roof ridge',(cx,apex+2*sit,cz),(depth+0.2,0.8,1.2),RIDGE,'Slate',**TRIM)
+            for x in (x0,x1): tri(group,'Gable',(x,top,z0),(x,top,z1),(x,apex,cz),gables,material,1)
         return apex
 
-    def table(group,x,z,w=8,d=5):
-        part(group,'Table',(x,2.6,z),(w,0.5,d),TIMBER,'Wood')
-        for dx in (-w/2+0.7,w/2-0.7): part(group,'Table support',(x+dx,1.4,z),(0.7,2.4,d-1),TIMBER,'Wood')
+    def hall(group,name,rect,base,height,doors,roof=SLATE,axis=None,**kw):
+        """A free-standing hall: floor, walls, roof and one warm light."""
+        x0,x1,z0,z1=rect; g=model(group,name)
+        box(g,'Floor',x0,x1,z0,z1,base+0.2,base+0.4,(137,142,148),'Marble')
+        top=walls(g,x0,x1,z0,z1,base,height,doors,**kw)
+        axis=axis or ('x' if x1-x0>=z1-z0 else 'z')
+        apex=gable_roof(g,x0,x1,z0,z1,top,roof,axis)
+        lamp(part(g,'Pendant',((x0+x1)/2,top-3,(z0+z1)/2),(2,1,2),GOLD,'Neon',**TRIM),1.3,40)
+        return g,top,apex
 
-    def bed(group,x,z,color):
-        part(group,'Bed frame',(x,0.9,z),(6,1,10),TIMBER,'Wood')
-        part(group,'Mattress',(x,1.6,z),(5.5,0.6,9),(222,216,193))
-        part(group,'House blanket',(x,1.95,z+1),(5.5,0.15,6),color,collide=False,query=False)
-        part(group,'Pillow',(x,2,z-3),(4,0.4,2),(239,229,205),collide=False,query=False)
+    def terrace(group,name,x0,x1,z0,z1,top,arches='',pointed=''):
+        """A solid stone terrace with a cornice, a cobbled base course, paving and a blind arcade on its faces.
+        Arches on the faces listed in `pointed` get pointed heads."""
+        box(group,name,x0,x1,z0,z1,0,top,STONE,'Slate')
+        box(group,'Terrace paving',x0+0.5,x1-0.5,z0+0.5,z1-0.5,top,top+0.1,PAVING,'Cobblestone',**TRIM)
+        box(group,'Terrace cornice',x0-0.6,x1+0.6,z0-0.6,z1+0.6,top-1.2,top-0.2,DRESSED,'Limestone',**TRIM)
+        box(group,'Base course',x0-0.6,x1+0.6,z0-0.6,z1+0.6,0,3,PLINTH,'Cobblestone',**TRIM)
+        h=min(top-6,16)
+        for key in arches:
+            axis,fixed,a,b,out={'n':('x',z0,x0,x1,-1),'s':('x',z1,x0,x1,1),'w':('z',x0,z0,z1,-1),'e':('z',x1,z0,z1,1)}[key]
+            at,dims=frame_for(axis,fixed); count=max(1,int((b-a)//18))
+            for k in range(count):
+                u=a+(k+0.5)*(b-a)/count
+                part(group,'Blind arch',at(u,out*0.1,3+h/2),dims(8,h,0.3),DARK,'Slate',**TRIM)
+                if key in pointed:
+                    tri(group,'Blind arch',at(u-4,out*0.1,3+h),at(u+4,out*0.1,3+h),at(u,out*0.1,3+h+5),DARK,'Slate',0.3,**TRIM)
 
-    def round_tower(group,name,x,z,r,top,spire_h,spire_color,spire_material,openings):
+    def flight(group,name,axis,lo,hi,start,climb,base,steps,cheek=1.5):
+        """`steps` steps of 1-stud rise and 2-stud run across lo..hi. The bottom step's outer edge is at `start`
+        and the flight climbs toward `climb` (+1 or -1 along `axis`). Steps are solid down to `base`; a sloped
+        string wall and a limestone coping run up each side."""
+        m=model(group,name)
+        for i in range(steps):
+            a,b=sorted((start+climb*2*i,start+climb*2*(i+1)))
+            if axis=='z': box(m,'Step',lo,hi,a,b,base,base+i+1,DRESSED,'Limestone')
+            else: box(m,'Step',a,b,lo,hi,base,base+i+1,DRESSED,'Limestone')
+        mid=start+climb*steps; slope=math.atan(0.5); run=math.hypot(2*steps,steps)-0.8   # coping stops short of both ends
+        for edge in (lo-cheek/2,hi+cheek/2):
+            pos=(edge,base+steps/2,mid) if axis=='z' else (mid,base+steps/2,edge)
+            yaw=_toward(0,climb) if axis=='z' else _toward(climb,0)
+            part(m,'String wall',pos,(cheek,steps,2*steps),STONE,'Slate',cls='WedgePart',yaw=yaw)
+            top=(pos[0],base+steps/2+0.8,pos[2])
+            if axis=='z': part(m,'Coping',top,(cheek+0.4,0.8,round(run,4)),DRESSED,'Limestone',pitch=-climb*slope)
+            else: part(m,'Coping',top,(round(run,4),0.8,cheek+0.4),DRESSED,'Limestone',roll=climb*slope)
+        return m
+
+    def pylon(group,x,z,base,h):
+        """A stone pylon with a limestone cap and a lantern that lights after dark."""
+        box(group,'Pylon',x-2.5,x+2.5,z-2.5,z+2.5,base,base+h,STONE,'Slate')
+        box(group,'Pylon cap',x-3,x+3,z-3,z+3,base+h,base+h+1,DRESSED,'Limestone')
+        part(group,'Lit window',(x,base+h+2.2,z),(2.4,2.4,2.4),WARM_GLASS,'Glass',shape=0,**TRIM)
+
+    def drum(group,name,x,z,r,base,top,spire_h,color=SLATE,material='Slate',sides=8,slits=3,lantern=False):
+        """A round tower: drum, string course, slit windows, corbel table, spire and finial. A lantern adds a
+        glazed observatory ring under the spire."""
         m=model(group,name); d=2*r; up=math.pi/2
-        part(m,'Tower drum',(x,top/2,z),(top,d,d),STONE,'Slate',shape=2,roll=up)
-        part(m,'Plinth course',(x,1.9,z),(3,d+1.6,d+1.6),PLINTH,'Cobblestone',shape=2,roll=up,**TRIM)
-        for y in (round(top*0.35,1),round(top*0.7,1)):
-            part(m,'String course',(x,y,z),(0.6,d+0.8,d+0.8),DRESSED,'Limestone',shape=2,roll=up,**TRIM)
-        for bearing,y in openings:
-            a=math.radians(bearing); glass,color=glazing()
-            part(m,glass,(x+(r-0.15)*math.cos(a),y,z+(r-0.15)*math.sin(a)),(1.4,4,1),color,'Glass',
+        part(m,'Tower drum',(x,(base+top)/2,z),(top-base,d,d),STONE,'Slate',shape=2,roll=up)
+        part(m,'String course',(x,base+(top-base)*0.55,z),(0.6,d+0.8,d+0.8),DRESSED,'Limestone',shape=2,roll=up,**TRIM)
+        for i in range(slits):
+            a=math.tau*(i/slits+0.25); y=base+(top-base)*(0.3+0.55*i/max(1,slits-1)); glass,tint=glazing()
+            part(m,glass,(x+(r-0.15)*math.cos(a),y,z+(r-0.15)*math.sin(a)),(1.4,4,1),tint,'Glass',
                  yaw=math.atan2(math.cos(a),math.sin(a)),**TRIM)
-        base=top
-        if name=='Starwatch Tower':   # glazed observatory lantern under the spire
+        if lantern:
             part(m,'Lit window',(x,top+3,z),(6,d-1.6,d-1.6),WARM_GLASS,'Glass',shape=2,roll=up,**TRIM)
-            base+=6
-        part(m,'Corbel table',(x,base+1,z),(2,d+1.6,d+1.6),DRESSED,'Limestone',shape=2,roll=up,**TRIM)
-        spire(m,x,z,base+2,(r+0.9)/math.cos(math.pi/8),spire_h,spire_color,spire_material)
-        part(m,'Finial',(x,base+2+spire_h+1.2,z),(0.35,2.6,0.35),IRON,'Metal',**TRIM)
+            top+=6
+        part(m,'Corbel table',(x,top+1,z),(2,d+1.6,d+1.6),DRESSED,'Limestone',shape=2,roll=up,**TRIM)
+        spire(m,x,z,top+2,(r+0.9)/math.cos(math.pi/sides),spire_h,color,material,sides)
+        part(m,'Finial',(x,top+2+spire_h+1.2,z),(0.35,2.6,0.35),IRON,'Metal',**TRIM)
+        return m
 
-    def clock_tower(group):
-        x,z,half,top,spire_h=CLOCK; m=model(group,'Clock Tower'); s=half*2; face=z+half
-        part(m,'Tower wall',(x,top/2,z),(s,top,s),STONE,'Slate')
-        part(m,'Plinth course',(x,1.9,z),(s+1.6,3,s+1.6),PLINTH,'Cobblestone',**TRIM)
-        for y in (24,52): part(m,'String course',(x,y,z),(s+0.8,0.6,s+0.8),DRESSED,'Limestone',**TRIM)
+    def square_tower(group,name,x,z,half,base,top,spire_h,color,material):
+        """A square tower with quoins, belfry lancets, pinnacles and a four-sided spire."""
+        m=model(group,name); s=2*half
+        box(m,'Tower wall',x-half,x+half,z-half,z+half,base,top,STONE,'Slate')
+        box(m,'Plinth course',x-half-0.8,x+half+0.8,z-half-0.8,z+half+0.8,base,base+3,PLINTH,'Cobblestone',**TRIM)
+        for y in (base+(top-base)*0.4,base+(top-base)*0.75):
+            box(m,'String course',x-half-0.4,x+half+0.4,z-half-0.4,z+half+0.4,y-0.3,y+0.3,DRESSED,'Limestone',**TRIM)
         for dx in (-1,1):
-            for dz in (-1,1): part(m,'Quoin',(x+dx*(half-0.1),top/2,z+dz*(half-0.1)),(1,top,1),DRESSED,'Limestone',**TRIM)
-        for y0 in (30,44): lancet(m,'x',face,x,y0,3,8)
-        for dx in (-2,2):   # louvred belfry openings on the three free faces
-            part(m,'Belfry louvre',(x+dx,top-8,face+0.1),(2.4,9,0.4),(30,34,40),'Slate',**TRIM)
-        for side in (-1,1):
-            for dz in (-2,2):
-                part(m,'Belfry louvre',(x+side*(half+0.1),top-8,z+dz),(0.4,9,2.4),(30,34,40),'Slate',**TRIM)
-        dial_y=top-22
-        part(m,'Clock bezel',(x,dial_y,face+0.15),(0.4,8,8),GOLD,'Metal',shape=2,yaw=math.pi/2,**TRIM)
-        part(m,'Clock dial',(x,dial_y,face+0.3),(0.6,7,7),(232,222,196),'SmoothPlastic',shape=2,yaw=math.pi/2,**TRIM)
-        for length,turn in ((2.4,math.radians(60)),(3.2,math.radians(-60))):   # ten past ten
-            dx,dy=-math.sin(turn)*length/2,math.cos(turn)*length/2
-            part(m,'Clock hand',(x+dx,dial_y+dy,face+0.75),(0.4,length,0.3),IRON,'Metal',roll=turn,**TRIM)
-        for side in (-1,1):
-            part(m,'Clock bezel',(x+side*(half+0.15),dial_y,z),(0.4,8,8),GOLD,'Metal',shape=2,**TRIM)
-            part(m,'Clock dial',(x+side*(half+0.3),dial_y,z),(0.6,7,7),(232,222,196),'SmoothPlastic',shape=2,**TRIM)
-        part(m,'Cornice',(x,top+0.6,z),(s+1.6,1.2,s+1.6),DRESSED,'Limestone',**TRIM)
+            for dz in (-1,1): part(m,'Quoin',(x+dx*(half-0.1),(base+top)/2,z+dz*(half-0.1)),(1,top-base,1),DRESSED,'Limestone',**TRIM)
+        for axis,fixed in (('x',z-half),('x',z+half),('z',x-half),('z',x+half)):
+            lancet(m,axis,fixed,x if axis=='x' else z,top-26,4,14)
+        box(m,'Cornice',x-half-0.8,x+half+0.8,z-half-0.8,z+half+0.8,top,top+1.2,DRESSED,'Limestone',**TRIM)
         for dx in (-1,1):
-            for dz in (-1,1): part(m,'Pinnacle',(x+dx*(half-0.2),top+3.7,z+dz*(half-0.2)),(1.2,5,1.2),DRESSED,'Limestone',**TRIM)
-        k=half-0.5; base=top+1.2; apex=(x,base+spire_h,z)
-        corners=[(x-k,base,z-k),(x+k,base,z-k),(x+k,base,z+k),(x-k,base,z+k)]
-        for i in range(4): tri(m,'Spire',corners[i],corners[(i+1)%4],apex,SLATE,'Slate',0.4,**TRIM)
-        part(m,'Finial',(x,base+spire_h+1.2,z),(0.35,2.6,0.35),IRON,'Metal',**TRIM)
+            for dz in (-1,1): part(m,'Pinnacle',(x+dx*(half-0.2),top+3.7,z+dz*(half-0.2)),(1.4,5,1.4),DRESSED,'Limestone',**TRIM)
+        k=half-0.5; b=top+1.2; apex=(x,b+spire_h,z)
+        corners=[(x-k,b,z-k),(x+k,b,z-k),(x+k,b,z+k),(x-k,b,z+k)]
+        for i in range(4): tri(m,'Spire',corners[i],corners[(i+1)%4],apex,color,material,0.4,**TRIM)
+        part(m,'Finial',(x,b+spire_h+1.2,z),(0.35,2.6,0.35),IRON,'Metal',**TRIM)
+        return m
 
-    def great_hall_front(g,top,apex):
-        """Gate, great window and rose window on the hall's south gable."""
-        z=-73
-        for x in (79.6,90.4): part(g,'Gate jamb',(x,7.4,z),(0.8,14,1.6),DRESSED,'Limestone',**TRIM)
-        tri(g,'Gate hood',(78.8,14.4,z),(91.2,14.4,z),(85,17.6,z),DRESSED,'Limestone',1.6,**TRIM)
-        for x in (80.6,89.4): part(g,'Gate door',(x,7.2,-76),(0.5,13.6,5),TIMBER,'WoodPlanks',**TRIM)
-        part(g,'Window surround',(85,33,z),(20,30,1.3),DRESSED,'Limestone',**TRIM)
-        part(g,'Lit window',(85,33,z),(17,28,1.5),WARM_GLASS,'Glass',**TRIM)
-        tri(g,'Window surround',(75,48,z),(95,48,z),(85,64,z),DRESSED,'Limestone',1.3,**TRIM)
-        tri(g,'Lit window',(76.5,47,z),(93.5,47,z),(85,60.6,z),WARM_GLASS,'Glass',1.5,**TRIM)
-        for x in (80.75,89.25): part(g,'Mullion',(x,33,z),(0.5,28,1.7),DRESSED,'Limestone',**TRIM)
-        part(g,'Mullion',(85,39.5,z),(0.5,41,1.7),DRESSED,'Limestone',**TRIM)
-        part(g,'Transom',(85,33,z),(17,0.6,1.7),DRESSED,'Limestone',**TRIM)
-        rose=min(70,apex-14)
-        part(g,'Rose window surround',(85,rose,z),(1.3,12,12),DRESSED,'Limestone',shape=2,yaw=math.pi/2,**TRIM)
-        part(g,'Lit window',(85,rose,z),(1.5,10,10),WARM_GLASS,'Glass',shape=2,yaw=math.pi/2,**TRIM)
-        for turn in (0,math.pi/4,math.pi/2,3*math.pi/4):
-            part(g,'Tracery',(85,rose,z),(10,0.45,1.7),DRESSED,'Limestone',roll=turn,**TRIM)
-
-    def great_hall_roof(g,top,apex):
-        """Open timber roof: king-post trusses, two iron chandeliers and a clerestory over the wings."""
-        slope=math.atan(PITCH); run=42; rafter=math.hypot(run,run*PITCH)
-        for z in (-87,-101,-115,-129):
-            part(g,'Tie beam',(85,top-0.6,z),(84,1.2,1.2),TIMBER,'Wood',**TRIM)
-            for side in (-1,1):
-                part(g,'Principal rafter',(85+side*run/2,(top+apex)/2-1.1,z),(round(rafter,4),1.2,1.2),TIMBER,'Wood',roll=-side*slope,**TRIM)
-            part(g,'King post',(85,(top+apex)/2-0.6,z),(1.2,round(apex-top,4),1.2),TIMBER,'Wood',**TRIM)
-        for x in (64,106):
-            part(g,'Chandelier chain',(x,28,-101),(0.2,6.4,0.2),IRON,'Metal',**TRIM)
-            ring=part(g,'Chandelier',(x,24.6,-101),(0.5,8,8),IRON,'Metal',shape=2,roll=math.pi/2,**TRIM)
-            lamp(ring,1.1,40)
-            for i in range(6):
-                a=math.tau*i/6
-                part(g,'Candle',(x+3.6*math.cos(a),25.2,-101+3.6*math.sin(a)),(0.3,0.7,0.3),(255,214,150),'Neon',**TRIM)
-        for x in (43,127):
-            for z in (-81,-95,-109,-123,-137): lancet(g,'z',x,z,24,3,5.5)
+    def tree(group,x,z,scale):
+        m=model(group,'Garden tree')
+        part(m,'Trunk',(x,4*scale,z),(1.6*scale,8*scale,1.6*scale),(84,62,44),'Wood')
+        for h,w in ((10,11),(15,8)):
+            part(m,'Canopy',(x,h*scale,z),(w*scale,7*scale,w*scale),(52+rng.randrange(10),82+rng.randrange(14),58+rng.randrange(10)),
+                 shape=0,collide=False,query=False)
 
     campus=model(parent,'Ravenmoor Academy')
-    part(campus,'Campus foundation',(94,0,-165),(172,0.4,218),(126,135,138),'Cobblestone')
-    part(campus,'Entrance court',(85,0.2,-64),(150,0.4,21),(145,148,145),'Cobblestone')
-    for xmin,xmax,north,south,name,color in ROOMS:
-        g=model(campus,name); cx=(xmin+xmax)/2; cz=(north+south)/2
-        doors={'n':[],'s':[],'w':[],'e':[]}
-        hall=name=='Great Hall'; height=32 if hall else 22; top=height+0.4
-        win=(4,16) if hall else (3,10)
-        if hall: doors={'n':[85],'s':[85],'w':[-91,-132],'e':[-91,-132]}
-        elif name in ('Infirmary','Potions Laboratory'): doors['e']=[-91 if name=='Infirmary' else -132]
-        elif name in ('Library & Archive','Staff & Headmaster'): doors['w']=[-91 if name=='Library & Archive' else -132]
-        else: doors['s']=[cx]
-        if name.endswith('Classroom'): doors['n']=[cx]
-        part(g,'Floor',(cx,0.3,cz),(xmax-xmin,0.2,south-north),(137,142,148),'Marble')
-        wall(g,'x',north,xmin,xmax,doors['n'],height,-1,win); wall(g,'x',south,xmin,xmax,doors['s'],height,1,win)
-        wall(g,'z',xmin,north,south,doors['w'],height,-1,win); wall(g,'z',xmax,north,south,doors['e'],height,1,win)
-        apex=roof(g,xmin,xmax,north,south,top)
-        if doors['s']: plaque(g,name,cx,south+0.7)
-        else: plaque(g,name,xmin+2 if doors['w'] else xmax-2,doors['w'][0] if doors['w'] else doors['e'][0])
-        if hall:
-            great_hall_front(g,top,apex); great_hall_roof(g,top,apex)
-            for x in (59,111):
-                table(g,x,-102,10,28)
-                for dx in (-8,8): part(g,'Dining bench',(x+dx,1.1,-102),(2,1,28),TIMBER,'Wood')
-            for i,(house,accent) in enumerate(HOUSES):
-                part(g,house+' banner',(54+i*21,23,-144),(8,12,0.3),accent,collide=False,query=False)
-            plaque(g,'MIRROR OF CHOOSING',85,-139,17)
-            continue
-        # One low local light per room, to suit the day/night cycle.
-        lamp(part(g,'Pendant',(cx,height-3,cz),(2,1,2),GOLD,'Neon',collide=False,query=False),1.3,38)
-        if name.endswith('Classroom'):
-            school=name.split()[0]; x,_,z=points['Teacher_'+school]
-            part(g,'Blackboard',(x,8,z-7),(17,9,0.8),(33,57,55),'Slate')
-            table(g,x,-194,12,3)
-            part(g,'Spell lane inlay',(x,0.43,-165),(22,0.03,8),color,collide=False,query=False)
-        elif name=='Library & Archive':
-            for z in (-111,-101,-81):
-                part(g,'Archive shelf',(175,5,z),(3,10,7),TIMBER,'Wood')
-                for row in range(3): part(g,'Book spines',(172.9,2+row*3,z),(1,2,6),color,collide=False,query=False)
-            table(g,160,-88,10,8)
-            for x in (153,167): part(g,'Reading bench',(x,1.1,-88),(2,1,8),TIMBER,'Wood')
-            plaque(g,'RESTRICTED SHELF',146,-112,12)
-        elif name=='Infirmary':
-            for z in (-99,-82): bed(g,16,z,(99,161,150))
-            table(g,31,-103,8,3)
-        elif name=='Potions Laboratory':
-            for z in (-137,-116):
-                table(g,21,z,14,5)
-                part(g,'Brewing basin',(21,3.6,z),(4,1.5,4),IRON,'Metal',shape=0)
-                part(g,'Potion',(21,4.4,z),(3,0.1,3),color,'Neon',shape=0,collide=False,query=False)
-        elif name=='Staff & Headmaster':
-            table(g,166,-137,12,6)
-            part(g,'Headmaster chair',(166,2,-142),(4,4,2),TIMBER,'Wood')
-            table(g,142,-140,8,4)
-        else:
-            for x in (xmin+7,xmax-7):
-                for z in (-264,-248): bed(g,x,z,color)
-            table(g,cx,-230,10,6)
-            for x in (cx-8,cx+8): part(g,'Common room bench',(x,1.1,-230),(2,1,8),TIMBER,'Wood')
-            plaque(g,'COMMON ROOM / DORMITORY',cx,-240,12)
-    corridors=model(campus,'Cloister corridors')
-    for z,depth,title in ((-149,7,'SOUTH CLOISTER — CLASSROOMS'),(-208,16,'NORTH CLOISTER — HOUSE DORMITORIES')):
-        part(corridors,'Cloister roof',(94,24,z),(172,1,depth),SLATE,'Slate')
-        plaque(corridors,title,85,z,18)
-    # Classroom row joins the north and south cloisters; the east passage provides a second route.
-    part(corridors,'East passage roof',(170,24,-176),(20,1,48),SLATE,'Slate')
-    part(corridors,'East boundary wall',(180,11.4,-176),(1,22,66),STONE,'Slate')
-    facade(corridors,'z',180,1,-209,-143,22)
-    towers=model(campus,'Towers')
-    for name,x,z,r,top,spire_h,spire_color,spire_material,openings in TOWERS:
-        round_tower(towers,name,x,z,r,top,spire_h,spire_color,spire_material,openings)
-    clock_tower(towers)
-    plaque(campus,'RAVENMOOR ACADEMY',85,-72,16)
+
+    # Arrival: plaza and Main Gate where the approach road ends.
+    arrival=model(campus,'Arrival')
+    x0,x1,n,s=PLAZA
+    box(arrival,'Arrival plaza',x0,x1,n,s,0,0.4,PAVING,'Cobblestone')
+    for x in (55,115): drum(arrival,'Gate tower',x,-53,6,0,40,20,sides=6)
+    gate=box(arrival,'Gate arch',61,109,-58,-48,30,38,STONE,'Slate')
+    box(arrival,'Gate cornice',60,110,-58.6,-47.4,38,39,DRESSED,'Limestone',**TRIM)
+    plaque(arrival,'RAVENMOOR ACADEMY',CX,33,-47.4)
+    for x in (41,129): pylon(arrival,x,-113,0,9)
+
+    # Grand Stair: two flights, a landing at 20 studs and bridges out to both classroom wings.
+    stair=model(campus,'Grand Stair')
+    flight(stair,'Flight one','z',45,125,-110,-1,0,MID)
+    x0,x1,n,s=LANDING
+    box(stair,'Landing',x0,x1,n,s,0,MID,STONE,'Slate')
+    box(stair,'Landing paving',x0+0.5,x1-0.5,n+0.5,s-0.5,MID,MID+0.1,PAVING,'Cobblestone',**TRIM)
+    flight(stair,'Flight two','z',55,115,-180,-1,MID,TOP-MID)
+    for x in (49,121):
+        pylon(stair,x,-154,MID,10)
+        pylon(stair,x,-224,TOP,10)
+    for a,b in ((38,45),(125,136)):
+        box(stair,'Bridge deck',a,b,-172,-162,MID-3,MID,STONE,'Slate')
+        for z0,z1 in ((-172,-171),(-163,-162)): box(stair,'Bridge parapet',a,b,z0,z1,MID,MID+3,DRESSED,'Limestone')
+
+    # Classroom wings: five free-standing halls and a fountain court, each with open ground on every side.
+    rooms={r[4]:r for r in ROOMS}; wings={}
+    for side,(x0,x1,n,s) in WINGS.items():
+        wings[side]=wing=model(campus,side+' classroom wing')
+        terrace(wing,'Wing terrace',x0,x1,n,s,MID,'sw' if side=='West' else 'se')
+        lo=0 if side=='West' else 154
+        flight(wing,'Wing stair','z',lo,lo+20,-20,-1,0,MID)
+    for school in SCHOOLS:
+        xmin,xmax,north,south,name,color=rooms[school+' Classroom']
+        g,top,_=hall(wings['West' if xmin<CX else 'East'],name,(xmin,xmax,north,south),MID,22,{'s':[(xmin+xmax)/2]},win=(3,9),spacing=13)
+        x,y,z=points['Teacher_'+school]
+        part(g,'Blackboard',(x,y+5,z-7),(17,9,0.8),(33,57,55),'Slate')
+        part(g,'Spell lane inlay',(x,y-2.57,z+15),(22,0.03,8),color,**TRIM)
+        plaque(g,name.upper(),(xmin+xmax)/2,MID+16,south+0.7)
+    court=model(wings['East'],'Fountain court')
+    part(court,'Fountain basin',(164,MID+0.75,-92),(1.5,16,16),DRESSED,'Limestone',shape=2,roll=math.pi/2)
+    part(court,'Fountain water',(164,MID+1.55,-92),(0.1,14,14),WATER,'Glass',shape=2,roll=math.pi/2,transparent=0.2,**TRIM)
+    box(court,'Fountain column',162.5,165.5,-93.5,-90.5,MID+1.5,MID+8,STONE,'Slate')
+    part(court,'Lit window',(164,MID+9.2,-92),(2.4,2.4,2.4),WARM_GLASS,'Glass',shape=0,**TRIM)
+
+    # Upper terrace, 40 studs up.
+    upper=model(campus,'Upper terrace')
+    x0,x1,n,s=UPPER
+    terrace(upper,'Upper terrace',x0,x1,n,s,TOP,'swen',pointed='s')
+    for a,b in ((x0,55),(115,x1)): box(upper,'Terrace parapet',a,b,s-1.2,s,TOP,TOP+3,DRESSED,'Limestone')
+    keep,_,_=hall(upper,'Entrance Keep',(65,105,-250,-226),TOP,34,{'s':[CX]},win=(3,9),spacing=12,skip='n')
+    plaque(keep,'GREAT HALL',CX,TOP+17,-225.3)
+    xmin,xmax,north,south,_,_=rooms['Great Hall']
+    great,top,apex=hall(upper,'Great Hall',(xmin,xmax,north,south),TOP,40,{'s':[CX],'w':[-278],'e':[-278]},
+                        win=(4,16),spacing=14,buttresses=True)
+    part(great,'Rose window surround',(CX,apex-16,south),(1.3,13,13),DRESSED,'Limestone',shape=2,yaw=math.pi/2,**TRIM)
+    part(great,'Lit window',(CX,apex-16,south),(1.5,11,11),WARM_GLASS,'Glass',shape=2,yaw=math.pi/2,**TRIM)
+    for x in (xmin,xmax): drum(upper,'Hall turret',x,south,6,TOP,112,18,sides=6)
+    square_tower(upper,'Rookery Tower',CX,-318,12,TOP,160,44,COPPER,'CorrodedMetal')
+    xmin,xmax,north,south,_,_=rooms['Library & Archive']
+    library,_,_=hall(upper,'Library & Archive',(xmin,xmax,north,south),TOP,30,{'e':[-268]},win=(3,11),spacing=13,buttresses=True)
+    x,y,z=points['Library']
+    box(library,'Archive shelf',xmin+0.5,xmin+3.5,z-3.5,z+3.5,TOP+0.4,TOP+10.4,(88,60,40),'Wood')
+    plaque(library,'RESTRICTED SHELF',xmin+2,TOP+13,z)
+    drum(upper,'Starwatch Tower',158,-282,15,TOP,116,26,COPPER,'CorrodedMetal',slits=4,lantern=True)
+    flight(upper,'Back stair','z',105,125,-420,1,0,TOP)
+
+    # House quarters: one walled terrace per house, far apart, each with its own hall, tower, gate and stair.
+    houses=model(campus,'House quarters')
+    for (house,color),(cx,cz,h) in zip(HOUSES,QUARTERS):
+        q=model(houses,house+' quarter'); mx,rect,(tx,tz)=quarter(cx,cz,h)
+        terrace(q,'House terrace',cx-45,cx+45,cz-42,cz+42,h,'e' if mx>0 else 'w')
+        front=rect[1] if mx>0 else rect[0]
+        g,_,_=hall(q,house+' House',rect,h,20,{'e' if mx>0 else 'w':[cz-8]},roof=color,axis='z',spacing=12)
+        plaque(g,house.upper()+' COMMON ROOM',front+mx*0.7,h+16,cz-8)
+        drum(q,house+' Tower',tx,tz,9,h,h+64,30,color,'Slate',slits=4)
+        edge=cx+mx*45; inner=edge-mx*5
+        for z0,z1 in ((cz-15,cz-10),(cz+10,cz+15)): box(q,'Gate post',min(edge,inner),max(edge,inner),z0,z1,h,h+16,STONE,'Slate')
+        box(q,'Gate lintel',min(edge,inner),max(edge,inner),cz-15,cz+15,h+16,h+20,color,'Slate')
+        part(q,'House emblem',(cx+mx*20,h+0.15,cz),(0.1,16,16),color,shape=2,roll=math.pi/2,**TRIM)
+        flight(q,'House stair','x',cz-10,cz+10,edge+mx*2*h,-mx,0,h)
+
+    # North gardens: two avenues, the garden walk, a glasshouse, hedges and trees.
+    gardens=model(campus,'North gardens')
+    for a,b,c,d in ((-121,201,-436,-420),(-97,177,-588,-572),(108,122,-572,-436),(193,201,-420,-20),(2,18,-20,10.5)):
+        box(gardens,'Campus path',a,b,c,d,0,0.35,PATH,'Cobblestone')
+    box(gardens,'Glasshouse',40,100,-525,-485,0,18,(170,196,190),'Glass',transparent=0.35)
+    gable_roof(gardens,40,100,-525,-485,18,(170,196,190),'x',gables=(170,196,190),material='Glass')
+    for a,b,c,d in ((132,188,-470,-462),(132,188,-548,-540),(30,100,-470,-462),(30,100,-548,-540)):
+        box(gardens,'Hedge',a,b,c,d,0,4,HEDGE,'Grass')
+    for x,z in ((150,-505),(170,-505),(-40,-505),(-60,-480),(10,-560),(150,-610),(30,-610),(-30,-460),(230,-505),(-110,-505)):
+        tree(gardens,x,z,rng.uniform(0.9,1.3))
     return campus

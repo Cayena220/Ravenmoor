@@ -18,13 +18,18 @@ return {
         {Q = "Your group is lost in Whisperwood.", A = {"Lead the way", "Keep everyone together", "Read the stars", "Follow a hidden trail"}},
         {Q = "What will Ravenmoor remember you for?", A = {"My courage", "My loyalty", "My wisdom", "My ambition"}},
     },
+    -- A zone can span several rectangles; the first match wins. The academy is its terraces, then its
+    -- house quarters and gardens to the north.
     Zones = {
-        {Id = "Castle", Name = "Ravenmoor Academy", Center = {94, -164}, Size = {176, 220}, Safe = true},
+        {Id = "Castle", Name = "Ravenmoor Academy", Center = {90, -196.5}, Size = {220, 297}, Safe = true},
+        {Id = "Castle", Name = "Ravenmoor Academy", Center = {0, -497.5}, Size = {660, 305}, Safe = true},
         {Id = "Whisperwood", Name = "Whisperwood", Center = {-155, -35}, Size = {270, 400}, Safe = false},
         {Id = "Hollowmere", Name = "Hollowmere Village", Center = {90, 140}, Size = {260, 155}, Safe = true},
         {Id = "Grounds", Name = "Castle Grounds", Center = {100, 0}, Size = {270, 130}, Safe = true},
     },
     Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -58}, Whisperwood = {-36, 5, 20}},
+    -- Players outside these limits are returned to their last position.
+    WorldBounds = {MinX = -340, MaxX = 340, MinZ = -655, MaxZ = 290},
     Teachers = {
         Hex = {Name = "Professor Rook", Title = "Hexcraft", Anchor = "Teacher_Hex"},
         Ward = {Name = "Professor Holloway", Title = "Warding", Anchor = "Teacher_Ward"},

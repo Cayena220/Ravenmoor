@@ -1,52 +1,67 @@
-# Expanded Ravenmoor Academy
+# Ravenmoor Academy campus
 
-The academy is an editable, furnished Roblox model, integrated into the supplied game. The main campus foundation is 172 × 218 studs, about 2.2 times the old 144 × 120 courtyard footprint. The exterior is a realistic gothic castle school built only from parts and wedges:
-
-- **Walls**: two-tone stone (Slate, with weathered blocks set just proud of the face), a cobblestone plinth, and limestone string courses and cornices on every outside wall.
-- **Buttresses and windows**: stepped buttresses at most 16 studs apart, with limestone weathering caps. Pointed lancet windows in limestone surrounds pass through the wall, so they show inside and out.
-- **Roofs**: steep 52° slate roofs whose eaves drop below the wall top, with stone gables at both ends and ridge caps. The Great Hall has an open timber roof, two iron chandeliers and a clerestory above the wing roofs.
-- **Hall front**: oak gate doors in a limestone hood, a great window with mullions and transom, and a rose window in the gable.
-- **Towers**: the copper-spired Rookery Tower (about 155 studs to the finial), the West Tower, two gate turrets, the North-west Tower, the Starwatch Tower with a glazed observatory lantern, and a square clock tower with belfry, dials and pinnacles. Round towers have octagonal spires.
-- **Night**: about one window in three is a `Lit window`. WorldService switches those parts from Glass to Neon between 18:30 and 06:00.
+The academy is built from the exterior concept canvas, [Academy Exterior Remodel](https://claude.ai/artifact/9WsYqy3tTPN4NaBVxsGduk), fitted to this map. It is bigger and more open than the old single-block castle. The campus climbs three levels on terraces joined by large stairs, every classroom is its own hall, and each house has a separate walled quarter. It is about 550 × 570 studs, against the old 172 × 218 footprint. Everything is plain parts and wedges in the build kit's stone, limestone, slate and copper.
 
 ![Academy exterior](academy-exterior.png)
 
-![Floor plan](academy-floor-plan.png)
+![Site plan, north up](academy-site-plan.png)
 
-| Room | Design and purpose |
-| --- | --- |
-| Great Hall | Dining tables, benches, house banners and access to the existing Mirror of Choosing |
-| Five classrooms | Hex, Ward, Charm, Restoration and Alteration; blackboards, teacher desks and clear lesson target lanes |
-| Library & Archive | Bookshelves, reading table and the existing restricted-shelf interaction |
-| Infirmary | Two beds and a treatment table, ready for future healing interactions |
-| Potions Laboratory | Two brewing workstations, ready for future crafting interactions |
-| Staff & Headmaster | Administrative office and meeting desks |
-| Four house suites | Emberclaw, Stoneroot, Skyquill and Nightfang; four beds and a common-room table per house |
+## Layout, south to north
 
-All 14 rooms occupy one accessible ground level. Ten-stud-wide open arches, two teaching corridors and an east passage connect the wings. Walls are 22 studs high in ordinary rooms and 32 in the hall; the roofs above them are open to the room. Beds and furniture are scenery; this change does not add sleeping, infirmary healing or laboratory crafting mechanics. Existing lessons, library actions and sorting continue at their original coordinates.
+| Level | Place | What is there |
+| --- | --- | --- |
+| Ground | Arrival plaza | 80 × 60 studs where the approach road ends, behind the Main Gate's two towers. The Castle Waystone stays at the gate. |
+| 0 → 20 | Grand Stair, flight one | 20 steps, 80 studs wide, with sloped string walls and lantern pylons. |
+| 20 | Landing | 80 × 30 studs. Bridges run west and east to the classroom wings. |
+| 20 | Classroom wings | Two 56 × 155 terraces. West: Hex, Ward and Charm. East: Restoration and Alteration, and a fountain court. Each hall is 48 × 36 with open ground on every side. A wing stair drops from each wing's south end. |
+| 20 → 40 | Grand Stair, flight two | 20 steps, 60 studs wide, up to the upper terrace. |
+| 40 | Upper terrace | 190 × 120 studs. Entrance Keep, Great Hall (100 × 55, with the Mirror of Choosing), Library & Archive (restricted shelf), two hall turrets, the Rookery Tower (about 207 studs to the finial) and the Starwatch Tower with its glazed lantern. |
+| 40 → 0 | Back stair | 40 steps down the terrace's north face to the gardens. |
+| Ground | North gardens | Two avenues, the garden walk, a glasshouse, hedges and trees. |
+| 12 or 24 | House quarters | One 90 × 84 walled terrace per house: Emberclaw and Stoneroot to the west, Skyquill and Nightfang to the east. Each has a common room hall roofed in the house colour, a dorm tower with a house-colour spire, a gate, an emblem in its court, and its own stair down to an avenue. The nearest two quarters are 150 studs apart. |
+
+Every stair uses a 1-stud rise and a 2-stud run. An east walk runs from the training yard along the duel arena to the north gardens, and a path joins the west wing stair to the forest path. About one window in three is a `Lit window`, as are the pylon and fountain lanterns. WorldService switches those from Glass to Neon between 18:30 and 06:00.
+
+## What moved
+
+| Anchor | Was | Now |
+| --- | --- | --- |
+| Mirror | (85, 3, −125) | (85, 43, −292), Great Hall |
+| Library | (146, 3, −104) | (9, 43, −268), Library & Archive |
+| Teacher_Hex / Ward / Charm | (29 / 58 / 87, 3, −180) | (10, 23, −201 / −151 / −101), west wing |
+| Teacher_Restoration / Alteration | (116 / 145, 3, −180) | (164, 23, −201 / −151), east wing |
+| Duelmaster | (190, 3, −86) | (240, 3, −94), south of the arena |
+
+The meadow and world boundary now run north to z −650, and `Config.WorldBounds` lets players walk there. The Castle zone in `Config.Zones` covers the terraces and the house quarters as two rectangles, without taking in any of Whisperwood.
+
+The old interiors are gone: infirmary, potions laboratory, staff office, dining tables and dormitory beds. Halls are built as exteriors with floors, doors and windows, and keep only what gameplay needs: the Mirror, blackboards and spell lanes in each classroom, and the restricted shelf.
 
 ## Files and editing
 
-- `Wandbound-Ravenmoor-Academy.rbxlx`: full game with the academy already installed.
-- `world/RavenmoorAcademy.rbxmx`: reusable architecture and furniture model. Insert it into Workspace from a file in Studio. It does not include the game's NPCs, quest markers, Mirror prop or services; these remain in their existing map groups in the full game. Avoid inserting a second copy into the supplied place.
-- `tools/academy.py`: room layouts and geometry generator.
-- `docs/BUILD-KIT.md`: the remodel's design reference (elevation, site plan, Great Hall and build kit), and where the build differs from it.
-- `tools/upgrade_academy.py`: rebuilds only the academy, exports the model, and prepares `world/Map.rbxmx` using surrounding geometry from the current place. Replaces the Academy, Classrooms and Library groups; preserve manual edits to those groups before running.
+- `tools/academy.py`: the campus layout (`PLAZA`, `WINGS`, `UPPER`, `ROOMS`, `QUARTERS`) and its builders.
+- `tools/upgrade_academy.py`: regenerates the campus, plus the Land, Academy staff and Mirror groups it touches, and keeps every other map group from the place. It also writes `world/Markers.rbxmx` and `src/shared/WorldPoints.lua`.
+- `tools/preview_academy.py`: redraws the two images above from `world/Map.rbxmx` (needs Pillow). These are geometry renders, not Studio screenshots.
+- `world/RavenmoorAcademy.rbxmx`: the campus on its own. The full game already contains it; don't insert a second copy.
 
 After closing the place in Studio:
 
 ```bash
-python3 tools/upgrade_academy.py
-python3 tools/sync_scripts.py --map
-python3 tools/validate.py
+python tools/upgrade_academy.py
+python tools/sync_scripts.py --map
+python tools/validate.py
 ```
 
-The map sync creates a `.rbxlx.bak` backup. The normal `tools/build.py` full rebuild also uses the new academy design, but regenerates the entire world. The floor plan can be refreshed with `python3 tools/preview_academy.py` (optional Matplotlib dependency). That script draws only box parts, so its exterior view leaves out the wedge gables and spires; the exterior image above is a geometry render that includes them.
+`--map` now replaces both `Workspace/Map` and `Workspace/Markers`, writing a `.rbxlx.bak` copy first. Gables, spires, window heads and stair string walls are WedgeParts. `WEDGE_FLIP` in `tools/academy.py` must match `ROOF_FLIP` in `tools/build.py`. If Studio shows them notched or sloping the wrong way, flip both.
 
-Gables, spires and window heads are triangles made from two WedgeParts each. They assume the same wedge orientation as the village roofs: `WEDGE_FLIP` in `tools/academy.py` must match `ROOF_FLIP` in `tools/build.py`. If Studio shows spires or gables as notched or inside-out shapes, flip both.
+## Where the build differs from the concept
+
+- **Scale.** The concept site is 1,080 × 930 studs, bigger than this whole map. The build keeps its plan and levels and shrinks distances to fit beside the village, Whisperwood and the duel arena.
+- **Names and rooms.** Houses use the game's own: Emberclaw, Stoneroot, Skyquill and Nightfang. Five classrooms, one per school in the game, instead of the concept's six.
+- **Stairs.** A 1-stud rise and 2-stud run instead of the concept's 2 and 4: the same slope, in steps every Roblox avatar can walk.
+- **Grounds.** The existing Mirrorlake and Dueling Club stand in for the concept's lake and dueling ground.
 
 ## Validation and remaining playtests
 
-The model contains 1,132 parts (Parts and WedgeParts); the world contains 2,704. Limits of 1,300 academy parts and 2,900 total map parts keep it bounded. All exterior detail is non-colliding and ignored by raycasts, apart from walls, buttresses, gables, roof slabs and tower bodies. Geometry checks flood the floor with a 2.5-stud-wide, 5.5-stud-tall player envelope and verify routes to every room, the Mirror, library and all five professors. Existing classroom target clearance and gameplay tests also pass.
+The campus has 1,491 parts (budget 1,600) and the map 3,063 (budget 3,300). The walking check floods every level with a 2.5-stud-wide, 5.5-stud-tall player that climbs at most 1.15 studs per step. It confirms routes from the arrival plaza up the stairs to all 11 halls, the 4 house courts, the Mirror, the library shelf and all five professors. The classroom target-clearance check also passes. Removing the stair steps makes the walking check fail.
 
-Roblox Studio checks remain necessary: look at the spires and gables from the courtyard, walk every doorway, test indoor camera behavior under the tall open roofs, check the lit windows and room lighting at night, finish a professor's lesson in each classroom, use the Mirror and library, and profile a mobile device. The previews are geometry renders, not screenshots from Roblox Studio.
+Still to check in Roblox Studio: walk every stair at normal speed, check the wedge string walls, gables and spires, try the camera in the halls and on the bridges, light the windows at night, finish a lesson in each classroom, use the Mirror and the library, start a duel from the Duelmaster's new spot, and profile on a phone.
