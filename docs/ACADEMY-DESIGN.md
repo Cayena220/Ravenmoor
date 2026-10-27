@@ -30,6 +30,7 @@ All 14 rooms occupy one accessible ground level. Ten-stud-wide open arches, two 
 - `Wandbound-Ravenmoor-Academy.rbxlx`: full game with the academy already installed.
 - `world/RavenmoorAcademy.rbxmx`: reusable architecture and furniture model. Insert it into Workspace from a file in Studio. It does not include the game's NPCs, quest markers, Mirror prop or services; these remain in their existing map groups in the full game. Avoid inserting a second copy into the supplied place.
 - `tools/academy.py`: room layouts and geometry generator.
+- `docs/BUILD-KIT.md`: the remodel's design reference (elevation, site plan, Great Hall and build kit), and where the build differs from it.
 - `tools/upgrade_academy.py`: rebuilds only the academy, exports the model, and prepares `world/Map.rbxmx` using surrounding geometry from the current place. Replaces the Academy, Classrooms and Library groups; preserve manual edits to those groups before running.
 
 After closing the place in Studio:
