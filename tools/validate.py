@@ -14,6 +14,7 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
+from validate_academy import validate_academy
 from sync_scripts import map_item, signature  # noqa: E402
 
 def box(node):
@@ -93,7 +94,9 @@ def main():
         hits=[n for n,g in ground if overlap(houses[a],g)]
         assert not hits, f'{a} sits on {hits}'
     map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart'))
-    assert map_parts<=1800, f'Map has {map_parts} parts; the budget is 1800'
+    # Expanded academy adds 258 parts; keep a bounded 2100-part world budget.
+    assert map_parts<=2100, f'Map has {map_parts} parts; the budget is 2100'
+    validate_academy(world,geometry,spots,box,name_of)
     print(f'PASS: place XML, {len(items)} instances, {len(sources)} embedded sources, {len(required)} interaction anchors, classroom clearance,')
     print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts.')
     if signature(world)!=signature(ET.fromstring(map_item())):

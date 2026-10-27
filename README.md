@@ -25,7 +25,7 @@ DataStore automatically. See `docs/SAVING.md` before testing persistence.
 
 | System | Included behavior |
 |---|---|
-| World | Storybook Hollowmere (four half-timbered shops, six cottages, paved plaza, lanes, iron lamp posts), curbed academy road and forest path, sky-ferry, academy exterior and Great Hall, five open classrooms, library corner, training yard, Mirrorlake scenery, Whisperwood clearings, grotto, duel platform |
+| World | Storybook Hollowmere (four half-timbered shops, six cottages, paved plaza, lanes, iron lamp posts), curbed academy road and forest path, sky-ferry, expanded 14-room academy with Great Hall, five enclosed classrooms, library, infirmary, potions lab, staff office and four house dormitories, training yard, Mirrorlake scenery, Whisperwood clearings, grotto, duel platform |
 | Tutorial | First wand, three starter spells, five-question sorting quiz with free house choice, first lesson, five dummy hits, first hunt |
 | Combat | Server mana/cooldowns, traveling spherecast projectiles, shield, mirror reflect, self/ally healing, AoE, chain lightning, dodge, light, silence, chill, root, sleep, burn, crowd-control diminishing returns |
 | Spells | All 19 spells up to level 20 have handlers; all 29 planned spells appear as catalogue entries, with the remaining 10 clearly locked as future content |
@@ -153,7 +153,7 @@ that name on a live experience unless you intend to start a separate save namesp
 Completed here: XML integrity and source parity checks; all 27 source files parsed;
 196 mocked logic assertions; all 25 classroom target positions checked against
 solid map geometry; shop doors checked against their prompts; houses checked clear of
-roads, lanes and each other; map kept within 1,800 parts. No imported executable assets or numeric asset requires exist.
+roads, lanes and each other; map kept within 2,100 parts. No imported executable assets or numeric asset requires exist.
 
 **Not run here:** Roblox Studio opening/play mode, actual Roblox physics/replication,
 live DataStore calls, chat behavior, real multiplayer, phone/controller playtests,
@@ -168,3 +168,7 @@ or performance profiling. Follow `docs/PLAYTEST.md` before sharing the experienc
 
 Original design: `docs/Original-design-plan.txt`. Code and generated geometry are
 provided as editable project material for your game.
+
+## Expanded academy model
+
+The game now includes a 14-room academy with furnished house suites and connected teaching wings. See [the academy design and floor plan](docs/ACADEMY-DESIGN.md). An architecture-only Studio model is available at `world/RavenmoorAcademy.rbxmx`.

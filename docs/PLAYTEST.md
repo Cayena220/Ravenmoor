@@ -24,7 +24,7 @@ actual place before calling this build tested or publishing it to players.
 5. Walk along and across curbs, lanes and garden paths without snagging. Dodge across the road and through a curb gap.
 6. Thornimps still chase and attack you along the forest path. Spells are not blocked by curbs, lamp arms or window boxes.
 7. Lamps hang their lanterns over the roads, and the plaza's Waystone, benches and planters are clear of the spawn pad.
-8. Check frame rate in the village on a phone emulator. The map is about 1,740 parts.
+8. Check frame rate in the village on a phone emulator. The expanded map is about 1,998 parts.
 
 ## 1b. Wands, bag and skill tree
 
@@ -114,3 +114,7 @@ These engine checks have not been run by the cloud test suite.
 7. Equip and discard wands, including identical copies. Rapidly repeat a confirmed discard under simulated network latency: only the selected wand should be removed. The equipped wand remains protected.
 8. Materials in the bag are informational. Use a Health Draught at full health: quantity should remain unchanged. Take damage and use it again: one is consumed, healing runs over four seconds, and the shared cooldown applies.
 9. Talk to Tobb, each professor, the banker, apothecary and duelmaster. Check advice, quest guidance, and the service choice. Walk out of interaction range before selecting a service: no transaction or lesson should start. Verify first-wand, sorting, lesson and Tobb quest progression still completes.
+
+## Expanded academy
+
+Walk through the entrance, both side wings, every classroom and each house dormitory. Check that indoor cameras remain usable under the pitched roofs. Test a lesson in each classroom, the Mirror and restricted shelf. Check night lighting and mobile performance. These engine checks remain unrun in the cloud; see `ACADEMY-DESIGN.md` for the layout.

@@ -19,7 +19,7 @@ return {
         {Q = "What will Ravenmoor remember you for?", A = {"My courage", "My loyalty", "My wisdom", "My ambition"}},
     },
     Zones = {
-        {Id = "Castle", Name = "Ravenmoor Academy", Center = {85, -120}, Size = {170, 150}, Safe = true},
+        {Id = "Castle", Name = "Ravenmoor Academy", Center = {94, -164}, Size = {176, 220}, Safe = true},
         {Id = "Whisperwood", Name = "Whisperwood", Center = {-155, -35}, Size = {270, 400}, Safe = false},
         {Id = "Hollowmere", Name = "Hollowmere Village", Center = {90, 140}, Size = {260, 155}, Safe = true},
         {Id = "Grounds", Name = "Castle Grounds", Center = {100, 0}, Size = {270, 130}, Safe = true},

@@ -7,6 +7,7 @@ import random
 import json
 import copy
 import sys
+from academy import build_academy
 
 ROOT = Path(__file__).resolve().parents[1]
 RNG = random.Random(31021)
@@ -439,56 +440,9 @@ def make_world(workspace):
     part(lake,'Water',(218,0.1,123),(93,0.45,100),(74,140,155),'Glass',shape=0,transparent=0.25,collide=False,query=False)
     part(lake,'Small island',(239,0.4,105),(20,1,18),(110,125,104),shape=0)
     tree(lake,239,105,0.75)
-    castle=model(world,'Ravenmoor Academy')
-    part(castle,'Courtyard',(85,0.35,-107),(144,0.7,120),(145,148,145),'Cobblestone')
-    # Great Hall: walkable front arch and open central space.
-    part(castle,'Great Hall floor',(85,0.7,-111),(75,0.5,72),(102,112,125),'Marble')
-    for x in (46,124):
-        part(castle,'Great Hall wall',(x,15,-111),(2,30,72),STONE,'Brick')
-        for z in (-135,-115,-95):
-            part(castle,'Tall window',(x,19,z),(2.15,14,5),(238,192,118),'Neon',collide=False,query=False)
-    part(castle,'Rear wall',(85,15,-147),(80,30,2),STONE,'Brick')
-    for x in (58,112): part(castle,'Entrance wall',(x,15,-74),(25,30,2),STONE,'Brick')
-    part(castle,'Entrance arch',(85,25,-74),(30,10,2),STONE,'Brick')
-    # No roof over the main play space: camera visibility is intentional in the prototype.
-    part(castle,'Roof ridge west',(44,32,-110),(8,3,80),ROOF,'Slate')
-    part(castle,'Roof ridge east',(126,32,-110),(8,3,80),ROOF,'Slate')
-    for x in (20,150):
-        for z in (-65,-145):
-            tower=model(castle,'Watchtower')
-            part(tower,'Tower',(x,22,z),(17,44,17),STONE,'Brick')
-            part(tower,'Crown',(x,45,z),(21,3,21),DARK,'Slate')
-            for a in (-8,0,8):
-                part(tower,'Merlon',(x+a,48,z-8),(4,5,4),DARK,'Slate')
-                part(tower,'Merlon',(x+a,48,z+8),(4,5,4),DARK,'Slate')
-            part(tower,'Beacon',(x,48,z),(4,3,4),GOLD,'Neon',query=False,collide=False)
-    central=model(castle,'Lantern Tower')
-    part(central,'Tower',(85,40,-198),(22,80,22),STONE,'Brick')
-    part(central,'Lantern housing',(85,83,-198),(26,6,26),DARK,'Slate')
-    part(central,'Lantern',(85,90,-198),(10,10,10),(255,214,131),'Neon',query=False,collide=False)
-    part(central,'Spire',(85,101,-198),(9,13,9),ROOF,'Slate')
-    for i,(house,color) in enumerate([('Emberclaw',(168,58,55)),('Stoneroot',(192,145,53)),('Skyquill',(63,114,180)),('Nightfang',(55,133,98))]):
-        x=56+i*19
-        part(castle,house+' banner',(x,23,-145.6),(9,13,0.2),color)
-        part(castle,house+' table',(x,2.5,-108),(5,1,26),(101,78,57),'Wood')
-        for side in (-1,1): part(castle,'Bench',(x+side*4.5,1.1,-108),(2,1,25),(108,84,60),'Wood')
-    # Floating candles are geometry only, keeping the visible light budget small.
-    for _ in range(28):
-        x=RNG.uniform(50,120); z=RNG.uniform(-140,-82); y=RNG.uniform(13,23)
-        part(castle,'Floating candle',(x,y,z),(0.35,1.2,0.35),(244,225,185),query=False,collide=False)
-        part(castle,'Flame',(x,y+0.8,z),(0.3,0.5,0.3),(255,193,102),'Neon',shape=0,query=False,collide=False)
-    # Five open classrooms behind the hall, each with a clear firing lane to the south.
-    classrooms=model(world,'Classrooms')
-    for school in ('Hex','Ward','Charm','Restoration','Alteration'):
-        x,_,z=POINTS['Teacher_'+school]
-        part(classrooms,school+' classroom',(x,0.4,z),(25,0.7,31),(134,139,140),'Cobblestone')
-        part(classrooms,'Blackboard',(x,8,z-4),(17,9,0.8),(33,57,55),'Slate')
-        part(classrooms,'Board frame',(x,13,z-4),(18,0.5,1),GOLD,'Metal')
-        for side in (-1,1): part(classrooms,'Column',(x+side*12,8,z),(1,16,1),STONE,'Brick')
-    library=model(world,'Library')
-    for z in (-113,-105,-97):
-        part(library,'Bookcase',(156,5,z),(3,10,6),(98,76,59),'Wood')
-        for j in range(4): part(library,'Books',(153.8,2+j*2,z),(1,1.6,5),(85+j*18,89,118-j*11),'Wood')
+    build_academy(world,part,model,label,POINTS)
+    # The original hall consumed 84 draws for floating candles. Keep the forest seed stable.
+    for _ in range(84): RNG.random()
     # Forest clearings and low-poly vegetation.
     forest=model(world,'Whisperwood')
     clearings=[(-75,15,29),(-147,68,32),(-216,45,32),(-210,-76,34),(-122,-87,28),(-160,-183,50)]

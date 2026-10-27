@@ -1,10 +1,12 @@
-Cloud validation — 2026-10-25
+Cloud validation — 2026-10-26
 Command: python3 tools/validate.py
 
 PASS: 196 headless assertions, including input routing, NPC interaction distance/duel checks, starter loadout assignment, crowded projectile tracing and stale inventory selections.
 PASS: all 27 source files compile with the Lua 5.4 parser.
-PASS: place XML, 2026 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 1740 map parts.
+PASS: place XML, 2354 instances, 27 embedded sources, 19 interaction anchors, classroom clearance, shop doors, 10 houses and 1998 map parts.
 PASS: updated source scripts synchronized into the playable .rbxlx.
 
-NOTE: the embedded place map differs from world/Map.rbxmx (pre-existing); the map was not replaced.
+PASS: academy geometry has 426 parts; all 14 rooms and 7 academy quest anchors have player-width walking routes.
+PASS: surrounding geometry in 16 map groups preserved; standalone model matches the full generator.
+PASS: place and world/Map.rbxmx geometry match.
 NOT RUN: Roblox Studio, real GUI/camera/input, physics, live DataStore, multiplayer and device integration. Follow docs/PLAYTEST.md.
