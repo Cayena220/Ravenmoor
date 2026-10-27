@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 import re
 import json
 import sys
+import os
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(Path(__file__).resolve().parent))
@@ -102,7 +103,7 @@ def main():
     if signature(world)!=signature(ET.fromstring(map_item())):
         print('NOTE: the place map differs from world/Map.rbxmx. Fine if you edited it in Studio on purpose;'
               ' otherwise run python tools/sync_scripts.py --map.')
-    libname=ctypes.util.find_library('lua5.4')
+    libname=os.environ.get('WANDBOUND_LUA_LIBRARY') or ctypes.util.find_library('lua5.4') or ctypes.util.find_library('lua54')
     if not libname:
         print('SKIPPED: Lua checks; install Lua 5.4 or run tests/headless.lua with ROOT set.')
         return 2

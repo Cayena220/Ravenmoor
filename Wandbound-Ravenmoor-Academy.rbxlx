@@ -187734,8 +187734,9 @@ local RS=game:GetService("ReplicatedStorage")
 local UIS=game:GetService("UserInputService")
 local CAS=game:GetService("ContextActionService")
 local Run=game:GetService("RunService")
+local Prompts=game:GetService("ProximityPromptService")
 local I={}
-function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0 end
+function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0; self.VisiblePrompts={} end
 function I:CameraMode()
     local open=self.C.UIController:IsOpen() or UIS:GetFocusedTextBox()~=nil
     if self.Controls and open~=self.ControlsPaused then
@@ -187805,6 +187806,8 @@ function I:UseSlot(slot)
     local aim=self:Aim(); if aim then RS.Remotes.Cast:FireServer(id,aim); self.LastCast=os.clock() end
 end
 function I:Start()
+    Prompts.PromptShown:Connect(function(prompt) self.VisiblePrompts[prompt]=true end)
+    Prompts.PromptHidden:Connect(function(prompt) self.VisiblePrompts[prompt]=nil end)
     task.spawn(function()
         local module=self.Player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule",15)
         if module then self.Controls=require(module):GetControls(); self:CameraMode() end
@@ -187820,6 +187823,14 @@ function I:Start()
         CAS:BindActionAtPriority("Wandbound_"..slot,function(_,state,input)
             if slot=="Basic" and (state==Enum.UserInputState.End or state==Enum.UserInputState.Cancel) then self.Holding=false end
             if self.C.UIController:IsOpen() or UIS:GetFocusedTextBox() then self.Holding=false; return Enum.ContextActionResult.Pass end
+            -- Let the visible prompt receive its gamepad key instead of casting a spell.
+            if tostring(input.UserInputType):find("Gamepad") then
+                for prompt in pairs(self.VisiblePrompts) do
+                    if prompt.Parent and prompt.Enabled and prompt.GamepadKeyCode==input.KeyCode then
+                        return Enum.ContextActionResult.Pass
+                    end
+                end
+            end
             if input.UserInputType==Enum.UserInputType.MouseButton1 then
                 local pos=UIS:GetMouseLocation()
                 for _,gui in ipairs(self.Player.PlayerGui:GetGuiObjectsAtPosition(pos.X,pos.Y)) do
@@ -188334,8 +188345,13 @@ for _,name in ipairs({"Cast","Aim","Action","Gesture","Profile","State","UI","FX
 local shared=RS:WaitForChild("Shared")
 for _,name in ipairs({"Config","SpellData","Formulas","QuestData","Gesture","WorldPoints","WandData","WandModel","SkillData"}) do shared:WaitForChild(name) end
 local order={"UIController","EffectsController","InputController"}
+-- PlayerScripts and its descendants may replicate after this LocalScript starts.
+-- Wait for every controller before requiring any of them or starting the UI.
+local folder=script.Parent:WaitForChild("Controllers")
+local modules={}
+for _,name in ipairs(order) do modules[name]=folder:WaitForChild(name) end
 local controllers={}
-for _,name in ipairs(order) do controllers[name]=require(script.Parent.Controllers[name]) end
+for _,name in ipairs(order) do controllers[name]=require(modules[name]) end
 for _,name in ipairs(order) do controllers[name]:Init(controllers) end
 for _,name in ipairs(order) do controllers[name]:Start() end
 ]]></ProtectedString>
@@ -189908,6 +189924,7 @@ function I:Prompt(name,label,action,callback)
     if conversational then self.Interactions[name]={Name=label,Action=action,Callback=callback} end
     local anchor=self.S.WorldService:Anchor(name); if not anchor then warn("Missing interaction",name); return end
     local prompt=Instance.new("ProximityPrompt"); prompt.Name="Interact"; prompt.ObjectText=label; prompt.ActionText=conversational and "Talk" or action
+    prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX
     prompt.MaxActivationDistance=12; prompt.HoldDuration=0.2; prompt.RequiresLineOfSight=false; prompt.Parent=anchor
     prompt.Triggered:Connect(function(player)
         if self.S.WorldService:Near(player,anchor,15) and self.S.PlayerDataService:Get(player)

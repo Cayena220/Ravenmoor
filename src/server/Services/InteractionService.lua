@@ -31,6 +31,7 @@ function I:Prompt(name,label,action,callback)
     if conversational then self.Interactions[name]={Name=label,Action=action,Callback=callback} end
     local anchor=self.S.WorldService:Anchor(name); if not anchor then warn("Missing interaction",name); return end
     local prompt=Instance.new("ProximityPrompt"); prompt.Name="Interact"; prompt.ObjectText=label; prompt.ActionText=conversational and "Talk" or action
+    prompt.KeyboardKeyCode=Enum.KeyCode.E; prompt.GamepadKeyCode=Enum.KeyCode.ButtonX
     prompt.MaxActivationDistance=12; prompt.HoldDuration=0.2; prompt.RequiresLineOfSight=false; prompt.Parent=anchor
     prompt.Triggered:Connect(function(player)
         if self.S.WorldService:Near(player,anchor,15) and self.S.PlayerDataService:Get(player)

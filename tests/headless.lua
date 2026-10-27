@@ -357,5 +357,215 @@ local n,tip=build(storm); check(n.Prong==2 and n.Cap==2 and n.Coil==4 and n.Band
 n,tip=build(hearth); check(n.Leaf==1 and n.Bud==1 and n.Stem==1 and n.Root==4 and n.Knot==3 and n.Core==1 and n.Band==2 and tip.Shape=="Ball","Hearthroot body")
 n,tip=build(widow); check(n.Leg==8 and n.Claw==8 and n.Silk==3 and n.Mandible==2 and n.Collar==1 and not n.Thorn and tip.Shape=="Block","Widow's Bite body")
 n=build({Wood="Blackthorn",Core="Emberplume",Rarity="Common"}); check(n.Thorn==3 and not n.Band and not n.Leg and not n.Collar,"catalogue wands build as before")
-total=total+dofile(ROOT.."/tests/client_input.lua")
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits).")
+-- Start the real client with dependencies arriving after the LocalScript.
+do
+    local oldGame,oldScript,oldRequire=game,script,require
+    local available={}
+    local function folder(path)
+        return setmetatable({WaitForChild=function(_,name)
+            local key=path.."/"..name
+            while not available[key] do coroutine.yield(key) end
+            return available[key]
+        end},{__index=function(_,name) error("Dependency accessed before arrival: "..path.."/"..name) end})
+    end
+    local rs=folder("RS")
+    game={GetService=function(_,name) assert(name=="ReplicatedStorage"); return rs end}
+    script={Parent=folder("PlayerScripts")}
+    local order={"UIController","EffectsController","InputController"}
+    local initialized,started,loaded={},{},{}
+    local calls={}
+    local modules={}
+    for _,name in ipairs(order) do
+        local id=name
+        modules[id]={
+            Init=function(_,controllers)
+                for _,other in ipairs(order) do check(controllers[other]==modules[other],"all controllers loaded before Init") end
+                initialized[id]=true
+            end,
+            Start=function()
+                for _,other in ipairs(order) do check(initialized[other],"all controllers initialized before Start") end
+                started[id]=true; calls[#calls+1]=id
+            end,
+        }
+    end
+    require=function(module) loaded[module]=true; return modules[module] end
+    local client=coroutine.create(function() dofile(ROOT.."/src/client/Main.client.lua") end)
+    local ok,waiting=coroutine.resume(client)
+    check(ok and waiting=="RS/Remotes","client waits for remotes")
+    while coroutine.status(client)~="dead" do
+        if waiting=="PlayerScripts/Controllers" then check(not next(loaded),"controllers do not load before their folder arrives") end
+        if waiting=="PlayerScripts/Controllers/InputController" then check(not next(loaded),"all controller modules arrive before require") end
+        local name=waiting:match("([^/]+)$")
+        available[waiting]=modules[name] and name or folder(waiting)
+        ok,waiting=coroutine.resume(client)
+        check(ok,"delayed client startup failed: "..tostring(waiting))
+    end
+    check(started.UIController and started.InputController and started.EffectsController,"UI, inventory inputs and effects all start")
+    check(table.concat(calls,",")==table.concat(order,","),"UI starts before input and effects")
+    game,script,require=oldGame,oldScript,oldRequire
+end
+-- Exercise every authored prompt and the inventory actions used by their menus.
+do
+    local oldGame,oldWorkspace,oldInstance,oldEnum=game,workspace,Instance,Enum
+    local oldTask,oldRequire=task,require
+    local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
+    local noop=function() end
+    local enum=setmetatable({},{__index=function(_,key) return key end})
+    Enum={KeyCode=enum,Material=enum,HumanoidDisplayDistanceType=enum}
+    local prompts={}
+    Instance={new=function(class)
+        local obj={ClassName=class,Triggered=signal()}
+        if class=="ProximityPrompt" then prompts[#prompts+1]=obj end
+        return obj
+    end}
+    workspace={Map={FindFirstChild=function() return nil end}}
+    local jobs={}
+    task={spawn=function(fn) jobs[#jobs+1]=fn end,wait=noop}
+    local shared={}
+    for _,name in ipairs({"Config","Formulas","WandData","WandModel","QuestData","SkillData","SpellData","Gesture"}) do shared[name]=ROOT.."/src/shared/"..name..".lua" end
+    local services={ReplicatedStorage={Shared=shared},Players={PlayerRemoving=signal()},HttpService={GenerateGUID=function() return "lesson-test" end}}
+    game={GetService=function(_,name) return services[name] end}
+    require=function(path) return assert(loadfile(path))() end
+    local config=require(shared.Config)
+    local d={Level=1,XP=0,Gilders=0,BankGilders=0,House="",HousePoints=0,HasWand=false,Wands={},EquippedWand=0,
+        WandRewards={},WandsHeld={},Spells={},Loadout={Ward="Aegara",Slot1="Glimmora",Slot2="",Slot3="",Slot4=""},
+        Attributes={Power=0,Focus=0,Vitality=0,Agility=0,Unspent=0},Talents={},Quest=1,QuestProgress=0,QuestDone={},
+        Inventory={},Waystones={},LastRespec=0,LastTalentReset=0}
+    local player={Parent=true,UserId=1,FindFirstChild=function() return nil end,SetAttribute=noop}
+    local state={Humanoid={Health=60,MaxHealth=100},Model={FindFirstChild=function() return nil end},LastCombat=-100}
+    local anchor,nearby,busy=nil,true,false
+    local ui,notice,syncs=nil,nil,0
+    local net={Handlers={},UI={FireClient=function(_,_,kind,info) ui={kind,info} end},
+        Notice=function(_,_,message) notice=message end,Sync=function() syncs=syncs+1 end,Allow=function() return true end}
+    local s={NetworkService=net,PlayerDataService={Get=function() return d end},
+        WorldService={Anchor=function(_,name) return {Name=name} end,Near=function(_,_,marker)
+            local name=type(marker)=="table" and marker.Name or marker
+            return nearby and name==anchor
+        end},DuelService={IsBusy=function() return busy end},
+        CombatService={States={[player]=state},Register=noop,HouseTrim=noop,UpdateStats=noop,
+            CanAct=function() return state.Humanoid.Health>0 end,Heal=function(_,_,target,amount) target.Humanoid.Health=math.min(100,target.Humanoid.Health+amount) end}}
+    s.ProgressionService=require(ROOT.."/src/server/Services/ProgressionService.lua"); s.ProgressionService:Init(s)
+    s.WandService=require(ROOT.."/src/server/Services/WandService.lua"); s.WandService:Init(s); s.WandService:Start()
+    s.ClassService=require(ROOT.."/src/server/Services/ClassService.lua"); s.ClassService:Init(s)
+    local interactions=require(ROOT.."/src/server/Services/InteractionService.lua"); interactions:Init(s); interactions:Start()
+    local byName={}
+    for _,prompt in ipairs(prompts) do
+        local name=prompt.Parent.Name; byName[name]=prompt; anchor=name; ui=nil
+        prompt.Triggered.Callback(player)
+        if interactions.Interactions[name] then
+            check(ui and ui[1]=="Dialogue" and ui[2].Anchor==name,name.." prompt opens its dialogue")
+            net.Handlers.Interact(player,name,"Advice"); check(ui[1]=="Dialogue" and #ui[2].Text>0,name.." advice works")
+            net.Handlers.Interact(player,name,"Quest"); check(ui[1]=="Dialogue" and #ui[2].Text>0,name.." quest guidance works")
+        end
+        check(prompt.KeyboardKeyCode=="E" and prompt.GamepadKeyCode=="ButtonX",name.." uses documented controls")
+    end
+    check(#prompts==15,"all eleven NPCs, mirror and three waystones registered")
+    local function service(name)
+        anchor=name; ui=nil
+        net.Handlers.Interact(player,name,"Service")
+    end
+    service("Oakhart")
+    check(d.HasWand and #d.Wands==1 and d.EquippedWand==1,"first wand appears equipped in inventory")
+    check(d.Spells.Scintara and d.Spells.Aegara and d.Spells.Glimmora,"first wand grants all starter spells")
+    service("Oakhart"); check(#d.Wands==1 and ui[1]=="Wandery","repeat visit opens shop without duplicating starter")
+    anchor="Mirror"; byName.Mirror.Triggered.Callback(player); check(ui[1]=="Sorting","mirror opens sorting")
+    net.Handlers.Sort(player,{1,2,3,4,1},"Emberclaw"); check(d.House=="Emberclaw","sorting choice is applied")
+    for school,teacher in pairs(config.Teachers) do
+        service(teacher.Anchor)
+        check(ui[1]=="Lesson" and ui[2].Teacher==teacher.Name and s.ClassService.Lessons[player].School==school,teacher.Name.." opens the correct lesson")
+    end
+    d.Quest=5; d.QuestProgress=0; service("Tobb"); check(d.QuestDone.Tobb,"Tobb advances his quest")
+    d.Level=20
+    for name,menu in pairs({Bank="Bank",Apothecary="Shop",Library="Library",Duelmaster="Duels"}) do
+        service(name); check(ui and ui[1]==menu,name.." opens its service menu")
+    end
+    check(d.Spells.Tractum and d.Spells.Excido,"library and duelmaster teach eligible spells")
+    for id in pairs(config.Waystones) do
+        anchor="Waystone_"..id; byName[anchor].Triggered.Callback(player)
+        check(d.Waystones[id] and d.LastWaystone==id and ui[1]=="Map",id.." attunes and opens travel")
+    end
+    anchor="Bank"; d.Gilders=250; net.Handlers.Bank(player,"Deposit",100)
+    check(d.Gilders==150 and d.BankGilders==100,"bank deposit updates carried and stored currency")
+    net.Handlers.Bank(player,"Withdraw",100); check(d.Gilders==250 and d.BankGilders==0,"bank withdrawal returns currency")
+    anchor="Apothecary"; net.Handlers.Shop(player,"BuyHealth")
+    check(d.Gilders==200 and d.Inventory["Health Draught"]==1,"purchased potion appears in bag")
+    d.Inventory["Thorn Barb"]=1; d.Inventory["Spider Silk"]=1; net.Handlers.Shop(player,"BrewHealth")
+    check(d.Inventory["Health Draught"]==2 and d.Inventory["Thorn Barb"]==0 and d.Inventory["Spider Silk"]==0,"brewing consumes ingredients and adds potion")
+    net.Handlers.UseItem(player,"Health Draught"); check(d.Inventory["Health Draught"]==1,"using potion consumes one")
+    net.Handlers.UseItem(player,"Health Draught"); check(d.Inventory["Health Draught"]==1,"cooldown prevents consuming second potion")
+    for _,fn in ipairs(jobs) do fn() end; check(state.Humanoid.Health==100,"potion heals over four ticks")
+    interactions.PotionCooldowns[player]=nil; net.Handlers.UseItem(player,"Health Draught")
+    check(d.Inventory["Health Draught"]==1,"full health does not consume potion")
+    d.Inventory["Frigora Tome"]=2; d.Level=1; net.Handlers.UseItem(player,"Frigora Tome")
+    check(d.Inventory["Frigora Tome"]==2 and not d.Spells.Frigora,"level gate preserves tome")
+    d.Level=20; net.Handlers.UseItem(player,"Frigora Tome")
+    check(d.Inventory["Frigora Tome"]==1 and d.Spells.Frigora,"tome teaches spell and consumes one")
+    net.Handlers.UseItem(player,"Frigora Tome"); check(d.Inventory["Frigora Tome"]==1,"known spell preserves remaining tome")
+    anchor="Oakhart"; d.Gilders=1000; net.Handlers.BuyWand(player)
+    check(#d.Wands==2 and d.Gilders==800,"wand commission adds inventory item")
+    local wands=require(shared.WandData)
+    local selection={Name=wands.Name(d.Wands[2]),Revision=d.WandRevision}
+    net.Handlers.EquipWand(player,2,selection); check(d.EquippedWand==2,"bag selection payload equips wand")
+    selection={Name=wands.Name(d.Wands[1]),Revision=d.WandRevision}
+    net.Handlers.DiscardWand(player,1,selection); check(#d.Wands==1 and d.EquippedWand==1,"discard preserves equipped wand")
+    nearby=false; local gold=d.Gilders; service("Oakhart"); net.Handlers.BuyWand(player)
+    check(ui==nil and d.Gilders==gold,"walking away blocks NPC services and purchases")
+    nearby=true; busy=true; service("Bank"); check(ui==nil,"duels block NPC services")
+    check(syncs>10,"inventory and progression changes publish updated profiles")
+    game,workspace,Instance,Enum=oldGame,oldWorkspace,oldInstance,oldEnum
+    task,require=oldTask,oldRequire
+end
+-- Input routing regressions. Roblox camera/GUI integration still needs Studio.
+do
+    local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
+    local enum=setmetatable({},{__index=function(t,k) rawset(t,k,k); return k end})
+    Enum={UserInputType=enum,KeyCode=enum,UserInputState=enum,ContextActionResult=enum,ContextActionPriority={High={Value=3000}},RenderPriority={Camera={Value=200}}}
+    local bindings={}
+    local cas={BindAction=function(_,name,fn) bindings[name]=fn end,BindActionAtPriority=function(_,name,fn) bindings[name]=fn end}
+    local focused=false
+    local uis={GetFocusedTextBox=function() return focused end,GetMouseLocation=function() return {X=0,Y=0} end,
+        InputBegan=signal(),TextBoxFocused=signal(),TextBoxFocusReleased=signal(),WindowFocusReleased=signal()}
+    local player={PlayerGui={GetGuiObjectsAtPosition=function() return {} end},CharacterAdded=signal()}
+    local prompts={PromptShown=signal(),PromptHidden=signal()}
+    local services={Players={LocalPlayer=player},ReplicatedStorage={},UserInputService=uis,ContextActionService=cas,RunService={BindToRenderStep=function() end},ProximityPromptService=prompts}
+    game={GetService=function(_,name) return services[name] end}
+    local input=dofile(ROOT.."/src/client/Controllers/InputController.lua")
+    local ui={Menu=nil,IsOpen=function(self) return self.Menu~=nil end,Close=function(self) self.Menu=nil end,Show=function(self,menu) self.Menu=menu end}
+    input:Init({UIController=ui}); input.CameraMode=function() end
+    local casts=0; input.UseSlot=function() casts=casts+1 end
+    input:Start()
+    local mouse={UserInputType=Enum.UserInputType.MouseButton1}
+    local pad={UserInputType="Gamepad1"}
+    local basic=bindings.Wandbound_Basic
+    basic(nil,"Begin",pad); check(input.Holding and casts==1,"trigger begins held casting")
+    basic(nil,"Change",pad); check(input.Holding and casts==1,"analog changes preserve hold without duplicate casts")
+    basic(nil,"End",pad); check(not input.Holding,"trigger release stops casting")
+    basic(nil,"Begin",mouse); basic(nil,"Cancel",mouse); check(not input.Holding,"cancel stops held casting")
+    basic(nil,"Begin",mouse); uis.WindowFocusReleased.Callback(); check(not input.Holding,"window focus loss stops casting")
+    basic(nil,"Begin",mouse); uis.TextBoxFocused.Callback(); check(not input.Holding,"typing stops held casting")
+    input:ToggleMenu("Bag"); check(ui.Menu=="Bag" and not input.Holding,"bag hotkey opens bag")
+    input:ToggleMenu("Spells"); check(ui.Menu=="Spells","different menu hotkey switches directly")
+    input:ToggleMenu("Spells"); check(ui.Menu==nil,"same menu hotkey closes menu")
+    focused=true
+    check(bindings.Wandbound_Bag(nil,"Begin")=="Pass" and ui.Menu==nil,"bag hotkey passes through while typing")
+    local before=casts
+    check(basic(nil,"Begin",mouse)=="Pass" and casts==before,"typing blocks casting")
+    focused=false; ui.Menu="Bag"
+    check(basic(nil,"Begin",pad)=="Pass" and casts==before and not input.Holding,"menu blocks casting and passes gamepad input")
+    ui.Menu=nil
+    local prompt={Parent={},Enabled=true,GamepadKeyCode=Enum.KeyCode.ButtonX}
+    local interact={UserInputType="Gamepad1",KeyCode=Enum.KeyCode.ButtonX}
+    local slot=bindings.Wandbound_Slot1
+    prompts.PromptShown.Callback(prompt)
+    check(slot(nil,"Begin",interact)=="Pass" and casts==before,"visible NPC prompt receives X without casting")
+    check(slot(nil,"End",interact)=="Pass","NPC prompt receives X release")
+    slot(nil,"Begin",{UserInputType="Keyboard",KeyCode=Enum.KeyCode.One})
+    check(casts==before+1,"keyboard slot still works beside NPC")
+    prompts.PromptHidden.Callback(prompt)
+    check(slot(nil,"Begin",interact)=="Sink" and casts==before+2,"X casts again after leaving prompt")
+    prompts.PromptShown.Callback(prompt); prompt.Enabled=false
+    slot(nil,"Begin",interact); check(casts==before+3,"disabled prompts do not block spells")
+    prompt.Enabled=true; prompt.Parent=nil
+    slot(nil,"Begin",interact); check(casts==before+4,"removed prompts do not block spells")
+end
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, input routing).")

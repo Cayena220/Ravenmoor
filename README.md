@@ -137,6 +137,9 @@ was moved or rotated.
 `build.py` needs only Python's standard library. The validator's Lua checks need a
 Lua 5.4 shared library; the source intentionally uses the Lua subset supported by
 Luau. The validator is not a replacement for Studio's engine or script analysis.
+On Windows, set `WANDBOUND_LUA_LIBRARY` to the full path of your Lua 5.4 DLL if it
+is not on PATH (for example, `$env:WANDBOUND_LUA_LIBRARY = 'C:\xampp\apache\bin\lua54.dll'`
+in PowerShell when XAMPP is installed).
 
 If you already use Rojo, `default.project.json` maps the scripts and generated
 models into Studio. Start from the supplied place to retain the lighting setup.
@@ -151,7 +154,8 @@ that name on a live experience unless you intend to start a separate save namesp
 ## Verification status
 
 Completed here: XML integrity and source parity checks; all 27 source files parsed;
-196 mocked logic assertions; all 25 classroom target positions checked against
+334 mocked logic assertions, including delayed client startup, every NPC service,
+inventory actions and gamepad prompt routing; all 25 classroom target positions checked against
 solid map geometry; shop doors checked against their prompts; houses checked clear of
 roads, lanes and each other; map kept within 2,100 parts. No imported executable assets or numeric asset requires exist.
 

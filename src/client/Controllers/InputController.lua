@@ -3,8 +3,9 @@ local RS=game:GetService("ReplicatedStorage")
 local UIS=game:GetService("UserInputService")
 local CAS=game:GetService("ContextActionService")
 local Run=game:GetService("RunService")
+local Prompts=game:GetService("ProximityPromptService")
 local I={}
-function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0 end
+function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0; self.VisiblePrompts={} end
 function I:CameraMode()
     local open=self.C.UIController:IsOpen() or UIS:GetFocusedTextBox()~=nil
     if self.Controls and open~=self.ControlsPaused then
@@ -74,6 +75,8 @@ function I:UseSlot(slot)
     local aim=self:Aim(); if aim then RS.Remotes.Cast:FireServer(id,aim); self.LastCast=os.clock() end
 end
 function I:Start()
+    Prompts.PromptShown:Connect(function(prompt) self.VisiblePrompts[prompt]=true end)
+    Prompts.PromptHidden:Connect(function(prompt) self.VisiblePrompts[prompt]=nil end)
     task.spawn(function()
         local module=self.Player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule",15)
         if module then self.Controls=require(module):GetControls(); self:CameraMode() end
@@ -89,6 +92,14 @@ function I:Start()
         CAS:BindActionAtPriority("Wandbound_"..slot,function(_,state,input)
             if slot=="Basic" and (state==Enum.UserInputState.End or state==Enum.UserInputState.Cancel) then self.Holding=false end
             if self.C.UIController:IsOpen() or UIS:GetFocusedTextBox() then self.Holding=false; return Enum.ContextActionResult.Pass end
+            -- Let the visible prompt receive its gamepad key instead of casting a spell.
+            if tostring(input.UserInputType):find("Gamepad") then
+                for prompt in pairs(self.VisiblePrompts) do
+                    if prompt.Parent and prompt.Enabled and prompt.GamepadKeyCode==input.KeyCode then
+                        return Enum.ContextActionResult.Pass
+                    end
+                end
+            end
             if input.UserInputType==Enum.UserInputType.MouseButton1 then
                 local pos=UIS:GetMouseLocation()
                 for _,gui in ipairs(self.Player.PlayerGui:GetGuiObjectsAtPosition(pos.X,pos.Y)) do

@@ -114,6 +114,10 @@ These engine checks have not been run by the cloud test suite.
 7. Equip and discard wands, including identical copies. Rapidly repeat a confirmed discard under simulated network latency: only the selected wand should be removed. The equipped wand remains protected.
 8. Materials in the bag are informational. Use a Health Draught at full health: quantity should remain unchanged. Take damage and use it again: one is consumed, healing runs over four seconds, and the shared cooldown applies.
 9. Talk to Tobb, each professor, the banker, apothecary and duelmaster. Check advice, quest guidance, and the service choice. Walk out of interaction range before selecting a service: no transaction or lesson should start. Verify first-wand, sorting, lesson and Tobb quest progression still completes.
+10. Reopen the updated place and start Play several times. The welcome panel and HUD must appear every time; Output must not report `Controllers is not a valid member of PlayerScripts`. Open the bag before and after receiving your first wand; check both the empty state and the wand preview.
+11. Hold gamepad X beside each NPC: it should open the conversation without casting slot 1. Leave the prompt and check X casts again. Keyboard 1 should still cast beside an NPC.
+12. Buy and brew Health Draughts, then check bag quantities and consumed ingredients. Use a tome below its required level (no consumption), at its required level (learns and consumes one), and after learning the spell (no further consumption).
+13. Check the Restricted Shelf, Mirror sorting, and all three Waystone menus. Verify Library and Duelmaster spell unlocks at their required levels, and that deposits/withdrawals update the carried and banked balances in the bag.
 
 ## Expanded academy
 
