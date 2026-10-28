@@ -100,6 +100,8 @@ tools/sync_scripts.py Copy src/ scripts (and with --map, the map) into the place
 tools/validate.py    Static, parser and headless logic checks
 tests/headless.lua   Mock-based gameplay assertions
 docs/               Playtest, saving, architecture and original plan
+blender/             Blender scripts for meshes, rigs and animations (see blender/README.md)
+tools/blender.py     Run those scripts in Blender and export FBX files for Studio's 3D Importer
 ```
 
 From this folder:
