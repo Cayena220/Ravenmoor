@@ -4,7 +4,7 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 
 ```text
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews
-blender/models/           One script per static model (cauldron.py, and the whole village in hollowmere.py)
+blender/models/           One script per static model (cauldron.py, waystone.py, and the whole village in hollowmere.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py)
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
@@ -91,6 +91,31 @@ python tools/blender.py blender/models/hollowmere.py --preview
 ```
 
 `Hollowmere.fbx` has 39 meshes and about 95,000 triangles. The largest mesh has about 16,400, under the 20,000 limit. Each building is a Model holding a `Building` mesh, plus `Lit window` and `Window glass` meshes named as WorldService's night lights expect. Oakhart's also has `Display glass`, which needs Transparency 0.45 to match the map. Import it with **Insert Using Scene Position** on, and it lands exactly over the part village. Then run the fix-up (step 5), which also removes Blender's `.001` name suffixes. The importer uploads every mesh to your account.
+
+## Waystone, remodelled
+
+`models/waystone.py` replaces the map's 3 × 7 × 3 slate block and neon ball with a dressed runestone monolith. The stone stands on a three-step octagonal dais, 7.9 studs across, and has two riveted bronze bands. On top, an iron cradle of four talons holds a floating crystal 9.5 studs up. Glowing runes run down the front under a ringed raven sigil and up the back. A ley line climbs each side, and eight more runes and a lit ring lie on the steps.
+
+```bash
+python tools/blender.py blender/models/waystone.py --preview
+```
+
+`Waystone.fbx` is one Model with four meshes and about 6,400 triangles. It is centred on its origin, with the sigil facing the front. After the fix-up (step 5), set each mesh as below. Neon glows in the part's Color and ignores the vertex colours, so the two Neon meshes need the old rune's teal, 130, 228, 226, instead of the fix-up's white.
+
+| Mesh | Material | Color | CanCollide | Holds |
+|---|---|---|---|---|
+| `Stone` | Slate | white | on | Dais, foot, monolith, moss |
+| `Ironwork` | Metal | white | off | Bands, rivets, crown and talons |
+| `Runes` | Neon | 130, 228, 226 | off | Every glowing inlay |
+| `Crystal` | Neon | 130, 228, 226 | off | The floating crystal and its two shards. It is a separate mesh so that a script can spin and bob it. |
+
+Import it once, then copy it to each of the three `Waystone_<name>` points in `src/shared/WorldPoints.lua`, standing it on the ground. The previews show a 5.5-stud stand-in player for scale; it is not exported.
+
+To place it, put the four meshes in each `Map.<name> Waystone` in place of its Stone and Rune parts. Then move the old Stone's nameplate onto the new Stone, at StudsOffset 0, 7.6, 0.
+
+- Turn each sigil toward where travellers arrive (`Config.Waystones`): Hollowmere +Z, Castle −Z and Whisperwood +X.
+- Stand the Hollowmere stone 0.8 studs north of its marker, at z = 156.2. The road there ends at z = 160, and this keeps the dais on it.
+- `tools/sync_scripts.py --map` replaces the Map with the generated one, which still has the slate blocks, so place the meshes again after a map sync.
 
 ## Conventions
 
