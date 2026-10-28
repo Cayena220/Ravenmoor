@@ -4,7 +4,7 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 
 ```text
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews
-blender/models/           One script per static model (cauldron.py)
+blender/models/           One script per static model (cauldron.py, and the whole village in hollowmere.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py)
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
@@ -74,6 +74,23 @@ To use it in the game, open the model in the **Animation Editor** (Avatar tab), 
 3. The Output window lists what changed in each model, for example `Spellbook_Open: 1 MeshParts set to white, 61 root poses renamed in 1 animations`.
 
 It turns every MeshPart still in the importer's grey to white. It also renames each imported animation's root Poses to the MeshPart that holds the bones (step 4). Running it again changes nothing. Parts you have recoloured are left alone, and so are animations saved from the Animation Editor, which already use the right name. Claude can run it for you over the Studio connection.
+
+## Hollowmere, remodelled
+
+`models/hollowmere.py` rebuilds the village's four shops, six cottages, square furniture, village road lamps, ferry dock and sky ferry. It replays `tools/build.py` to get every footprint, wall, door, window, colour and night-light pane, so the Blender village fits the map exactly and every door still meets its NPC prompt. What changes is the detail:
+
+- windows set into real openings with timber reveals, mullions, sills, shutters and flower boxes;
+- half-timbering that stands proud of the plaster, jetties on carved corbels;
+- tiled roofs over framed gables, with brick chimneys and pots;
+- coursed stone plinths, ashlar on the bank, plank doors with iron straps, and lettered shop signs.
+
+The ground, square paving and lanes stay as the map's parts. They appear only in the previews and the `.blend`, as `_Preview ground`.
+
+```bash
+python tools/blender.py blender/models/hollowmere.py --preview
+```
+
+`Hollowmere.fbx` has 39 meshes and about 95,000 triangles. The largest mesh has about 16,400, under the 20,000 limit. Each building is a Model holding a `Building` mesh, plus `Lit window` and `Window glass` meshes named as WorldService's night lights expect. Oakhart's also has `Display glass`, which needs Transparency 0.45 to match the map. Import it with **Insert Using Scene Position** on, and it lands exactly over the part village. Then run the fix-up (step 5), which also removes Blender's `.001` name suffixes. The importer uploads every mesh to your account.
 
 ## Conventions
 

@@ -30,7 +30,7 @@ def scene(name, frames=(0, 0)):
     global _scene_name
     _scene_name = name
     for block in (bpy.data.objects, bpy.data.meshes, bpy.data.armatures, bpy.data.materials, bpy.data.cameras,
-                  bpy.data.lights, bpy.data.actions):
+                  bpy.data.lights, bpy.data.actions, bpy.data.curves):
         for item in list(block): block.remove(item)
     sc = bpy.context.scene
     sc.unit_settings.system = 'NONE'
@@ -45,10 +45,12 @@ def _matrix(at, turn=(0, 0, 0), scale=(1, 1, 1)):
 
 class Mesh:
     """One Roblox MeshPart. Every piece added shares one mesh, one material and one vertex-colour layer.
-    A piece given a `bone` is moved entirely by that bone of the Rig passed to finish()."""
+    A piece given a `bone` is moved entirely by that bone of the Rig passed to finish(). `frame` places every
+    piece added after it is set, so a building can be modelled around its own centre and then set on the map."""
 
-    def __init__(self, name):
+    def __init__(self, name, frame=None):
         self.name = name; self.bones = []
+        self.frame = frame or Matrix.Identity(4)
         self.bm = bmesh.new()
         self.colour = self.bm.loops.layers.color.new('Col')
         self.deform = self.bm.verts.layers.deform.verify()
@@ -68,25 +70,71 @@ class Mesh:
         return self._paint(list({f for v in result['verts'] for f in v.link_faces}), colour, bone)
 
     def box(self, size, at, colour, turn=(0, 0, 0), bone=None):
-        return self._made(bmesh.ops.create_cube(self.bm, size=1, matrix=_matrix(at, turn, size)), colour, bone)
+        return self.block(_matrix(at, turn, size), colour, bone)
+
+    def block(self, matrix, colour, bone=None):
+        """A unit cube through `matrix`, whose first three columns are the box's edges and the fourth its centre."""
+        return self._made(bmesh.ops.create_cube(self.bm, size=1, matrix=self.frame @ matrix), colour, bone)
 
     def cylinder(self, radius, height, at, colour, top=None, turn=(0, 0, 0), segments=16, bone=None):
         """Upright along Z; `top` tapers the upper end to another radius."""
         made = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=segments, radius1=radius,
-                                     radius2=radius if top is None else top, depth=height, matrix=_matrix(at, turn))
+                                     radius2=radius if top is None else top, depth=height,
+                                     matrix=self.frame @ _matrix(at, turn))
         return self._made(made, colour, bone)
 
     def sphere(self, radius, at, colour, segments=12, scale=(1, 1, 1), bone=None):
         made = bmesh.ops.create_uvsphere(self.bm, u_segments=segments, v_segments=max(3, segments // 2), radius=radius,
-                                         matrix=_matrix(at, scale=scale))
+                                         matrix=self.frame @ _matrix(at, scale=scale))
         return self._made(made, colour, bone)
+
+    def prism(self, outline, depth, at, colour, turn=(0, 0, 0), bone=None):
+        """Extrude an outline of (x, z) points `depth` studs along Y, centred on `at`. Any simple outline works."""
+        m = self.frame @ _matrix(at, turn); n = len(outline)
+        front = [self.bm.verts.new(m @ Vector((x, -depth / 2, z))) for x, z in outline]
+        back = [self.bm.verts.new(m @ Vector((x, depth / 2, z))) for x, z in outline]
+        faces = [self.bm.faces.new(front), self.bm.faces.new(back[::-1])]
+        faces += [self.bm.faces.new((front[i], back[i], back[(i + 1) % n], front[(i + 1) % n])) for i in range(n)]
+        return self._paint(faces, colour, bone)
+
+    def loft(self, sections, colour, at=(0, 0, 0), colours=None, bone=None):
+        """Skin outlines of (x, z) points set along Y: `sections` lists (y, outline), every outline the same length.
+        Both ends are capped. `colours` gives each outline edge its own colour, for planking or trim."""
+        m = self.frame @ _matrix(at)
+        rings = [[self.bm.verts.new(m @ Vector((x, y, z))) for x, z in outline] for y, outline in sections]
+        n, faces = len(rings[0]), []
+        for edge in range(n):
+            band = [self.bm.faces.new((lo[edge], lo[(edge + 1) % n], hi[(edge + 1) % n], hi[edge]))
+                    for lo, hi in zip(rings, rings[1:])]
+            faces += self._paint(band, colours[edge] if colours else colour, bone)
+        faces += self._paint([self.bm.faces.new(rings[0]), self.bm.faces.new(rings[-1][::-1])], colour, bone)
+        bmesh.ops.recalc_face_normals(self.bm, faces=faces)
+        return faces
+
+    def text(self, body, at, colour, height, width=None, depth=0.05, turn=(0, 0, 0), bone=None):
+        """Raised lettering facing -Y and centred on `at`: `height` studs tall, or smaller to fit `width`."""
+        curve = bpy.data.curves.new('Lettering', 'FONT')
+        curve.body, curve.align_x, curve.align_y, curve.extrude, curve.resolution_u = body, 'CENTER', 'CENTER', 0.5, 3
+        obj = bpy.data.objects.new('Lettering', curve); bpy.context.scene.collection.objects.link(obj)
+        evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get()); me = evaluated.to_mesh()
+        xs, ys = [v.co.x for v in me.vertices], [v.co.y for v in me.vertices]
+        scale = height / (max(ys) - min(ys))
+        if width: scale = min(scale, width / (max(xs) - min(xs)))
+        cx, cy, m = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, self.frame @ _matrix(at, turn)
+        # The font lies in XY facing +Z; stand it up in XZ facing -Y.
+        verts = [self.bm.verts.new(m @ Vector(((v.co.x - cx) * scale, -v.co.z * depth, (v.co.y - cy) * scale)))
+                 for v in me.vertices]
+        faces = [self.bm.faces.new([verts[i] for i in p.vertices]) for p in me.polygons]
+        evaluated.to_mesh_clear(); bpy.data.objects.remove(obj); bpy.data.curves.remove(curve)
+        return self._paint(faces, colour, bone)
 
     def lathe(self, profile, colour, at=(0, 0, 0), segments=32, bone=None):
         """Spin (radius, height) points around the Z axis. Start and end on the axis (radius 0) for a closed solid."""
-        bm, (ox, oy, oz) = self.bm, at
+        bm, (ox, oy, oz), f = self.bm, at, self.frame
         angles = [2 * math.pi * i / segments for i in range(segments)]
-        rings = [[bm.verts.new((ox, oy, oz + z))] if r < 1e-6 else
-                 [bm.verts.new((ox + r * math.cos(a), oy + r * math.sin(a), oz + z)) for a in angles] for r, z in profile]
+        rings = [[bm.verts.new(f @ Vector((ox, oy, oz + z)))] if r < 1e-6 else
+                 [bm.verts.new(f @ Vector((ox + r * math.cos(a), oy + r * math.sin(a), oz + z))) for a in angles]
+                 for r, z in profile]
         faces = []
         for lo, hi in zip(rings, rings[1:]):
             for i in range(segments):
@@ -96,19 +144,23 @@ class Mesh:
                 faces.append(bm.faces.new(list(corners)))
         return self._paint(faces, colour, bone)
 
-    def torus(self, radius, thickness, at, colour, turn=(0, 0, 0), segments=24, sides=8, bone=None):
-        """A ring lying in the XY plane before `turn`."""
-        m = _matrix(at, turn)
+    def torus(self, radius, thickness, at, colour, turn=(0, 0, 0), segments=24, sides=8, arc=360, bone=None):
+        """A ring lying in the XY plane before `turn`, starting on +X. An `arc` under 360 degrees is a capped bend."""
+        m, closed = self.frame @ _matrix(at, turn), arc >= 360
+        rings = segments if closed else segments + 1
         grid = [[self.bm.verts.new(m @ Vector(((radius + thickness * math.cos(v)) * math.cos(u),
                                                (radius + thickness * math.cos(v)) * math.sin(u), thickness * math.sin(v))))
                  for v in (2 * math.pi * k / sides for k in range(sides))]
-                for u in (2 * math.pi * i / segments for i in range(segments))]
-        faces = [self.bm.faces.new((grid[i][k], grid[(i + 1) % segments][k], grid[(i + 1) % segments][(k + 1) % sides],
+                for u in (math.radians(arc) * i / segments for i in range(rings))]
+        faces = [self.bm.faces.new((grid[i][k], grid[(i + 1) % rings][k], grid[(i + 1) % rings][(k + 1) % sides],
                                     grid[i][(k + 1) % sides])) for i in range(segments) for k in range(sides)]
+        if not closed: faces += [self.bm.faces.new(grid[0][::-1]), self.bm.faces.new(grid[-1])]
         return self._paint(faces, colour, bone)
 
     def finish(self, sharp=30, rig=None):
-        """Make the Blender object. Edges sharper than `sharp` degrees stay hard; the rest shade smooth."""
+        """Make the Blender object, or return None if nothing was added. Edges sharper than `sharp` degrees stay
+        hard; the rest shade smooth."""
+        if not self.bm.faces: self.bm.free(); return None
         me = bpy.data.meshes.new(self.name); self.bm.to_mesh(me); self.bm.free()
         obj = bpy.data.objects.new(self.name, me); bpy.context.scene.collection.objects.link(obj)
         me.shade_smooth(); me.set_sharp_from_angle(angle=math.radians(sharp))
@@ -135,6 +187,14 @@ def _material(name):
     tint = nodes.new('ShaderNodeVertexColor'); tint.layer_name = 'Col'
     links.new(tint.outputs['Color'], bsdf.inputs['Base Color'])
     return mat
+
+
+def group(name, children):
+    """An empty holding `children` (objects or None). Studio's importer makes it a Model of that name."""
+    empty = bpy.data.objects.new(name, None); bpy.context.scene.collection.objects.link(empty)
+    for child in children:
+        if child: child.parent = empty
+    return empty
 
 
 class Rig:
@@ -170,32 +230,35 @@ def _check(obj):
     return tris
 
 
-def export(name, objects, animation=False, preview_frames=None):
+def export(name, objects, animation=False, preview_frames=None, auto_preview=True):
     """Check Roblox's limits, then write exports/<name>.fbx and save the scene as exports/<scene>.blend.
     A model exports in its rest pose (the first frame). `animation=True` bakes the rig's keys into the file.
-    With --preview, also render exports/<name>.png: a still, or a strip of frames for an animation."""
+    With --preview, also render exports/<name>.png: a still, or a strip of frames for an animation. Pass
+    auto_preview=False when the script frames its own shots instead."""
     EXPORTS.mkdir(exist_ok=True)
     sc = bpy.context.scene; sc.frame_set(sc.frame_start)
     meshes = [o for o in objects if o.type == 'MESH']; rigs = [o for o in objects if o.type == 'ARMATURE']
-    tris = sum(_check(o) for o in meshes)
+    counts = [_check(o) for o in meshes]; tris = sum(counts)
     for o in bpy.context.view_layer.objects: o.select_set(o in objects)
     bpy.context.view_layer.objects.active = objects[0]
     bpy.ops.export_scene.fbx(
-        filepath=str(EXPORTS / f'{name}.fbx'), use_selection=True, object_types={'MESH', 'ARMATURE'},
+        filepath=str(EXPORTS / f'{name}.fbx'), use_selection=True, object_types={'MESH', 'ARMATURE', 'EMPTY'},
         global_scale=1.0, apply_unit_scale=True, apply_scale_options='FBX_SCALE_UNITS', axis_forward='Z', axis_up='Y',
         use_mesh_modifiers=True, use_triangles=True, colors_type='SRGB', add_leaf_bones=False,
         bake_anim=animation, bake_anim_use_all_bones=True, bake_anim_use_nla_strips=False,
         bake_anim_use_all_actions=False, bake_anim_force_startend_keying=False, bake_anim_step=1.0,
         bake_anim_simplify_factor=0.0, path_mode='COPY', embed_textures=True)
     bones = sum(len(r.data.bones) for r in rigs)
-    detail = f'{len(meshes)} mesh, {tris:,} triangles' + (f', {bones} bones' if bones else '')
+    detail = f'{len(meshes)} mesh, {tris:,} triangles' if len(meshes) == 1 else \
+        f'{len(meshes)} meshes, {tris:,} triangles (largest {max(counts):,})'
+    detail += f', {bones} bones' if bones else ''
     if animation:
         count = sc.frame_end - sc.frame_start + 1
         detail += f', {count} frames ({(count - 1) / FPS:.1f} s at {FPS} fps)'
     say(f'exports/{name}.fbx: {detail}')
     bpy.context.preferences.filepaths.save_version = 0   # no .blend1 backups beside the export
     bpy.ops.wm.save_as_mainfile(filepath=str(EXPORTS / f'{_scene_name}.blend'), check_existing=False)
-    if PREVIEW:
+    if PREVIEW and auto_preview:
         if preview_frames is None:
             preview_frames = [sc.frame_start + round(k * (sc.frame_end - sc.frame_start) / 4) for k in range(4)] \
                 if animation else [sc.frame_start]
@@ -213,16 +276,9 @@ def preview(name, meshes, frames):
             e = o.evaluated_get(depsgraph); pts += [e.matrix_world @ Vector(c) for c in e.bound_box]
     lo, hi = Vector(map(min, zip(*pts))), Vector(map(max, zip(*pts)))
     centre, radius = (lo + hi) / 2, max((hi - lo).length / 2, 0.5)
-    cam = sc.camera or bpy.data.objects.new('PreviewCamera', bpy.data.cameras.new('PreviewCamera'))
-    if not sc.camera: sc.collection.objects.link(cam); sc.camera = cam
     view = Vector((0.7, -1.0, 0.65)).normalized()   # from the front right and above; the front faces -Y
-    cam.location = centre + view * radius * 3.0     # 3 radii fits the bounding sphere in a 50 mm lens
-    cam.rotation_euler = (-view).to_track_quat('-Z', 'Y').to_euler()
-    sc.world = sc.world or bpy.data.worlds.new('Preview'); sc.world.color = (0.32, 0.34, 0.37)
-    sc.render.engine = 'BLENDER_WORKBENCH'; sc.view_settings.view_transform = 'Standard'
-    sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'VERTEX'
-    sc.render.resolution_x = sc.render.resolution_y = 640 if len(frames) == 1 else 480
-    sc.render.image_settings.file_format = 'PNG'
+    _camera(centre + view * radius * 3.0, centre)   # 3 radii fits the bounding sphere in a 50 mm lens
+    _look((640, 640) if len(frames) == 1 else (480, 480))
     out = EXPORTS / f'{name}.png'; shots = []
     try:
         for f in frames:
@@ -241,3 +297,46 @@ def preview(name, meshes, frames):
         image = bpy.data.images.new(name, w, h); image.pixels.foreach_set(sheet.ravel())
         image.filepath_raw = str(out); image.file_format = 'PNG'; image.save(); bpy.data.images.remove(image)
     say(f'exports/{name}.png: preview' + (f' of frames {", ".join(map(str, frames))}' if len(frames) > 1 else ''))
+
+
+def shot(name, eye, target, lens=35, resolution=(1600, 900)):
+    """With --preview, render exports/<name>.png from `eye` looking at `target`, in Blender coordinates."""
+    if not PREVIEW: return
+    _camera(eye, target, lens); _look(resolution)
+    sc = bpy.context.scene; sc.render.filepath = str(EXPORTS / f'{name}.png')
+    try: bpy.ops.render.render(write_still=True)
+    except RuntimeError as error: say(f'Preview skipped for {name}: {error}'); return
+    say(f'exports/{name}.png: preview')
+
+
+def viewport(target, distance, turn=(55, 0, 0)):
+    """Aim the 3D views of the saved .blend at `target` from `distance` studs (Euler `turn` in degrees), in Solid
+    shading with vertex colours, so the model is in view and in colour when the file is opened in Blender."""
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            if area.type != 'VIEW_3D': continue
+            space = area.spaces.active
+            space.shading.color_type = 'VERTEX'; space.clip_end = max(space.clip_end, distance * 20)
+            view = space.region_3d
+            if view is None: continue
+            view.view_location, view.view_distance = target, distance
+            view.view_rotation = Euler([math.radians(a) for a in turn]).to_quaternion()
+
+
+def _camera(eye, target, lens=50):
+    sc = bpy.context.scene
+    cam = sc.camera or bpy.data.objects.new('PreviewCamera', bpy.data.cameras.new('PreviewCamera'))
+    if not sc.camera: sc.collection.objects.link(cam); sc.camera = cam
+    eye, target = Vector(eye), Vector(target)
+    cam.data.lens, cam.data.clip_end = lens, max(1000, (target - eye).length * 10)
+    cam.location, cam.rotation_euler = eye, (target - eye).to_track_quat('-Z', 'Y').to_euler()
+
+
+def _look(resolution):
+    sc = bpy.context.scene
+    sc.world = sc.world or bpy.data.worlds.new('Preview'); sc.world.color = (0.32, 0.34, 0.37)
+    sc.render.engine = 'BLENDER_WORKBENCH'; sc.view_settings.view_transform = 'Standard'
+    shading = sc.display.shading
+    shading.light, shading.color_type, shading.show_shadows, shading.show_cavity = 'STUDIO', 'VERTEX', True, True
+    sc.render.resolution_x, sc.render.resolution_y = resolution
+    sc.render.image_settings.file_format = 'PNG'

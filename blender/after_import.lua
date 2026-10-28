@@ -6,7 +6,10 @@ Running it again changes nothing. For each selected model it:
     vertex colours by the part's Color;
   * renames the root Pose of every keyframe in the model's imported animations (its AnimSaves) to the
     MeshPart that holds the bones. The importer names that Pose after the Blender armature, and the
-    Animator then ignores the root bone's keys.
+    Animator then ignores the root bone's keys;
+  * drops the .001-style suffixes Blender adds to repeated names from its parts and models, so that
+    names such as "Lit window" match what WorldService's night lights look for. Bones keep theirs,
+    since animations refer to them by name.
 ]]
 local IMPORT_GREY = Color3.fromRGB(163, 162, 165)
 
@@ -16,9 +19,14 @@ local function isImportGrey(colour)
 end
 
 local function fixModel(model)
-    local whitened, renamed, unmatched, sequences = 0, 0, 0, 0
+    local whitened, renamed, unmatched, sequences, tidied = 0, 0, 0, 0, 0
     local holders = {}   -- bone name -> the part it sits in
     for _, item in ipairs(model:GetDescendants()) do
+        local base = (item:IsA("BasePart") or item:IsA("Model")) and item.Name:match("^(.-)%.%d%d%d$")
+        if base then
+            item.Name = base
+            tidied = tidied + 1
+        end
         if item:IsA("MeshPart") and isImportGrey(item.Color) then
             item.Color = Color3.new(1, 1, 1)
             whitened = whitened + 1
@@ -47,8 +55,8 @@ local function fixModel(model)
             end
         end
     end
-    local line = string.format("%s: %d MeshParts set to white, %d root poses renamed in %d animations",
-        model.Name, whitened, renamed, sequences)
+    local line = string.format("%s: %d MeshParts set to white, %d root poses renamed in %d animations, %d names tidied",
+        model.Name, whitened, renamed, sequences, tidied)
     if unmatched > 0 then
         line = line .. string.format(" (%d root poses left alone: none of their bones is in this model)", unmatched)
     end
