@@ -8,6 +8,7 @@ blender/models/           One script per static model (cauldron.py, waystone.py,
 blender/animations/       One script per rigged model and its animations (spellbook.py)
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
+blender/place_waystones.lua  Studio script that stands the Waystone meshes at the map's three Waystones
 tools/blender.py          Finds Blender and runs scripts
 ```
 
@@ -100,7 +101,7 @@ python tools/blender.py blender/models/hollowmere.py --preview
 python tools/blender.py blender/models/waystone.py --preview
 ```
 
-`Waystone.fbx` is one Model with four meshes and about 6,400 triangles. It is centred on its origin, with the sigil facing the front. After the fix-up (step 5), set each mesh as below. Neon glows in the part's Color and ignores the vertex colours, so the two Neon meshes need the old rune's teal, 130, 228, 226, instead of the fix-up's white.
+`Waystone.fbx` is one Model with four meshes and about 6,400 triangles. It is centred on its origin, with the sigil facing the front. Each mesh is set as below, which `place_waystones.lua` does for you. Neon glows in the part's Color and ignores the vertex colours, so the two Neon meshes need the old rune's teal, 130, 228, 226, instead of the fix-up's white.
 
 | Mesh | Material | Color | CanCollide | Holds |
 |---|---|---|---|---|
@@ -109,13 +110,17 @@ python tools/blender.py blender/models/waystone.py --preview
 | `Runes` | Neon | 130, 228, 226 | off | Every glowing inlay |
 | `Crystal` | Neon | 130, 228, 226 | off | The floating crystal and its two shards. It is a separate mesh so that a script can spin and bob it. |
 
-Import it once, then copy it to each of the three `Waystone_<name>` points in `src/shared/WorldPoints.lua`, standing it on the ground. The previews show a 5.5-stud stand-in player for scale; it is not exported.
+The previews show a 5.5-stud stand-in player for scale; it is not exported.
 
-To place it, put the four meshes in each `Map.<name> Waystone` in place of its Stone and Rune parts. Then move the old Stone's nameplate onto the new Stone, at StudsOffset 0, 7.6, 0.
+Import it once, which uploads the meshes, then paste [place_waystones.lua](place_waystones.lua) into **View → Command Bar** and press Enter. It builds the meshes from their asset IDs and sets them as in the table, in each of the map's `Map.<name> Waystone` models:
 
-- Turn each sigil toward where travellers arrive (`Config.Waystones`): Hollowmere +Z, Castle −Z and Whisperwood +X.
-- Stand the Hollowmere stone 0.8 studs north of its marker, at z = 156.2. The road there ends at z = 160, and this keeps the dais on it.
-- `tools/sync_scripts.py --map` replaces the Map with the generated one, which still has the slate blocks, so place the meshes again after a map sync.
+- Each stone is centred on its marker and stands on the lowest ground under its dais.
+- Each sigil turns toward where `Config.Waystones` lands travellers: Hollowmere +Z, Castle −Z and Whisperwood +X.
+- The slate Stone's nameplate moves onto the new Stone, at StudsOffset 0, 7.6, 0. The slate Stone and the neon Rune are removed.
+
+The script prints a line for each Waystone. It warns if anything stands inside a stone's volume, or if the ground under a dais is uneven enough to bury one side. Running it again changes nothing.
+
+`tools/sync_scripts.py --map` brings back the generated map's slate blocks, so run the script again after a map sync. If you import `Waystone.fbx` again, copy the new MeshIds into the script's `MESHES`.
 
 ## Conventions
 
