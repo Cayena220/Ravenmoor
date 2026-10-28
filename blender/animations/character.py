@@ -106,8 +106,10 @@ sprint_flight = P(LowerTorso=((-6, 0, 0), (0, 0.18, 0)), UpperTorso=(-10, 0, 0),
 
 
 # Tumble right: half a second. The character drops into a tuck, rolls a full turn toward +X along the ground,
-# coming in from 3 studs back toward where the dash began, then rises out of a crouch. Keys every quarter turn
-# keep the roll's direction unambiguous between keys.
+# coming in from 3 studs back toward where the dash began, then rises out of a crouch. Every frame of the roll is a
+# key, a twelfth of a turn apart, so the turn's direction is never ambiguous and nothing dips between keys. Each
+# key is settled on the mannequin: posed, measured, then moved so the body's middle follows the path and its lowest
+# point just clears the floor, which a turn about the hips alone would not do (the tucked head sinks through).
 def tuck(roll, x, y, open=0.0):
     k = 1 - open
     return P(LowerTorso=((0, 0, roll), (x, y, 0)), UpperTorso=(-28 * k, 0, 0), Head=(-22 * k, 0, 0),
@@ -117,8 +119,29 @@ def tuck(roll, x, y, open=0.0):
              RightUpperArm=(55 * k, 0, -20 * k), RightLowerArm=(105 * k, 0, 0))
 
 
-tumble_right = [(0, tuck(0, -3.0, -0.9)), (3, tuck(-90, -2.2, -0.7)), (6, tuck(-180, -1.4, -0.5)),
-                (9, tuck(-270, -0.6, -0.7)), (12, tuck(-360, 0, -0.6, open=0.55)), (15, P())]
+FLOOR = -2.971   # the floor under the rig: a standing avatar's HumanoidRootPart is 2.971 studs up
+CLEAR = 0.04     # how far the rolling body stays off it
+
+
+def extent(pose):
+    """Pose the rig (no clip playing) and return the deformed mannequin's lowest point and its middle along
+    Roblox X."""
+    for bone in MOVING:
+        turn, move = pose.get(bone, ((0, 0, 0), (0, 0, 0)))
+        pb = rig.obj.pose.bones[bone]; pb.location = move; pb.rotation_euler = [math.radians(a) for a in turn]
+    bpy.context.view_layer.update()
+    shown = mannequin.evaluated_get(bpy.context.evaluated_depsgraph_get()); mesh = shown.to_mesh()
+    points = [shown.matrix_world @ v.co for v in mesh.vertices]; shown.to_mesh_clear()
+    return min(p.z for p in points), -(min(p.x for p in points) + max(p.x for p in points)) / 2
+
+
+def settled(roll, x, open=0.0):
+    low, middle = extent(tuck(roll, 0, 0, open))
+    return tuck(roll, x - middle, FLOOR + CLEAR - low, open)
+
+
+tumble_right = [(f, settled(-30 * f, -3 + 0.25 * f, 0.55 * max(0, f - 9) / 3)) for f in range(13)] + [(15, P())]
+for bone in MOVING: rig.obj.pose.bones[bone].matrix_basis.identity()
 
 CLIPS = {   # name: (keys, last frame, loops, priority, easing per part)
     'Walk': ([(0, walk_contact), (8, walk_passing), (15, mirror(walk_contact)), (23, mirror(walk_passing)),

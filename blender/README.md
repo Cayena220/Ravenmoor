@@ -7,6 +7,7 @@ blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Robl
 blender/models/           One script per static model (cauldron.py, waystone.py, and the whole village in hollowmere.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py, character.py)
 blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
+blender/world/            world.py: assembles the whole game in one scene, exports/World.blend
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
 blender/place_waystones.lua  Studio script that stands the Waystone meshes at the map's three Waystones
@@ -139,6 +140,43 @@ These clips are not imported with the 3D Importer. Claude builds them over the S
 - On your own dodge, if the dash crosses the camera's view, it turns you to face where the camera looks and plays the matching Tumble. Any other dash turns you to face the way you went.
 
 Until a clip is published, Studio playtests play it from its KeyframeSequence, and a live game keeps Roblox's defaults. To publish one, right-click its KeyframeSequence and choose **Save to Roblox**. Then paste the new ID into that Animation's `AnimationId`. Publish under the account or group that owns the experience.
+
+## The whole world
+
+`world/world.py` puts the whole game in one Blender scene, `exports/World.blend`. Open it to see every model where the game has it before you change one, or to block out a new model where it will stand. Each area is a collection under `Ravenmoor`:
+
+- **The part-built map.** The script calls `tools/build.py` itself, so the scene always matches the map it makes: land, roads, lamps, the academy, Whisperwood, Castle Grounds and the training yard, the duel arena, Mirrorlake, the chests and the staff. Every part becomes a mesh in its colour, one object per model.
+- **The Blender models**, appended from their own `.blend` files and stood where the game has them (`PLACED` in the script).
+  - Hollowmere replaces the map's part village, its road lamps, dock and ferry, and keeps the map's square, lanes and paths.
+  - The three Waystones replace the slate stones, turned as `place_waystones.lua` turns them.
+  - The Cauldron stands at the Apothecary and the Spellbook in the Library.
+  - The character mannequin stands on the arrival pad for scale.
+- **The models the game builds in code.** `world/game_models.lua` runs the game's own builders outside Roblox and records the parts they make, so these always match what the game spawns:
+  - every monster at its spawn point, in Whisperwood (`MonsterService`);
+  - the training dummies, in Castle Grounds (`InteractionService`);
+  - the five lesson targets in front of each teacher, in the academy (`ClassService`);
+  - a wand gallery west of the arrival pad: every wood at every rarity, and the three named wands (`WandModel`).
+
+  This needs Lua 5.4, found as `tools/validate.py` finds it (`WANDBOUND_LUA_LIBRARY`). Without it, the world builds without these models and says so.
+- **Showcase** (its own collection, beside the arrival pad):
+  - A dodge across the pad, frozen just after it lands on the mannequin, laid out as `EffectsController:Dash` draws it (`vfx/dash.py`).
+  - Three more mannequins, posed mid-walk, mid-sprint and mid-tumble.
+- **Animations.** Every clip (Walk, Sprint, both Tumbles and the Spellbook's opening) is kept in the file. To play one, select a rig and pick the clip in Blender's Action editor.
+- **Markers.** Every interaction and quest point is a labelled empty.
+
+Build the models before the world. This runs every script in folder order, so `world/` comes last:
+
+```bash
+python tools/blender.py "blender/*/*.py" --preview
+```
+
+`--preview` also renders `World.png` and close-ups of the village, the academy, the training yard, the showcase, the wand gallery, the monsters and the boss.
+
+The scene is assembled from the scripts, so don't save hand edits into `World.blend`; the next build replaces it. Change a model in its own script, and change the part map in `tools/build.py`, then rebuild. To add a model to the game:
+
+1. Write its script under `blender/models/`.
+2. Add its `.blend` and where the game stands it to `PLACED`.
+3. Export and import it into Studio as before (steps 3 to 5).
 
 ## Conventions
 
