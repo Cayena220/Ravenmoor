@@ -173,8 +173,9 @@ function C:Dodge(player, direction)
     s.Stamina=s.Stamina-35; s.DodgeAt=os.clock(); s.InvulnerableUntil=os.clock()+(self.S.DuelService:IsBusy(player) and 0.2 or 0.25)
     local from=s.Root.Position
     self.S.WorldService:Teleport(player,from+flat*distance)
-    -- Clients draw the dash between the two points (EffectsController:Dash).
-    self.S.NetworkService.FX:FireAllClients("Dodge",s.Root.Position,from)
+    -- Clients draw the dash between the two points (EffectsController:Dash); the dodger's own client also turns
+    -- the character and tumbles it on a sideways dash (EffectsController:Roll).
+    self.S.NetworkService.FX:FireAllClients("Dodge",s.Root.Position,from,player)
 end
 function C:Tick(dt)
     local now=os.clock()

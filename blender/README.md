@@ -5,7 +5,7 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 ```text
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews
 blender/models/           One script per static model (cauldron.py, waystone.py, and the whole village in hollowmere.py)
-blender/animations/       One script per rigged model and its animations (spellbook.py)
+blender/animations/       One script per rigged model and its animations (spellbook.py, character.py)
 blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
@@ -128,6 +128,17 @@ The script prints a line for each Waystone. It warns if anything stands inside a
 `vfx/dash.py` builds `DashVFX.fbx`: one Model, DashVFX, holding three near-white meshes. `Streak` is two wind ribbons twisting round the dash path. `Speed lines` is ten tapered needles. `Ring` is a shock ring with a fainter ripple inside it. Nothing is animated in Blender. When a character dodges, `EffectsController:Dash` clones the meshes, tints them, makes them Neon and tweens them. It stretches the streak over the dash, blooms the ring where the dash began, and trails the speed lines and a flat dust ring behind the landing. With Reduced effects on, it plays only the streak and the ring.
 
 Import it like any model (step 3), run the fix-up (step 5), then move the DashVFX model into `ReplicatedStorage.VFX`, so every client can clone it. Until it is there, a dodge shows the old plain burst.
+
+## Character animations
+
+`animations/character.py` animates R15 avatars: `Walk` (1 s loop), `Sprint` (0.6 s loop) and a sideways roll, `TumbleRight` and `TumbleLeft` (0.5 s). The rig's bones are the R15 joints, named after the part each one moves and placed at a Studio avatar's rest pose. Each bone's axes are turned to Roblox's (X right, Y up, Z back). R15 joint frames are axis-aligned, so a keyed rotation is the joint's Transform in game. The script exports `Character<Name>.fbx` with preview strips, plus `CharacterAnimations.json`, which holds every key pose as Roblox CFrames.
+
+These clips are not imported with the 3D Importer. Claude builds them over the Studio connection from the JSON, as KeyframeSequences inside the Animations in `ReplicatedStorage.Animations`. `EffectsController` then works as follows:
+
+- When your character spawns, it puts Walk and Sprint into the default Animate script's `walk` and `run` slots. Animate plays walk up to 8 studs a second and run at full speed.
+- On your own dodge, if the dash crosses the camera's view, it turns you to face where the camera looks and plays the matching Tumble. Any other dash turns you to face the way you went.
+
+Until a clip is published, Studio playtests play it from its KeyframeSequence, and a live game keeps Roblox's defaults. To publish one, right-click its KeyframeSequence and choose **Save to Roblox**. Then paste the new ID into that Animation's `AnimationId`. Publish under the account or group that owns the experience.
 
 ## Conventions
 

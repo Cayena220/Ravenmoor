@@ -109,6 +109,52 @@ function E:Dash(to,from)
         piece("Ring",CFrame.fromMatrix(feet,Vector3.xAxis,Vector3.zAxis),ring.Size*0.8,0.35,0.4,{Size=ring.Size*3})
     end
 end
+-- Character clips (blender/animations/character.py) live in ReplicatedStorage.Animations: an Animation per clip,
+-- whose AnimationId is the published asset. In Studio, a clip not yet published plays from its KeyframeSequence.
+function E:AnimationId(name)
+    local folder=RS:FindFirstChild("Animations"); local anim=folder and folder:FindFirstChild(name)
+    if not anim then return nil end
+    if anim.AnimationId~="" then return anim.AnimationId end
+    local sequence=anim:FindFirstChildOfClass("KeyframeSequence")
+    if not (sequence and Run:IsStudio()) then return nil end
+    local ok,id=pcall(function() return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(sequence) end)
+    if ok then anim.AnimationId=id; return id end
+end
+-- The default Animate script plays "walk" up to 8 studs a second and "run" at full speed (16).
+function E:Movement(character)
+    local animate=character:WaitForChild("Animate",10); if not animate then return end
+    for slot,clip in pairs({walk="Walk",run="Sprint"}) do
+        local value=animate:WaitForChild(slot,5); local anim=value and value:FindFirstChildOfClass("Animation")
+        local id=self:AnimationId(clip)
+        if anim and id then anim.AnimationId=id end
+    end
+end
+-- Your own dodge: a dash across the camera's view turns you to face where the camera looks and tumbles you
+-- sideways. Any other dash turns you to face the way you went, since the server's teleport faces you north.
+function E:Roll(to,from)
+    local character=Players.LocalPlayer.Character; local camera=workspace.CurrentCamera
+    local hum=character and character:FindFirstChildOfClass("Humanoid"); local root=character and character:FindFirstChild("HumanoidRootPart")
+    if not (hum and root and camera) or typeof(from)~="Vector3" then return end
+    local flat=Vector3.new(1,0,1)
+    local path,look,right=(to-from)*flat,camera.CFrame.LookVector*flat,camera.CFrame.RightVector*flat
+    if path.Magnitude<0.5 or look.Magnitude<0.1 or right.Magnitude<0.1 then return end
+    local side=path.Unit:Dot(right.Unit)
+    local clip=math.abs(side)>=0.7 and (side>0 and "TumbleRight" or "TumbleLeft")
+    local id=clip and self:AnimationId(clip)
+    if not id then root.CFrame=CFrame.lookAt(to,to+path.Unit); return end
+    root.CFrame=CFrame.lookAt(to,to+look.Unit)
+    if self.Tumbler~=hum then self.Tumbler=hum; self.Tumbles={} end
+    local track=self.Tumbles[clip]
+    if not track then
+        local anim=Instance.new("Animation"); anim.AnimationId=id
+        track=(hum:FindFirstChildOfClass("Animator") or hum):LoadAnimation(anim); track.Priority=Enum.AnimationPriority.Action
+        self.Tumbles[clip]=track
+    end
+    -- Hold the facing through the roll; the Humanoid would otherwise turn toward the move direction.
+    hum.AutoRotate=false
+    track.Stopped:Once(function() hum.AutoRotate=true end)
+    track:Play(0.05)
+end
 function E:Ward(model,duration)
     if typeof(model)~="Instance" or not model.Parent then return end
     local root=model:FindFirstChild("HumanoidRootPart"); if not root then return end
@@ -156,10 +202,12 @@ function E:Start()
         elseif kind=="Beam" then self:Beam(a,b,c)
         elseif kind=="Telegraph" then self:Ring(a,b,c,false)
         elseif kind=="Pool" then self:Ring(a,b,c,true)
-        elseif kind=="Dodge" then self:Dash(a,b)
+        elseif kind=="Dodge" then self:Dash(a,b); if c==Players.LocalPlayer then self:Roll(a,b) end
         elseif kind=="Defeat" then self:Burst(a,"Arcane",4)
         elseif kind=="Status" then self:Burst(a,b,2) end
     end)
+    Players.LocalPlayer.CharacterAdded:Connect(function(character) self:Movement(character) end)
+    if Players.LocalPlayer.Character then task.spawn(function() self:Movement(Players.LocalPlayer.Character) end) end
     task.spawn(function()
         local monsters=workspace:WaitForChild("Runtime"):WaitForChild("Monsters")
         monsters.ChildAdded:Connect(function(model) task.spawn(function() self:Label(model) end) end)
