@@ -171,8 +171,10 @@ function C:Dodge(player, direction)
     local hit=workspace:Blockcast(s.Root.CFrame,Vector3.new(2,3,2),flat*10,params)
     local distance=hit and math.max(0,hit.Distance-1) or 10
     s.Stamina=s.Stamina-35; s.DodgeAt=os.clock(); s.InvulnerableUntil=os.clock()+(self.S.DuelService:IsBusy(player) and 0.2 or 0.25)
-    self.S.WorldService:Teleport(player,s.Root.Position+flat*distance)
-    self.S.NetworkService.FX:FireAllClients("Dodge",s.Root.Position)
+    local from=s.Root.Position
+    self.S.WorldService:Teleport(player,from+flat*distance)
+    -- Clients draw the dash between the two points (EffectsController:Dash).
+    self.S.NetworkService.FX:FireAllClients("Dodge",s.Root.Position,from)
 end
 function C:Tick(dt)
     local now=os.clock()

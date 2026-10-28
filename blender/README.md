@@ -6,6 +6,7 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews
 blender/models/           One script per static model (cauldron.py, waystone.py, and the whole village in hollowmere.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py)
+blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
 blender/place_waystones.lua  Studio script that stands the Waystone meshes at the map's three Waystones
@@ -121,6 +122,12 @@ Import it once, which uploads the meshes, then paste [place_waystones.lua](place
 The script prints a line for each Waystone. It warns if anything stands inside a stone's volume, or if the ground under a dais is uneven enough to bury one side. Running it again changes nothing.
 
 `tools/sync_scripts.py --map` brings back the generated map's slate blocks, so run the script again after a map sync. If you import `Waystone.fbx` again, copy the new MeshIds into the script's `MESHES`.
+
+## Dash effect
+
+`vfx/dash.py` builds `DashVFX.fbx`: one Model, DashVFX, holding three near-white meshes. `Streak` is two wind ribbons twisting round the dash path. `Speed lines` is ten tapered needles. `Ring` is a shock ring with a fainter ripple inside it. Nothing is animated in Blender. When a character dodges, `EffectsController:Dash` clones the meshes, tints them, makes them Neon and tweens them. It stretches the streak over the dash, blooms the ring where the dash began, and trails the speed lines and a flat dust ring behind the landing. With Reduced effects on, it plays only the streak and the ring.
+
+Import it like any model (step 3), run the fix-up (step 5), then move the DashVFX model into `ReplicatedStorage.VFX`, so every client can clone it. Until it is there, a dodge shows the old plain burst.
 
 ## Conventions
 

@@ -70,6 +70,45 @@ function E:Land(position,id)
     end
     if best then self:Retire(best) end
 end
+-- Dodge: the DashVFX meshes (blender/vfx/dash.py) in ReplicatedStorage.VFX. The streak spans the dash, the ring
+-- blooms where it began, and speed lines and a dust ring follow the landing. Without the meshes, a plain burst.
+function E:Dash(to,from)
+    local kit=RS:FindFirstChild("VFX") and RS.VFX:FindFirstChild("DashVFX")
+    local path=typeof(from)=="Vector3" and to-from or Vector3.zero
+    if not kit or path.Magnitude<0.5 then self:Burst(to,"Arcane",4); return end
+    local d=self.C.UIController.Data; local reduced=d and d.Settings.ReducedEffects
+    local dir,length=path.Unit,path.Magnitude
+    local function piece(name,cf,size,transparency,duration,goal)
+        local template=kit:FindFirstChild(name); if not template then return end
+        local p=template:Clone(); p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false
+        p.Material=Enum.Material.Neon; p.Color=colors.Arcane; p.Transparency=transparency; p.Size=size; p.CFrame=cf; p.Parent=self.Folder
+        goal.Transparency=1
+        Tween:Create(p,TweenInfo.new(duration,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),goal):Play(); Debris:AddItem(p,duration+0.05)
+    end
+    -- Each mesh runs along its part's Z axis, front toward the landing.
+    local streak=kit:FindFirstChild("Streak")
+    if streak then
+        local base=streak.Size
+        piece("Streak",CFrame.lookAt((from+to)/2,to),Vector3.new(base.X,base.Y,length),0.3,0.35,{Size=Vector3.new(base.X*1.4,base.Y*1.4,length)})
+    end
+    local ring=kit:FindFirstChild("Ring")
+    if ring then piece("Ring",CFrame.lookAt(from,to),ring.Size,0.15,0.3,{Size=ring.Size*2.4}) end
+    if reduced then return end
+    local lines=kit:FindFirstChild("Speed lines")
+    if lines then
+        local cf=CFrame.lookAt(to-dir*lines.Size.Z/2,to)
+        piece("Speed lines",cf,lines.Size,0.25,0.25,{CFrame=cf+dir*1.5})
+    end
+    if ring then
+        local ignored={self.Folder}
+        for _,player in ipairs(Players:GetPlayers()) do if player.Character then ignored[#ignored+1]=player.Character end end
+        local params=RaycastParams.new(); params.FilterType=Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances=ignored
+        local hit=workspace:Raycast(to,Vector3.new(0,-8,0),params)
+        local feet=hit and hit.Position+Vector3.new(0,0.1,0) or to-Vector3.new(0,3,0)
+        -- Flat on the ground: the ring's Z axis points up.
+        piece("Ring",CFrame.fromMatrix(feet,Vector3.xAxis,Vector3.zAxis),ring.Size*0.8,0.35,0.4,{Size=ring.Size*3})
+    end
+end
 function E:Ward(model,duration)
     if typeof(model)~="Instance" or not model.Parent then return end
     local root=model:FindFirstChild("HumanoidRootPart"); if not root then return end
@@ -117,7 +156,8 @@ function E:Start()
         elseif kind=="Beam" then self:Beam(a,b,c)
         elseif kind=="Telegraph" then self:Ring(a,b,c,false)
         elseif kind=="Pool" then self:Ring(a,b,c,true)
-        elseif kind=="Dodge" or kind=="Defeat" then self:Burst(a,"Arcane",4)
+        elseif kind=="Dodge" then self:Dash(a,b)
+        elseif kind=="Defeat" then self:Burst(a,"Arcane",4)
         elseif kind=="Status" then self:Burst(a,b,2) end
     end)
     task.spawn(function()
