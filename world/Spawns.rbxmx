@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox version="4"><Item class="Folder" referent="RBX00000DD7">
+<roblox version="4"><Item class="Folder" referent="RBX00000E32">
       <Properties>
         <string name="Name">Spawns</string>
       </Properties>
-      <Item class="SpawnLocation" referent="RBX00000DD8">
+      <Item class="SpawnLocation" referent="RBX00000E33">
         <Properties>
           <string name="Name">Hollowmere arrival</string>
           <Vector3 name="size">

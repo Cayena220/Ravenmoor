@@ -411,7 +411,7 @@ do
     local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
     local noop=function() end
     local enum=setmetatable({},{__index=function(_,key) return key end})
-    Enum={KeyCode=enum,Material=enum,HumanoidDisplayDistanceType=enum}
+    Enum={KeyCode=enum,Material=enum,PartType=enum,HumanoidDisplayDistanceType=enum}
     local prompts={}
     Instance={new=function(class)
         local obj={ClassName=class,Triggered=signal()}

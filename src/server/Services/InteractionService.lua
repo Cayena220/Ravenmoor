@@ -162,10 +162,22 @@ function I:Start()
         self.S.CombatService:UpdateStats(player,false); self.S.ProgressionService:Refresh(player)
         self.S.NetworkService:Notice(player,"All skill points refunded.")
     end
+    -- Straw dummies stand at the east end of the training yard's three lanes, facing the rune circles to the west.
+    local function piece(model,name,shape,size,cf,material,rgb)
+        local p=Instance.new("Part"); p.Name=name; p.Shape=shape; p.Size=size; p.CFrame=cf
+        p.Anchored=true; p.Material=material; p.Color=Color3.fromRGB(rgb[1],rgb[2],rgb[3]); p.Parent=model; return p
+    end
+    local block,ball,cylinder,upright=Enum.PartType.Block,Enum.PartType.Ball,Enum.PartType.Cylinder,CFrame.Angles(0,0,math.pi/2)
     for i=1,3 do
+        local x,z=183,(i-2)*8
         local model=Instance.new("Model"); model.Name="Training Dummy"
-        local root=Instance.new("Part"); root.Name="HumanoidRootPart"; root.Size=Vector3.new(3,5,2); root.Position=Vector3.new(156+(i-1)*9,3,-10)
-        root.Anchored=true; root.Material=Enum.Material.Wood; root.Color=Color3.fromRGB(155,118,75); root.Parent=model; model.PrimaryPart=root
+        local root=piece(model,"HumanoidRootPart",block,Vector3.new(1.6,3.2,2.6),CFrame.new(x,5.1,z),Enum.Material.Fabric,{176,146,96}); model.PrimaryPart=root
+        piece(model,"Foot",block,Vector3.new(2.4,0.6,2.4),CFrame.new(x,1.3,z),Enum.Material.Wood,{120,86,58})
+        piece(model,"Post",cylinder,Vector3.new(2.6,0.6,0.6),CFrame.new(x,2.3,z)*upright,Enum.Material.Wood,{74,54,40})
+        piece(model,"Arms",block,Vector3.new(0.6,0.6,5.2),CFrame.new(x,6,z),Enum.Material.Wood,{74,54,40})
+        piece(model,"Sack",ball,Vector3.new(2.2,2.2,2.2),CFrame.new(x,7.8,z),Enum.Material.Fabric,{196,170,118})
+        piece(model,"Target",cylinder,Vector3.new(0.15,2.2,2.2),CFrame.new(x-0.88,5.3,z),Enum.Material.SmoothPlastic,{236,226,200})
+        piece(model,"Bullseye",cylinder,Vector3.new(0.2,1.1,1.1),CFrame.new(x-0.9,5.3,z),Enum.Material.SmoothPlastic,{187,71,63})
         local hum=Instance.new("Humanoid"); hum.RequiresNeck=false; hum.MaxHealth=100000; hum.Health=100000; hum.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; hum.Parent=model
         model.Parent=self.S.WorldService.Targets; self.S.CombatService:Register(model,{Dummy=true})
     end

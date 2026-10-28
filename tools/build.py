@@ -57,7 +57,7 @@ def rotation(yaw, pitch, roll):
 MATERIAL = {'Plastic':256, 'SmoothPlastic':272, 'Neon':288, 'Wood':512, 'WoodPlanks':528,
             'Marble':784, 'Basalt':788, 'Slate':800, 'Concrete':816, 'Limestone':820, 'Granite':832,
             'Brick':848, 'Cobblestone':880, 'Rock':896, 'CorrodedMetal':1040, 'Grass':1280, 'Sand':1296,
-            'Metal':1088, 'Glass':1568, 'LeafyGrass':1284}
+            'Metal':1088, 'Glass':1568, 'LeafyGrass':1284, 'Fabric':1312}
 
 def part(parent, name, pos, size, color, material='SmoothPlastic', shape=1, yaw=0, collide=True, transparent=0, query=True, cls='Part', pitch=0, roll=0):
     p=item(parent,cls,name)
@@ -137,9 +137,9 @@ def light(node, brightness=1.2, reach=20):
     prop(l,'bool','Shadows',False); prop(l,'bool','Enabled',False)
     return l
 
-def sign(board, text, color=SIGN_TEXT):
+def sign(board, text, color=SIGN_TEXT, face=5):
     gui=item(board,'SurfaceGui','Sign')
-    prop(gui,'token','Face',5)            # NormalId.Front: the board's -Z face
+    prop(gui,'token','Face',face)         # NormalId.Front (5): the board's -Z face; Back (2) letters the +Z face
     prop(gui,'token','SizingMode',1)      # PixelsPerStud keeps the lettering square
     prop(gui,'float','PixelsPerStud',40); prop(gui,'float','LightInfluence',0.6)
     t=item(gui,'TextLabel','Text'); prop(t,'UDim2','Size',(1,0,1,0)); prop(t,'float','BackgroundTransparency',1)
@@ -424,6 +424,68 @@ def tree(parent,x,z,scale=1,rng=None,name='Whisperwood tree'):
         part(m,'Canopy',(x,h*scale,z),(s*scale,9*scale,s*scale),tone,'LeafyGrass',shape=0,collide=False,query=False)
     return m
 
+# ---- Castle Grounds training yard -------------------------------------------------------
+# Three west-to-east lanes on the training platform (x 141..191, z -20..16, top y = 1). Players cast from the
+# rune circles; InteractionService spawns the straw dummies at x 183, z -8/0/8, in front of the backstop.
+# The walls leave the west gate, the south arch, the East wing stair (x 154..174) and the north-east path open.
+STRAW=(196,170,102)
+HOUSE_COLORS=((187,71,63),(204,156,64),(83,145,207),(75,163,123))  # Config.Houses: Emberclaw, Stoneroot, Skyquill, Nightfang
+YARD_WALLS=[('z',141.6,-18.3,-5.7),('z',141.6,5.7,14.3),('x',15.4,142.7,156.9),('x',15.4,175.1,189.3),
+            ('x',-19.4,142.7,151.5),('x',-19.4,176.5,183)]
+YARD_PIERS=[(141.6,-19.4),(141.6,15.4),(190.4,15.4),(141.6,-4.6),(141.6,4.6)]
+YARD_RULES='RULES OF THE YARD\nStand in a rune circle.\nAim for the bullseye.\nFive hits find your spark.'
+
+def training_yard(parent):
+    yard=model(parent,'Training Yard')
+    def lantern(m,pos): light(part(m,'Lantern',pos,(0.7,1,0.7),LAMPLIGHT,'Glass',**TRIM),1.2,16)
+    # Low stone walls with limestone coping, and lantern piers at the corners and the west gate.
+    walls=model(yard,'Walls')
+    for axis,at,a,b in YARD_WALLS:
+        mid,run=round((a+b)/2,4),round(b-a,4)
+        at_y=lambda y: (mid,y,at) if axis=='x' else (at,y,mid)
+        span=lambda h,t: (run,h,t) if axis=='x' else (t,h,run)
+        part(walls,'Yard wall',at_y(2.3),span(2.6,1.2),CASTLE_STONE,'Slate')
+        part(walls,'Coping',at_y(3.775),span(0.35,1.5),LIMESTONE,'Limestone')
+    for x,z in YARD_PIERS:
+        part(walls,'Pier',(x,2.5,z),(2.2,5,2.2),CASTLE_STONE,'Slate')
+        part(walls,'Pier cap',(x,5.25,z),(2.6,0.5,2.6),LIMESTONE,'Limestone')
+        lantern(walls,(x,6,z))
+    # South gate: a timber arch with the yard's sign lettered on both faces.
+    arch=model(yard,'Gate arch')
+    for x in (157.5,174.5): part(arch,'Arch post',(x,6.5,15.4),(1.2,11,1.2),BEAM,'Wood')
+    part(arch,'Arch beam',(166,12.3,15.4),(18.6,1,1.4),BEAM,'Wood')
+    board=part(arch,'Sign',(166,10.75,15.4),(8,2,0.3),SIGNBOARD,'Wood')
+    sign(board,'TRAINING YARD'); sign(board,'TRAINING YARD',face=2)
+    for x in (159.3,172.7): lantern(arch,(x,11.2,15.4))
+    # East backstop: a timber palisade behind the dummies, hung with the house banners over straw bales.
+    back=model(yard,'Backstop')
+    part(back,'Palisade',(189.6,4.75,0),(0.8,7.5,26.8),PLANK,'WoodPlanks')
+    for z in (-13.4,0,13.4): part(back,'Palisade post',(189.6,5.5,z),(1.2,9,1.2),BEAM,'Wood')
+    part(back,'Palisade beam',(189.6,9.4,0),(1.4,0.8,28.4),BEAM,'Wood')
+    for color,z in zip(HOUSE_COLORS,(-11,-4,4,11)):
+        part(back,'House banner',(189.1,6.85,z),(0.15,4.2,2.6),color,'Fabric',**TRIM)
+        part(back,'Straw bale',(188.1,2,z),(2,2,3),STRAW,'Fabric')
+    for z in (-13.4,13.4): lantern(back,(188.6,7.8,z))
+    # Casting line: a rune circle per lane behind a limestone line, and lane markings out to the dummies.
+    lanes=model(yard,'Casting range')
+    for z in (-8,0,8):
+        part(lanes,'Rune circle',(152,1.04,z),(0.08,5,5),RUNESTONE,'Neon',shape=2,roll=math.pi/2,**TRIM)
+        part(lanes,'Circle stone',(152,1.05,z),(0.1,4.3,4.3),WEATHERED,'Slate',shape=2,roll=math.pi/2,**TRIM)
+    part(lanes,'Casting line',(155.5,1.03,0),(0.5,0.06,26),LIMESTONE,'Limestone',**TRIM)
+    for z in (-4,4): part(lanes,'Lane line',(169.5,1.025,z),(27,0.05,0.3),LIMESTONE,'Limestone',**TRIM)
+    # Benches inside the west wall, the rules board on the north wall and a practice-staff rack by the north-east path.
+    props=model(yard,'Props')
+    for z in (-12.5,10):
+        part(props,'Bench base',(144.3,1.55,z),(1.2,1.1,4),CASTLE_STONE,'Slate')
+        part(props,'Bench seat',(144.3,2.25,z),(1.8,0.3,5.2),PLANK,'Wood')
+    for x in (145.2,148.8): part(props,'Board leg',(x,3.6,-18.3),(0.4,5.2,0.4),BEAM,'Wood')
+    sign(part(props,'Rules board',(147,4.6,-18.05),(4.4,2.8,0.25),SIGNBOARD,'Wood'),YARD_RULES,face=2)
+    for x in (177.4,182.1): part(props,'Rack post',(x,3,-18.3),(0.4,4,0.4),BEAM,'Wood')
+    part(props,'Rack rail',(179.75,4.6,-18.3),(5.1,0.3,0.3),BEAM,'Wood')
+    for x,color in zip((178.5,179.75,181),(BEAM,PLANK,DOOR)):
+        part(props,'Practice staff',(x,3.25,-17.75),(4.6,0.25,0.25),color,'Wood',shape=2,pitch=-0.2,roll=math.pi/2)
+    return yard
+
 def make_world(workspace):
     WINDOWS[0]=0
     world=item(workspace,'Model','Map')
@@ -502,6 +564,7 @@ def make_world(workspace):
         label(p,'SEALED CHEST','Aim and cast Resero',3,55)
     grounds=model(world,'Castle Grounds')
     part(grounds,'Training platform',(166,0.5,-2),(50,1,36),PLAZA,'Cobblestone')
+    training_yard(grounds)
     arena=model(world,'Dueling Club')
     part(arena,'Arena',(240,0.4,-145),(76,0.8,86),(116,125,135),'Marble')
     for x in (203,277): part(arena,'Edge',(x,0.95,-145),(1,0.3,86),GOLD,'Metal')

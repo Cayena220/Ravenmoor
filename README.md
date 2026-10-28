@@ -118,7 +118,8 @@ Studio has the place open, because saving from that Studio session would overwri
 synced scripts. `build.py` regenerates the entire place instead (see below).
 
 The map's houses, roads and lamps are generated from data in `tools/build.py` (`SHOPS`,
-`HOMES`, `LANES`, `GARDEN_PATHS`, and the `timber_house`/`road_trim`/`lamp` builders). To change
+`HOMES`, `LANES`, `GARDEN_PATHS`, and the `timber_house`/`road_trim`/`lamp` builders), as is the
+Castle Grounds training yard (`training_yard`, `YARD_WALLS`, `YARD_PIERS`). To change
 them without losing anything else in your Studio-saved place, close the place in Studio and run:
 
 ```bash

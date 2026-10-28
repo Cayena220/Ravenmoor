@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox version="4"><Item class="Folder" referent="RBX00000DB6">
+<roblox version="4"><Item class="Folder" referent="RBX00000E11">
       <Properties>
         <string name="Name">Markers</string>
       </Properties>
-      <Item class="Part" referent="RBX00000DB7">
+      <Item class="Part" referent="RBX00000E12">
         <Properties>
           <string name="Name">Oakhart</string>
           <Vector3 name="size">
@@ -37,7 +37,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DB8">
+      <Item class="Part" referent="RBX00000E13">
         <Properties>
           <string name="Name">Mirror</string>
           <Vector3 name="size">
@@ -71,7 +71,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DB9">
+      <Item class="Part" referent="RBX00000E14">
         <Properties>
           <string name="Name">Teacher_Hex</string>
           <Vector3 name="size">
@@ -105,7 +105,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBA">
+      <Item class="Part" referent="RBX00000E15">
         <Properties>
           <string name="Name">Teacher_Ward</string>
           <Vector3 name="size">
@@ -139,7 +139,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBB">
+      <Item class="Part" referent="RBX00000E16">
         <Properties>
           <string name="Name">Teacher_Charm</string>
           <Vector3 name="size">
@@ -173,7 +173,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBC">
+      <Item class="Part" referent="RBX00000E17">
         <Properties>
           <string name="Name">Teacher_Restoration</string>
           <Vector3 name="size">
@@ -207,7 +207,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBD">
+      <Item class="Part" referent="RBX00000E18">
         <Properties>
           <string name="Name">Teacher_Alteration</string>
           <Vector3 name="size">
@@ -241,7 +241,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBE">
+      <Item class="Part" referent="RBX00000E19">
         <Properties>
           <string name="Name">Tobb</string>
           <Vector3 name="size">
@@ -275,7 +275,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DBF">
+      <Item class="Part" referent="RBX00000E1A">
         <Properties>
           <string name="Name">Bank</string>
           <Vector3 name="size">
@@ -308,7 +308,7 @@
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000DC0">
+        <Item class="BillboardGui" referent="RBX00000E1B">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -325,7 +325,7 @@
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000DC1">
+          <Item class="TextLabel" referent="RBX00000E1C">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -349,7 +349,7 @@ Deposit &amp; withdraw</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000DC2">
+      <Item class="Part" referent="RBX00000E1D">
         <Properties>
           <string name="Name">Apothecary</string>
           <Vector3 name="size">
@@ -382,7 +382,7 @@ Deposit &amp; withdraw</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000DC3">
+        <Item class="BillboardGui" referent="RBX00000E1E">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -399,7 +399,7 @@ Deposit &amp; withdraw</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000DC4">
+          <Item class="TextLabel" referent="RBX00000E1F">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -423,7 +423,7 @@ Potions &amp; brewing</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000DC5">
+      <Item class="Part" referent="RBX00000E20">
         <Properties>
           <string name="Name">Library</string>
           <Vector3 name="size">
@@ -456,7 +456,7 @@ Potions &amp; brewing</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000DC6">
+        <Item class="BillboardGui" referent="RBX00000E21">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -473,7 +473,7 @@ Potions &amp; brewing</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000DC7">
+          <Item class="TextLabel" referent="RBX00000E22">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -497,7 +497,7 @@ Tractum at level 14</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000DC8">
+      <Item class="Part" referent="RBX00000E23">
         <Properties>
           <string name="Name">Duelmaster</string>
           <Vector3 name="size">
@@ -531,7 +531,7 @@ Tractum at level 14</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DC9">
+      <Item class="Part" referent="RBX00000E24">
         <Properties>
           <string name="Name">Training</string>
           <Vector3 name="size">
@@ -564,7 +564,7 @@ Tractum at level 14</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000DCA">
+        <Item class="BillboardGui" referent="RBX00000E25">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -581,7 +581,7 @@ Tractum at level 14</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000DCB">
+          <Item class="TextLabel" referent="RBX00000E26">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -605,7 +605,7 @@ Practice your Spark Bolt</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000DCC">
+      <Item class="Part" referent="RBX00000E27">
         <Properties>
           <string name="Name">ForestGate</string>
           <Vector3 name="size">
@@ -638,7 +638,7 @@ Practice your Spark Bolt</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000DCD">
+        <Item class="BillboardGui" referent="RBX00000E28">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -655,7 +655,7 @@ Practice your Spark Bolt</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000DCE">
+          <Item class="TextLabel" referent="RBX00000E29">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -679,7 +679,7 @@ Levels 5–20 · PvE</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000DCF">
+      <Item class="Part" referent="RBX00000E2A">
         <Properties>
           <string name="Name">SpiderClearing</string>
           <Vector3 name="size">
@@ -713,7 +713,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD0">
+      <Item class="Part" referent="RBX00000E2B">
         <Properties>
           <string name="Name">Moonwell</string>
           <Vector3 name="size">
@@ -747,7 +747,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD1">
+      <Item class="Part" referent="RBX00000E2C">
         <Properties>
           <string name="Name">HowlerDen</string>
           <Vector3 name="size">
@@ -781,7 +781,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD2">
+      <Item class="Part" referent="RBX00000E2D">
         <Properties>
           <string name="Name">Rotbark</string>
           <Vector3 name="size">
@@ -815,7 +815,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD3">
+      <Item class="Part" referent="RBX00000E2E">
         <Properties>
           <string name="Name">Vexweave</string>
           <Vector3 name="size">
@@ -849,7 +849,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD4">
+      <Item class="Part" referent="RBX00000E2F">
         <Properties>
           <string name="Name">Waystone_Hollowmere</string>
           <Vector3 name="size">
@@ -883,7 +883,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD5">
+      <Item class="Part" referent="RBX00000E30">
         <Properties>
           <string name="Name">Waystone_Castle</string>
           <Vector3 name="size">
@@ -917,7 +917,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000DD6">
+      <Item class="Part" referent="RBX00000E31">
         <Properties>
           <string name="Name">Waystone_Whisperwood</string>
           <Vector3 name="size">

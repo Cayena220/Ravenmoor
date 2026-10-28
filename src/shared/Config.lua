@@ -27,7 +27,8 @@ return {
         {Id = "Hollowmere", Name = "Hollowmere Village", Center = {90, 140}, Size = {260, 155}, Safe = true},
         {Id = "Grounds", Name = "Castle Grounds", Center = {100, 0}, Size = {270, 130}, Safe = true},
     },
-    Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -58}, Whisperwood = {-36, 5, 20}},
+    -- Where travellers land, and return after a knock-out: in front of each stone's sigil, clear of its dais.
+    Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -58}, Whisperwood = {-28, 5, 20}},
     -- Players outside these limits are returned to their last position.
     WorldBounds = {MinX = -340, MaxX = 340, MinZ = -655, MaxZ = 290},
     -- Map parts with these names are night lights: glass by day, glowing with their lights on after dark.
