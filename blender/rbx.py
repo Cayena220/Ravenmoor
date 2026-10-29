@@ -299,14 +299,58 @@ def preview(name, meshes, frames):
     say(f'exports/{name}.png: preview' + (f' of frames {", ".join(map(str, frames))}' if len(frames) > 1 else ''))
 
 
-def shot(name, eye, target, lens=35, resolution=(1600, 900)):
-    """With --preview, render exports/<name>.png from `eye` looking at `target`, in Blender coordinates."""
+def shot(name, eye, target, lens=35, resolution=(1600, 900), ortho=0, shadows=True):
+    """With --preview, render exports/<name>.png from `eye` looking at `target`, in Blender coordinates. Given
+    `ortho`, the view is orthographic, `ortho` units across its longer side. shadows=False leaves out the light's
+    shadows."""
     if not PREVIEW: return
-    _camera(eye, target, lens); _look(resolution)
+    _camera(eye, target, lens, ortho); _look(resolution, shadows)
     sc = bpy.context.scene; sc.render.filepath = str(EXPORTS / f'{name}.png')
     try: bpy.ops.render.render(write_still=True)
     except RuntimeError as error: say(f'Preview skipped for {name}: {error}'); return
     say(f'exports/{name}.png: preview')
+
+
+def beauty(name, eye, target, lens=35, resolution=(1920, 1080), sun=(18, 230)):
+    """With --preview, render exports/<name>.png in EEVEE, as a picture rather than a check: daylight from a sun
+    `sun` = (elevation, heading) degrees, the heading clockwise from north (-Y) through east (-X) as Roblox has
+    them, and a sky to match. Haze or mist are volume objects in the scene: EEVEE takes a world volume to be
+    endless, and it would swallow the sun. Workbench previews from shot() stay as they are."""
+    if not PREVIEW: return
+    sc = bpy.context.scene
+    _camera(eye, target, lens)
+    sc.render.engine = 'BLENDER_EEVEE'
+    sc.render.resolution_x, sc.render.resolution_y = resolution
+    sc.render.image_settings.file_format = 'PNG'
+    sc.view_settings.view_transform = 'AgX'
+    sc.view_settings.look = 'AgX - Medium High Contrast'
+    sc.eevee.volumetric_end = max(2000.0, (Vector(target) - Vector(eye)).length * 6)
+    elevation, heading = (math.radians(a) for a in sun)
+    to_sun = Vector((-math.sin(heading) * math.cos(elevation), -math.cos(heading) * math.cos(elevation), math.sin(elevation)))
+    lamp = bpy.data.objects.get('Beauty sun')
+    if lamp is None:
+        lamp = bpy.data.objects.new('Beauty sun', bpy.data.lights.new('Beauty sun', 'SUN')); sc.collection.objects.link(lamp)
+    lamp.data.energy, lamp.data.angle, lamp.data.color = 6.5, math.radians(2), (1.0, 0.84, 0.66)
+    lamp.rotation_euler = (-to_sun).to_track_quat('-Z', 'Y').to_euler()
+    sc.world = _daylight(elevation, math.pi - heading)   # the sky turns its sun from south (+Y) through east
+    sc.render.filepath = str(EXPORTS / f'{name}.png')
+    try: bpy.ops.render.render(write_still=True)
+    except RuntimeError as error: say(f'Picture skipped for {name}: {error}'); return
+    say(f'exports/{name}.png: picture')
+
+
+def _daylight(elevation, rotation):
+    """A world of open sky with its sun at `elevation` and `rotation` (radians)."""
+    world = bpy.data.worlds.get('Daylight') or bpy.data.worlds.new('Daylight')
+    if not world.node_tree: world.use_nodes = True
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    nodes.clear()
+    sky, back, out = nodes.new('ShaderNodeTexSky'), nodes.new('ShaderNodeBackground'), nodes.new('ShaderNodeOutputWorld')
+    sky.sky_type = 'MULTIPLE_SCATTERING'
+    sky.sun_elevation, sky.sun_rotation, sky.sun_disc = elevation, rotation, False
+    back.inputs['Strength'].default_value = 0.28
+    links.new(sky.outputs['Color'], back.inputs['Color']); links.new(back.outputs['Background'], out.inputs['Surface'])
+    return world
 
 
 def viewport(target, distance, turn=(55, 0, 0)):
@@ -323,20 +367,22 @@ def viewport(target, distance, turn=(55, 0, 0)):
             view.view_rotation = Euler([math.radians(a) for a in turn]).to_quaternion()
 
 
-def _camera(eye, target, lens=50):
+def _camera(eye, target, lens=50, ortho=0):
     sc = bpy.context.scene
     cam = sc.camera or bpy.data.objects.new('PreviewCamera', bpy.data.cameras.new('PreviewCamera'))
     if not sc.camera: sc.collection.objects.link(cam); sc.camera = cam
     eye, target = Vector(eye), Vector(target)
     cam.data.lens, cam.data.clip_end = lens, max(1000, (target - eye).length * 10)
+    cam.data.type = 'ORTHO' if ortho else 'PERSP'
+    if ortho: cam.data.ortho_scale = ortho
     cam.location, cam.rotation_euler = eye, (target - eye).to_track_quat('-Z', 'Y').to_euler()
 
 
-def _look(resolution):
+def _look(resolution, shadows=True):
     sc = bpy.context.scene
     sc.world = sc.world or bpy.data.worlds.new('Preview'); sc.world.color = (0.32, 0.34, 0.37)
     sc.render.engine = 'BLENDER_WORKBENCH'; sc.view_settings.view_transform = 'Standard'
     shading = sc.display.shading
-    shading.light, shading.color_type, shading.show_shadows, shading.show_cavity = 'STUDIO', 'VERTEX', True, True
+    shading.light, shading.color_type, shading.show_shadows, shading.show_cavity = 'STUDIO', 'VERTEX', shadows, True
     sc.render.resolution_x, sc.render.resolution_y = resolution
     sc.render.image_settings.file_format = 'PNG'

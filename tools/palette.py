@@ -25,6 +25,11 @@ CURB=(104,108,112); VERGE=(104,98,70); ROAD_BAND=(118,110,96); FLOOR=(137,142,14
 MEADOW=(108,130,102); FOREST_FLOOR=(66,83,70); CLEARING=(86,95,76); SHORE=(161,155,124)
 FOLIAGE=((48,76,62),(54,86,66),(62,96,70)); TRUNK=(78,70,59); HEDGE=(66,92,58); WATER=(74,140,155)
 
+# Mountains, from the foot of the slopes to the peaks: grass, moor and heather, scree, three crag tones laid in
+# bands like strata, and snow.
+HILLSIDE=(86,114,70); MOOR=(96,104,64); HEATHER=(112,86,108); SCREE=(138,126,108)
+CRAG=((134,118,98),(110,98,86),(154,134,108)); SNOW=(232,236,240)
+
 # Light. One warm colour for every window and lantern that lights after dark, and for the light it casts.
 # NIGHT_GLASS is an unlit window.
 LAMPLIGHT=(255,196,128); NIGHT_GLASS=(58,68,80); CLEAR_GLASS=(214,232,236)

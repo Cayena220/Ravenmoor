@@ -52,7 +52,9 @@ def main():
             print('\n'.join((run.stdout + run.stderr).strip().splitlines()[-40:])); failed.append(script)
         else:
             for line in run.stdout.splitlines():
-                if line.startswith('[rbx] '): print('  blender/' + line[6:])
+                if not line.startswith('[rbx] '): continue
+                message = line[6:]   # paths in messages are relative to blender/
+                print('  ' + ('blender/' if message.startswith('exports/') else '') + message)
     if failed: sys.exit(f'{len(failed)} of {len(scripts)} scripts failed.')
 
 
