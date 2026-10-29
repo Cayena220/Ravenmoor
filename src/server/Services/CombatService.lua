@@ -174,7 +174,7 @@ function C:Dodge(player, direction)
     local from=s.Root.Position
     self.S.WorldService:Teleport(player,from+flat*distance)
     -- Clients draw the dash between the two points (EffectsController:Dash); the dodger's own client also turns
-    -- the character and tumbles it on a sideways dash (EffectsController:Roll).
+    -- the character and tumbles it the way it went (EffectsController:Roll).
     self.S.NetworkService.FX:FireAllClients("Dodge",s.Root.Position,from,player)
 end
 function C:Tick(dt)

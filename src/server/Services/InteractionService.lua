@@ -8,7 +8,7 @@ local I={}
 function I:Init(services) self.S=services; self.PotionCooldowns={}; self.Interactions={} end
 local advice={
     Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Right mouse raises your ward; left mouse casts Scintara.",
-    Tobb="Watch for red attack circles in Whisperwood. Shift dodges. Bring Thorn Barbs and Spider Silk to the apothecary to brew Health Draughts.",
+    Tobb="Watch for red attack circles in Whisperwood. Shift dodges, or tap a movement key twice. Bring Thorn Barbs and Spider Silk to the apothecary to brew Health Draughts.",
     Bank="Your vault keeps Gilders separate from your spending money. Deposits and withdrawals are available here.",
     Apothecary="A Thorn Barb and Spider Silk make one Health Draught. Use it from your bag to recover health over four seconds.",
     Duelmaster="Bring another student here for a friendly duel. Both players must accept. You keep your items, and matches end before a lethal hit.",

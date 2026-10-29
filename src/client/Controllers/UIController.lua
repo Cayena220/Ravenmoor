@@ -171,7 +171,7 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
-        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift dodge\nK spellbook · B bag · M map · Ctrl cursor lock\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · A jump",116)
+        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · A jump",116)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -392,7 +392,7 @@ function U:Welcome()
     self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",80)
     self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",95)
     self:Paragraph("Approach a named character and use the interaction prompt. Follow the quest card. Red ground circles warn you where enemies will strike.",90)
-    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift dodges\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
+    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift or double-tap WASD dodges\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
     button(self.Body,"BEGIN YOUR FIRST YEAR",function() self:Close() end,{BackgroundColor3=palette.Gold,Size=UDim2.new(1,-12,0,56)})
 end
 function U:Start()

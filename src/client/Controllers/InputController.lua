@@ -5,7 +5,7 @@ local CAS=game:GetService("ContextActionService")
 local Run=game:GetService("RunService")
 local Prompts=game:GetService("ProximityPromptService")
 local I={}
-function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0; self.VisiblePrompts={} end
+function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Holding=false; self.LastCast=0; self.VisiblePrompts={}; self.Taps={} end
 function I:CameraMode()
     local open=self.C.UIController:IsOpen() or UIS:GetFocusedTextBox()~=nil
     if self.Controls and open~=self.ControlsPaused then
@@ -59,13 +59,13 @@ function I:Aim()
     if delta.Magnitude>180 then point=root.Position+delta.Unit*180 end
     return point
 end
-function I:UseSlot(slot)
+function I:UseSlot(slot,direction)
     local ui=self.C.UIController
     if ui:IsOpen() or UIS:GetFocusedTextBox() then return end
     local d=ui.Data; if not d then return end
     if slot=="Dodge" then
         local hum=self.Player.Character and self.Player.Character:FindFirstChildOfClass("Humanoid")
-        if hum then ui:Action("Dodge",hum.MoveDirection) end
+        if hum then ui:Action("Dodge",direction or hum.MoveDirection) end
         return
     end
     local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
@@ -73,6 +73,19 @@ function I:UseSlot(slot)
     if not d.HasWand then return ui:Toast("Visit Oakhart in Hollowmere to receive your wand.") end
     if (ui.Cooldowns[id] or 0)>os.clock() then return end
     local aim=self:Aim(); if aim then RS.Remotes.Cast:FireServer(id,aim); self.LastCast=os.clock() end
+end
+-- Tap W, A, S or D twice quickly to dodge forward, left, back or right as the camera sees it.
+local DOUBLE_TAP=0.3
+local TAP_WAYS={[Enum.KeyCode.W]={0,1},[Enum.KeyCode.A]={-1,0},[Enum.KeyCode.S]={0,-1},[Enum.KeyCode.D]={1,0}}   -- {right, ahead}
+function I:Tap(key)
+    local way=TAP_WAYS[key]; local camera=workspace.CurrentCamera
+    if not way or not camera or self.C.UIController:IsOpen() or UIS:GetFocusedTextBox() then return end
+    local now=os.clock(); local last=self.Taps[key]
+    if not (last and now-last<=DOUBLE_TAP) then self.Taps={[key]=now}; return end
+    self.Taps={}
+    local right=camera.CFrame.RightVector*Vector3.new(1,0,1); if right.Magnitude<0.1 then return end
+    right=right.Unit
+    self:UseSlot("Dodge",right*way[1]+Vector3.yAxis:Cross(right)*way[2])
 end
 function I:Start()
     Prompts.PromptShown:Connect(function(prompt) self.VisiblePrompts[prompt]=true end)
@@ -121,6 +134,7 @@ function I:Start()
     end
     UIS.InputBegan:Connect(function(input,processed)
         if not processed and input.KeyCode==Enum.KeyCode.LeftControl then self.Locked=not self.Locked; self:CameraMode() end
+        if not processed then self:Tap(input.KeyCode) end
     end)
     UIS.WindowFocusReleased:Connect(function() self.Holding=false end)
     UIS.TextBoxFocused:Connect(function() self.Holding=false; self:CameraMode() end)

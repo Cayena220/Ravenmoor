@@ -53,7 +53,7 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Spark Bolt | Left mouse; hold to repeat | RT | Scintara button |
 | Ward | Right mouse | LT | Ward button |
 | Spell slots | 1, 2, 3, 4 | X, Y, B, RB | Four spell buttons |
-| Dodge | Left Shift | LB | Dodge button |
+| Dodge | Left Shift, or double-tap W/A/S/D | LB | Dodge button |
 | Jump | Space | A | Roblox jump button |
 | Spellbook | K | D-pad Up | Spellbook button |
 | Bag (wands and items) | B | D-pad Left | Bag tab in spellbook |

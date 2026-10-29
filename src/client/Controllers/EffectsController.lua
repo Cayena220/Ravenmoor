@@ -129,8 +129,9 @@ function E:Movement(character)
         if anim and id then anim.AnimationId=id end
     end
 end
--- Your own dodge: a dash across the camera's view turns you to face where the camera looks and tumbles you
--- sideways. Any other dash turns you to face the way you went, since the server's teleport faces you north.
+-- Your own dodge turns you to face where the camera looks and tumbles you the way you went: sideways across its
+-- view, forward into it or back toward it. Without the clip it turns you to face the way you went, since the
+-- server's teleport faces you north.
 function E:Roll(to,from)
     local character=Players.LocalPlayer.Character; local camera=workspace.CurrentCamera
     local hum=character and character:FindFirstChildOfClass("Humanoid"); local root=character and character:FindFirstChild("HumanoidRootPart")
@@ -138,9 +139,9 @@ function E:Roll(to,from)
     local flat=Vector3.new(1,0,1)
     local path,look,right=(to-from)*flat,camera.CFrame.LookVector*flat,camera.CFrame.RightVector*flat
     if path.Magnitude<0.5 or look.Magnitude<0.1 or right.Magnitude<0.1 then return end
-    local side=path.Unit:Dot(right.Unit)
-    local clip=math.abs(side)>=0.7 and (side>0 and "TumbleRight" or "TumbleLeft")
-    local id=clip and self:AnimationId(clip)
+    local side,ahead=path.Unit:Dot(right.Unit),path.Unit:Dot(look.Unit)
+    local clip=math.abs(side)>=math.abs(ahead) and (side>0 and "TumbleRight" or "TumbleLeft") or (ahead>0 and "TumbleForward" or "TumbleBack")
+    local id=self:AnimationId(clip)
     if not id then root.CFrame=CFrame.lookAt(to,to+path.Unit); return end
     root.CFrame=CFrame.lookAt(to,to+look.Unit)
     if self.Tumbler~=hum then self.Tumbler=hum; self.Tumbles={} end

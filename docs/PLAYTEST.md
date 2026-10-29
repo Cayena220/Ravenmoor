@@ -66,6 +66,7 @@ Use the command bar to grant levels and items where noted. The wands' design she
 - Tractum: obtain at level 14 from the Restricted Shelf; pulls non-boss targets without crossing walls.
 - Murallis: unlock after Vexweave at level 20; blocks incoming hostile duel projectiles and monster attacks against its owner.
 - Shift dodge: stamina cost, short damage immunity, wall clearance, no dodging while rooted. Dodging through a monster is not cut short.
+- Double-tap W, A, S or D: dodges forward, left, back or right as the camera sees it, and tumbles the same way. A slow second tap, or a different key, does nothing.
 - Dying: return to the last touched Waystone after five seconds, without losing currency.
 - Exact chat incantation and `/cast Flamara`: one cast per message, including in a multi-client session; normal chat stays filtered and visible normally.
 

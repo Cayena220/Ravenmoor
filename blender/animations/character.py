@@ -1,4 +1,4 @@
-"""Character animations for R15 avatars: Walk, Sprint, and a sideways Tumble to the left and to the right.
+"""Character animations for R15 avatars: Walk, Sprint, and a Tumble to the left, the right, forward and back.
 
 The rig's bones are the R15 joints, named after the part each one moves (LowerTorso is the Root joint, UpperTorso
 the Waist, LeftUpperLeg the LeftHip, and so on), with their pivots at a Studio avatar's rest pose in studs from the
@@ -110,9 +110,11 @@ sprint_flight = P(LowerTorso=((-6, 0, 0), (0, 0.18, 0)), UpperTorso=(-10, 0, 0),
 # key, a twelfth of a turn apart, so the turn's direction is never ambiguous and nothing dips between keys. Each
 # key is settled on the mannequin: posed, measured, then moved so the body's middle follows the path and its lowest
 # point just clears the floor, which a turn about the hips alone would not do (the tucked head sinks through).
-def tuck(roll, x, y, open=0.0):
+# Tumble forward and back are the same tuck turning about X instead: a somersault toward -Z over the head, and a
+# back roll toward +Z over the shoulders.
+def tuck(turn, move, open=0.0):
     k = 1 - open
-    return P(LowerTorso=((0, 0, roll), (x, y, 0)), UpperTorso=(-28 * k, 0, 0), Head=(-22 * k, 0, 0),
+    return P(LowerTorso=(turn, move), UpperTorso=(-28 * k, 0, 0), Head=(-22 * k, 0, 0),
              LeftUpperLeg=(80 * k, 0, 0), LeftLowerLeg=(-115 * k, 0, 0), LeftFoot=(10 * k, 0, 0),
              RightUpperLeg=(80 * k, 0, 0), RightLowerLeg=(-115 * k, 0, 0), RightFoot=(10 * k, 0, 0),
              LeftUpperArm=(55 * k, 0, 20 * k), LeftLowerArm=(105 * k, 0, 0),
@@ -123,24 +125,35 @@ FLOOR = -2.971   # the floor under the rig: a standing avatar's HumanoidRootPart
 CLEAR = 0.04     # how far the rolling body stays off it
 
 
-def extent(pose):
+def extent(pose, axis):
     """Pose the rig (no clip playing) and return the deformed mannequin's lowest point and its middle along
-    Roblox X."""
+    Roblox X (axis 0) or Z (axis 2)."""
     for bone in MOVING:
         turn, move = pose.get(bone, ((0, 0, 0), (0, 0, 0)))
         pb = rig.obj.pose.bones[bone]; pb.location = move; pb.rotation_euler = [math.radians(a) for a in turn]
     bpy.context.view_layer.update()
     shown = mannequin.evaluated_get(bpy.context.evaluated_depsgraph_get()); mesh = shown.to_mesh()
     points = [shown.matrix_world @ v.co for v in mesh.vertices]; shown.to_mesh_clear()
-    return min(p.z for p in points), -(min(p.x for p in points) + max(p.x for p in points)) / 2
+    along = [-p.x if axis == 0 else p.y for p in points]   # Roblox X is Blender -X, Roblox Z is Blender Y
+    return min(p.z for p in points), (min(along) + max(along)) / 2
 
 
-def settled(roll, x, open=0.0):
-    low, middle = extent(tuck(roll, 0, 0, open))
-    return tuck(roll, x - middle, FLOOR + CLEAR - low, open)
+def settled(turn, axis, at, open=0.0):
+    """The tuck turned by `turn` degrees, its middle `at` studs along `axis` and its lowest point on the floor."""
+    low, middle = extent(tuck(turn, (0, 0, 0), open), axis)
+    move = [0, FLOOR + CLEAR - low, 0]; move[axis] = at - middle
+    return tuck(turn, tuple(move), open)
 
 
-tumble_right = [(f, settled(-30 * f, -3 + 0.25 * f, 0.55 * max(0, f - 9) / 3)) for f in range(13)] + [(15, P())]
+def tumble(turn, axis, start):
+    """A twelve-frame roll, `turn` degrees a frame, from `start` studs along `axis` in to the root, then a stand."""
+    rise = lambda f: 0.55 * max(0, f - 9) / 3
+    return [(f, settled(tuple(a * f for a in turn), axis, start - start * f / 12, rise(f))) for f in range(13)] + [(15, P())]
+
+
+tumble_right = tumble((0, 0, -30), 0, -3)
+tumble_forward = tumble((-30, 0, 0), 2, 3)
+tumble_back = tumble((30, 0, 0), 2, -3)
 for bone in MOVING: rig.obj.pose.bones[bone].matrix_basis.identity()
 
 CLIPS = {   # name: (keys, last frame, loops, priority, easing per part)
@@ -150,8 +163,11 @@ CLIPS = {   # name: (keys, last frame, loops, priority, easing per part)
                 (18, sprint_contact)], 18, True, 'Movement', {}),
     'TumbleRight': (tumble_right, 15, False, 'Action', {'LowerTorso': 'Linear'}),
     'TumbleLeft': ([(f, mirror(p)) for f, p in tumble_right], 15, False, 'Action', {'LowerTorso': 'Linear'}),
+    'TumbleForward': (tumble_forward, 15, False, 'Action', {'LowerTorso': 'Linear'}),
+    'TumbleBack': (tumble_back, 15, False, 'Action', {'LowerTorso': 'Linear'}),
 }
-PREVIEW_FRAMES = {'Walk': [0, 8, 15, 23], 'Sprint': [0, 5, 9, 14], 'TumbleRight': [0, 4, 8, 12], 'TumbleLeft': [0, 4, 8, 12]}
+PREVIEW_FRAMES = {'Walk': [0, 8, 15, 23], 'Sprint': [0, 5, 9, 14]}
+PREVIEW_FRAMES.update({name: [0, 4, 8, 12] for name in CLIPS if name.startswith('Tumble')})
 
 sc = bpy.context.scene
 rig.obj.animation_data_create()
