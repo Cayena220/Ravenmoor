@@ -1,7 +1,9 @@
 --[[ Set up the imported mountain ranges and woods (blender/models/ranges.py, see blender/README.md, "Mountains and woods").
 
 Import blender/exports/Ranges.fbx with Insert Using Scene Position on, then paste this whole file into View > Command
-Bar and press Enter. Running it again gives the same result. It:
+Bar and press Enter. Running it again gives the same result. Remaking the mountains' collision takes about 15 seconds a
+tile, four minutes in all, and Studio is busy meanwhile. It:
+  * puts the model back where ranges.py made it, if it was imported without scene position;
   * moves the imported Ranges model into Workspace.Scenery, out of Workspace.Map, so tools/sync_scripts.py --map
     leaves it alone, and streams Scenery persistently, so the far ranges never vanish past the streaming radius;
   * remakes each mountain tile from its uploaded mesh with PreciseConvexDecomposition collision. Players then walk
@@ -18,6 +20,9 @@ local PRECISE = Enum.CollisionFidelity.PreciseConvexDecomposition
 local ranges = workspace:FindFirstChild("Ranges", true)
 assert(ranges and ranges:IsA("Model"), "Import blender/exports/Ranges.fbx into Workspace first (Insert Using Scene Position)")
 local recording = ChangeHistoryService:TryBeginRecording("Place ranges")
+-- The importer keeps the scene's origin as the model's pivot. Without Insert Using Scene Position it drops that pivot
+-- where the camera looks, so stand it back on the origin, and every mesh where ranges.py put it.
+ranges:PivotTo(CFrame.new())
 local scenery = workspace:FindFirstChild("Scenery") or Instance.new("Model")
 scenery.Name, scenery.ModelStreamingMode = "Scenery", Enum.ModelStreamingMode.Persistent
 scenery.Parent = workspace

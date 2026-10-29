@@ -14,6 +14,7 @@ blender/exports/          Generated .fbx, .blend and .png files (ignored by git;
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
 blender/place_waystones.lua  Studio script that stands the Waystone meshes at the map's three Waystones
 blender/place_ranges.lua  Studio script that sets up the imported mountain ranges and woods
+blender/place_hollowmere.lua  Studio script that sets up the imported village over the part one
 tools/blender.py          Finds Blender and runs scripts
 ```
 
@@ -96,7 +97,13 @@ The ground, square paving and lanes stay as the map's parts. They appear only in
 python tools/blender.py blender/models/hollowmere.py --preview
 ```
 
-`Hollowmere.fbx` has 39 meshes and about 95,000 triangles. The largest mesh has about 16,400, under the 20,000 limit. Each building is a Model holding a `Building` mesh, plus `Lit window` and `Window glass` meshes named as WorldService's night lights expect. Oakhart's also has `Display glass`, which needs Transparency 0.45 to match the map. Import it with **Insert Using Scene Position** on, and it lands exactly over the part village. Then run the fix-up (step 5), which also removes Blender's `.001` name suffixes. The importer uploads every mesh to your account.
+`Hollowmere.fbx` has 39 meshes and about 95,000 triangles. The largest mesh has about 16,400, under the 20,000 limit. Each building is a Model holding a `Building` mesh, plus `Lit window` and `Window glass` meshes named as WorldService's night lights expect. Oakhart's also has `Display glass`, which needs Transparency 0.45 to match the map. Import it with **Insert Using Scene Position** on; the importer uploads every mesh to your account. Then paste [place_hollowmere.lua](place_hollowmere.lua) into **View → Command Bar** and press Enter. It does the following:
+
+- It stands the village exactly over the part one, even if it was imported without scene position, and moves it into `Workspace.Scenery`, out of `Workspace.Map`, so a map sync leaves it alone.
+- It hides the map's part houses, street furniture, dock, ferry and village road lamps under it. They keep their collision, doorways and lights, so players walk into the shops as before, the lamps still shine at night, and `tools/validate.py` still finds the walls.
+- It drops Blender's `.001` name suffixes, anchors the meshes, leaves them uncollidable and turns them white. It makes the windows glass: `Lit window` in lamplight colour, `Window glass`, and `Display glass` at Transparency 0.45. `WorldService` turns every `Lit window` in `Workspace.Scenery` to Neon after dark, as on the map.
+
+Run it again after every `tools/sync_scripts.py --map`, which brings the part village back into view.
 
 ## Waystone, remodelled
 
@@ -156,9 +163,9 @@ python tools/blender.py blender/models/ranges.py --preview
 
 `Ranges.fbx` is one model, Ranges, holding Mountains (16 tiles) and Woods (25 meshes of up to 300 trees). That is 41 meshes and about 483,000 triangles, the largest 19,200, under Roblox's 20,000. Everything has vertex colours and stands where the game has it. To put it in the game:
 
-1. Import `Ranges.fbx` as in step 3, with **Insert Using Scene Position** on. The importer uploads all 41 meshes to your account.
+1. Import `Ranges.fbx` as in step 3, with **Insert Using Scene Position** on. The importer uploads all 41 meshes to your account. If it lands in the wrong place, the script below puts it back.
 2. Paste [place_ranges.lua](place_ranges.lua) into **View → Command Bar** and press Enter. It moves the model into `Workspace.Scenery`, out of `Workspace.Map`, so `tools/sync_scripts.py --map` leaves it alone. It also streams Scenery persistently, so the far ranges never vanish past the streaming radius.
-3. The script also remakes each mountain tile with PreciseConvexDecomposition collision, so players walk up the slopes and are stopped by the crags. It anchors every mesh and turns it white, so the vertex colours show true. The trees are scenery: players and spells pass through them.
+3. The script also remakes each mountain tile with PreciseConvexDecomposition collision, so players walk up the slopes and are stopped by the crags. This takes about 15 seconds a tile, four minutes in all. It anchors every mesh and turns it white, so the vertex colours show true. The trees are scenery: players and spells pass through them.
 
 Running the script again changes nothing. After rebuilding the ranges, delete `Workspace.Scenery.Ranges` and import the new file.
 

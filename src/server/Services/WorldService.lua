@@ -41,8 +41,8 @@ function W:Travel(player, destination)
     d.Gilders = d.Gilders-25; d.LastWaystone = destination
     self:Teleport(player, Vector3.new(pos[1],pos[2],pos[3])); self.S.ProgressionService:Refresh(player)
 end
--- Night lights (Config.NightLights: lit windows and lanterns across the map) are plain glass by day.
--- After dark they glow, and the lights inside them switch on.
+-- Night lights (Config.NightLights: lit windows and lanterns across the map, and in the imported village in
+-- Workspace.Scenery) are plain glass by day. After dark they glow, and the lights inside them switch on.
 function W:SetNightLights(night)
     if night == self.Night then return end
     self.Night = night
@@ -57,10 +57,12 @@ function W:Start()
     self.NightLights = {}
     local names = {}
     for _, name in ipairs(Config.NightLights) do names[name] = true end
-    local map = workspace:FindFirstChild("Map")
-    if map then
-        for _, item in ipairs(map:GetDescendants()) do
-            if item:IsA("BasePart") and names[item.Name] then table.insert(self.NightLights, item) end
+    for _, name in ipairs({"Map", "Scenery"}) do
+        local root = workspace:FindFirstChild(name)
+        if root then
+            for _, item in ipairs(root:GetDescendants()) do
+                if item:IsA("BasePart") and names[item.Name] then table.insert(self.NightLights, item) end
+            end
         end
     end
     task.spawn(function()
