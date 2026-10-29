@@ -21,7 +21,7 @@ warn=function() end
 local function fire() end
 local event={FireClient=fire,FireAllClients=fire}
 local shared={}
-for _,name in ipairs({"Config","Formulas","Gesture","SpellData","QuestData","MonsterData","WorldPoints","WandData","WandModel","SkillData"}) do shared[name]=ROOT.."/src/shared/"..name..".lua" end
+for _,name in ipairs({"Config","Formulas","Gesture","SpellData","QuestData","MonsterData","WorldPoints","WandData","WandModel","SkillData","BroomData"}) do shared[name]=ROOT.."/src/shared/"..name..".lua" end
 local services={ReplicatedStorage={Shared=shared},Players={GetPlayers=function() return {} end},RunService={IsStudio=function() return true end},
     HttpService={GenerateGUID=function() return "session-test" end},TextChatService={},ServerStorage={LootTables=ROOT.."/src/serverstorage/LootTables.lua"}}
 game={JobId="test-server",GetService=function(_,name) return services[name] or {} end}
@@ -371,7 +371,7 @@ do
     local rs=folder("RS")
     game={GetService=function(_,name) assert(name=="ReplicatedStorage"); return rs end}
     script={Parent=folder("PlayerScripts")}
-    local order={"UIController","EffectsController","InputController"}
+    local order={"UIController","EffectsController","InputController","FlightController"}
     local initialized,started,loaded={},{},{}
     local calls={}
     local modules={}
@@ -394,13 +394,14 @@ do
     check(ok and waiting=="RS/Remotes","client waits for remotes")
     while coroutine.status(client)~="dead" do
         if waiting=="PlayerScripts/Controllers" then check(not next(loaded),"controllers do not load before their folder arrives") end
-        if waiting=="PlayerScripts/Controllers/InputController" then check(not next(loaded),"all controller modules arrive before require") end
+        if waiting=="PlayerScripts/Controllers/FlightController" then check(not next(loaded),"all controller modules arrive before require") end
         local name=waiting:match("([^/]+)$")
         available[waiting]=modules[name] and name or folder(waiting)
         ok,waiting=coroutine.resume(client)
         check(ok,"delayed client startup failed: "..tostring(waiting))
     end
-    check(started.UIController and started.InputController and started.EffectsController,"UI, inventory inputs and effects all start")
+    check(started.UIController and started.InputController and started.EffectsController and started.FlightController,
+        "UI, inventory inputs, effects and broom flight all start")
     check(table.concat(calls,",")==table.concat(order,","),"UI starts before input and effects")
     game,script,require=oldGame,oldScript,oldRequire
 end
@@ -515,6 +516,73 @@ do
     game,workspace,Instance,Enum=oldGame,oldWorkspace,oldInstance,oldEnum
     task,require=oldTask,oldRequire
 end
+-- Broom flight: the saved broom, who may take off, the broom welded under the rider, and what grounds them.
+do
+    local Brooms=require(shared.BroomData)
+    local fresh={Level=3,Broom="Nightwing"}; Brooms.Sanitize(fresh); check(fresh.Broom=="Ashwind","an unearned saved broom falls back to Ashwind")
+    fresh={Level=20,Broom="Nightwing"}; Brooms.Sanitize(fresh); check(fresh.Broom=="Nightwing","an earned broom is kept")
+    fresh={Level=20,Broom=5}; Brooms.Sanitize(fresh); check(fresh.Broom=="Ashwind","a bad saved broom is replaced")
+    check(Brooms.Stats("Swiftquill")=="Speed 60 · Climb 18 · Handling 4","broom stats line")
+    for _,id in ipairs(Brooms.Order) do check(Brooms.Brooms[id].Level<=20,id.." unlocks by the level cap") end
+    local hurt=target(other); C:Damage(nil,hurt,5,nil); check(hurt.HurtAt and hurt.Humanoid.Health==105,"a hit marks the player hurt")
+    local oldGame,oldInstance,oldCFrame=game,Instance,CFrame
+    local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
+    local welds={}
+    Instance={new=function(class) local o={ClassName=class}; if class=="Weld" then welds[#welds+1]=o end; return o end}
+    CFrame={new=function(x,y,z) return {X=x,Y=y,Z=z} end}
+    local destroyed=0
+    local folder={}
+    for _,id in ipairs(Brooms.Order) do
+        folder[id]={Name=id,PrimaryPart={PivotOffset="seat of "..id},Clone=function(self)
+            return {Name=self.Name,Source=self.Name,PrimaryPart={PivotOffset=self.PrimaryPart.PivotOffset},
+                Destroy=function(copy) destroyed=destroyed+1; copy.Parent=nil end}
+        end}
+    end
+    local function find(self,name) return rawget(self,name) end
+    folder.FindFirstChild=find
+    local rs={Shared=shared,Brooms=folder,FindFirstChild=find}
+    game={GetService=function(_,name) return ({ReplicatedStorage=rs,Players={PlayerRemoving=signal()}})[name] end}
+    local d={Level=1,HasWand=false,Broom="Ashwind"}
+    local rider={Parent=true,Attributes={},SetAttribute=function(self,key,value) self.Attributes[key]=value end}
+    local s={Humanoid={Health=100},Root={Position=Vector3.new(0,5,0)},Model={},LastCombat=-100,Statuses={}}
+    local safe,busy,notice,syncs=true,false,nil,0
+    local net={Handlers={},Notice=function(_,_,message) notice=message end,Sync=function() syncs=syncs+1 end}
+    local flight=require(ROOT.."/src/server/Services/FlightService.lua")
+    flight:Init({NetworkService=net,PlayerDataService={Get=function() return d end},DuelService={IsBusy=function() return busy end},
+        CombatService={States={[rider]=s},CanAct=function() return s.Humanoid.Health>0 end,Has=function(_,_,name) return s.Statuses[name] end},
+        WorldService={Root=function() return s.Root end,Zone=function() return {Safe=safe} end,Movement={}}})
+    flight:Start()
+    local function fly() flight.LastToggle[rider]=-100; net.Handlers.Fly(rider) end
+    fly(); check(not rider.Attributes.Broom and notice:find("Oakhart"),"no broom before the first wand")
+    d.HasWand=true; fly()
+    local broom=flight.Riders[rider] and flight.Riders[rider].Model
+    check(rider.Attributes.Broom=="Ashwind" and s.FlySpeed==40 and broom and broom.Parent==s.Model,"taking off welds Ashwind to the rider")
+    local weld=welds[#welds]
+    check(weld.Part0==s.Root and weld.Part1==broom.PrimaryPart and weld.C0.Y==-Brooms.SeatDrop and weld.C1=="seat of Ashwind",
+        "the broom's seat is welded under the rider's root")
+    check(broom.Name=="RavenmoorBroom","the rider's broom has its own name")
+    net.Handlers.Fly(rider); check(rider.Attributes.Broom=="Ashwind","landing waits out the toggle cooldown")
+    fly(); check(rider.Attributes.Broom==nil and s.FlySpeed==nil and destroyed==1,"landing removes the broom")
+    s.LastCombat=os.clock(); fly(); check(not rider.Attributes.Broom and notice:find("combat"),"no take-off straight after combat")
+    s.LastCombat=-100; safe=false; fly(); check(not rider.Attributes.Broom and notice:find("Whisperwood"),"no take-off in Whisperwood")
+    safe=true; busy=true; fly(); check(not rider.Attributes.Broom and notice:find("Duels"),"no take-off in a duel")
+    busy=false; s.Statuses.Rooted=true; fly(); check(not rider.Attributes.Broom,"no take-off while rooted"); s.Statuses.Rooted=nil
+    rs.Brooms=nil; fly(); check(not rider.Attributes.Broom and notice:find("place_brooms"),"missing broom models are reported"); rs.Brooms=folder
+    fly(); s.HurtAt=os.clock()+1; flight:Check(); check(not rider.Attributes.Broom and notice:find("knocks"),"a hit knocks the rider off")
+    s.HurtAt=nil
+    fly(); safe=false; flight:Check(); check(not rider.Attributes.Broom and notice:find("wards"),"Whisperwood pulls riders down"); safe=true
+    fly(); busy=true; flight:Check(); check(not rider.Attributes.Broom,"a duel grounds the rider"); busy=false
+    fly(); s.Root.Position=Vector3.new(0,Brooms.Ceiling+30,0); flight:Check(); check(not rider.Attributes.Broom and notice:find("thin"),"the ceiling grounds the rider")
+    s.Root.Position=Vector3.new(0,5,0)
+    fly(); s.Humanoid.Health=0; flight:Check(); check(not rider.Attributes.Broom and not flight.Riders[rider],"a knocked-out rider loses the broom"); s.Humanoid.Health=100
+    net.Handlers.ChooseBroom(rider,"Swiftquill"); check(d.Broom=="Ashwind" and notice:find("level 12"),"locked brooms cannot be chosen")
+    net.Handlers.ChooseBroom(rider,"Nope"); check(d.Broom=="Ashwind","unknown brooms are ignored")
+    d.Level=12; fly(); net.Handlers.ChooseBroom(rider,"Swiftquill")
+    check(d.Broom=="Swiftquill" and rider.Attributes.Broom=="Swiftquill" and s.FlySpeed==60 and flight.Riders[rider].Model.Source=="Swiftquill" and syncs>0,
+        "choosing a broom mid-air swaps it")
+    check(flight.Riders[rider].Model.PrimaryPart.PivotOffset=="seat of Swiftquill","the swapped broom sits on its own seat")
+    game,Instance,CFrame=oldGame,oldInstance,oldCFrame
+end
 -- Input routing regressions. Roblox camera/GUI integration still needs Studio.
 do
     local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
@@ -568,4 +636,4 @@ do
     prompt.Enabled=true; prompt.Parent=nil
     slot(nil,"Begin",interact); check(casts==before+4,"removed prompts do not block spells")
 end
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, input routing).")
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing).")

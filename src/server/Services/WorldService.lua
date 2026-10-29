@@ -78,7 +78,8 @@ function W:Start()
                     local now = os.clock(); local prev = self.Movement[player]
                     if prev and now > (prev.Grace or 0) then
                         local delta = Vector3.new(root.Position.X-prev.Pos.X,0,root.Position.Z-prev.Pos.Z).Magnitude
-                        local allowance = math.max(state.Humanoid.WalkSpeed, 24)*(now-prev.Time)+20
+                        -- A broom rider (FlightService) may cover ground at the broom's speed.
+                        local allowance = math.max(state.Humanoid.WalkSpeed, 24, state.FlySpeed or 0)*(now-prev.Time)+20
                         local b, p = Config.WorldBounds, root.Position
                         if delta > allowance or p.X < b.MinX or p.X > b.MaxX or p.Z < b.MinZ or p.Z > b.MaxZ then
                             self:Teleport(player, prev.Pos); root = self:Root(player)

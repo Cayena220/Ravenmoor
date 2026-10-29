@@ -1,4 +1,5 @@
-"""Character animations for R15 avatars: Walk, Sprint, and a Tumble to the left, the right, forward and back.
+"""Character animations for R15 avatars: Walk, Sprint, a Tumble to the left, the right, forward and back, and the pose
+for riding a broom (BroomRide).
 
 The rig's bones are the R15 joints, named after the part each one moves (LowerTorso is the Root joint, UpperTorso
 the Waist, LeftUpperLeg the LeftHip, and so on), with their pivots at a Studio avatar's rest pose in studs from the
@@ -154,6 +155,16 @@ def tumble(turn, axis, start):
 tumble_right = tumble((0, 0, -30), 0, -3)
 tumble_forward = tumble((-30, 0, 0), 2, 3)
 tumble_back = tumble((30, 0, 0), 2, -3)
+
+# Broom ride: two seconds, looped, astride a broom whose seat is 1.35 studs under the HumanoidRootPart (BroomData's
+# SeatDrop). The body leans into the flight with the head up to see ahead, both hands reach down to the grip in
+# front, and the legs splay round the shaft and hang back to the stirrups behind the seat. Only the breathing moves.
+def ride(lean, look, reach):
+    return P(UpperTorso=(-lean, 0, 0), Head=(look, 0, 0),
+             LeftUpperArm=(reach, 0, 44), LeftLowerArm=(10, 0, 0), LeftHand=(-10, 0, 0),
+             RightUpperArm=(reach - 8, 0, -40), RightLowerArm=(14, 0, 0), RightHand=(-10, 0, 0),
+             LeftUpperLeg=(-8, 0, -16), LeftLowerLeg=(-26, 0, 0), LeftFoot=(-20, 0, 0),
+             RightUpperLeg=(-8, 0, 16), RightLowerLeg=(-26, 0, 0), RightFoot=(-20, 0, 0))
 for bone in MOVING: rig.obj.pose.bones[bone].matrix_basis.identity()
 
 CLIPS = {   # name: (keys, last frame, loops, priority, easing per part)
@@ -165,8 +176,9 @@ CLIPS = {   # name: (keys, last frame, loops, priority, easing per part)
     'TumbleLeft': ([(f, mirror(p)) for f, p in tumble_right], 15, False, 'Action', {'LowerTorso': 'Linear'}),
     'TumbleForward': (tumble_forward, 15, False, 'Action', {'LowerTorso': 'Linear'}),
     'TumbleBack': (tumble_back, 15, False, 'Action', {'LowerTorso': 'Linear'}),
+    'BroomRide': ([(0, ride(40, 30, 60)), (30, ride(36, 27, 57)), (60, ride(40, 30, 60))], 60, True, 'Action', {}),
 }
-PREVIEW_FRAMES = {'Walk': [0, 8, 15, 23], 'Sprint': [0, 5, 9, 14]}
+PREVIEW_FRAMES = {'Walk': [0, 8, 15, 23], 'Sprint': [0, 5, 9, 14], 'BroomRide': [0, 15, 30, 45]}
 PREVIEW_FRAMES.update({name: [0, 4, 8, 12] for name in CLIPS if name.startswith('Tumble')})
 
 sc = bpy.context.scene

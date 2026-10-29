@@ -68,6 +68,7 @@ function I:UseSlot(slot,direction)
         if hum then ui:Action("Dodge",direction or hum.MoveDirection) end
         return
     end
+    if slot=="Broom" then return ui:Action("Fly") end
     local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
     if not id or id=="" then return ui:Toast("This slot is empty. Open the spellbook (K) to assign a spell.") end
     if not d.HasWand then return ui:Toast("Visit Oakhart in Hollowmere to receive your wand.") end
@@ -80,6 +81,7 @@ local TAP_WAYS={[Enum.KeyCode.W]={0,1},[Enum.KeyCode.A]={-1,0},[Enum.KeyCode.S]=
 function I:Tap(key)
     local way=TAP_WAYS[key]; local camera=workspace.CurrentCamera
     if not way or not camera or self.C.UIController:IsOpen() or UIS:GetFocusedTextBox() then return end
+    if self.Player:GetAttribute("Broom") then return end   -- on a broom, W A S D steer
     local now=os.clock(); local last=self.Taps[key]
     if not (last and now-last<=DOUBLE_TAP) then self.Taps={[key]=now}; return end
     self.Taps={}
@@ -100,6 +102,7 @@ function I:Start()
         Slot1={Enum.KeyCode.One,Enum.KeyCode.ButtonX}, Slot2={Enum.KeyCode.Two,Enum.KeyCode.ButtonY},
         Slot3={Enum.KeyCode.Three,Enum.KeyCode.ButtonB}, Slot4={Enum.KeyCode.Four,Enum.KeyCode.ButtonR1},
         Dodge={Enum.KeyCode.LeftShift,Enum.KeyCode.ButtonL1},
+        Broom={Enum.KeyCode.F,Enum.KeyCode.DPadDown},
     }
     for slot,keys in pairs(bindings) do
         CAS:BindActionAtPriority("Wandbound_"..slot,function(_,state,input)

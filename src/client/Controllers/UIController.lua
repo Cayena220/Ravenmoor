@@ -11,6 +11,7 @@ local Gesture=require(RS.Shared.Gesture)
 local Wands=require(RS.Shared.WandData)
 local WandModel=require(RS.Shared.WandModel)
 local Skills=require(RS.Shared.SkillData)
+local Brooms=require(RS.Shared.BroomData)
 local U={}
 local function num(x) return string.format("%g",math.floor(x*10+0.5)/10) end
 local palette={Ink=Color3.fromRGB(23,29,36),Panel=Color3.fromRGB(242,232,207),Gold=Color3.fromRGB(183,145,79),
@@ -33,7 +34,7 @@ local function button(parent,txt,callback,props)
 end
 function U:Init(controllers)
     self.C=controllers; self.Player=Players.LocalPlayer; self.Remotes=RS.Remotes; self.Data=nil; self.State={}; self.Cooldowns={}; self.Menu=nil
-    self.SpellSlots={"Basic","Slot1","Slot2","Slot3","Slot4","Ward","Dodge"}; self.Buttons={}; self.TraceConnections={}
+    self.SpellSlots={"Basic","Slot1","Slot2","Slot3","Slot4","Ward","Dodge","Broom"}; self.Buttons={}; self.TraceConnections={}
 end
 function U:Action(action,a,b) self.Remotes.Action:FireServer(action,a,b) end
 function U:IsOpen() return self.Panel.Visible end
@@ -154,6 +155,13 @@ function U:Show(menu)
         self:Paragraph("WAND CASE · "..#d.Wands.." / "..Wands.Capacity.."\nWood and core each grant a bonus. Oakhart commissions new wands, and strong foes sometimes leave one behind.",64)
         for i,wand in ipairs(d.Wands) do self:WandRow(i,wand,i==d.EquippedWand) end
         if #d.WandsHeld>0 then self:Paragraph("Oakhart is keeping "..#d.WandsHeld.." wand"..(#d.WandsHeld==1 and "" or "s").." for you. Make room in your case, then visit the Wandery.",52) end
+        self:Paragraph("BROOMS · F takes off and lands · Space climbs · Q dives\nFly anywhere but Whisperwood, whose wards pull brooms down. A hit knocks you off.",64)
+        for _,id in ipairs(Brooms.Order) do
+            local broom=Brooms.Brooms[id]; local riding=d.Broom==id
+            local state=riding and "YOUR BROOM" or (Brooms.Unlocked(d,id) and "Ride this one" or "Level "..broom.Level)
+            button(self.Body,broom.Title.."  ·  "..Brooms.Stats(id).."  ·  "..state.."\n"..broom.Note,function() self:Action("ChooseBroom",id) end,
+                {Size=UDim2.new(1,-12,0,58),BackgroundColor3=riding and palette.Gold or palette.Panel})
+        end
         self:Paragraph("ITEMS",30)
         local ids={}; for id,count in pairs(d.Inventory) do if count>0 then ids[#ids+1]=id end end; table.sort(ids)
         if #ids==0 then self:Paragraph("Your bag is empty. Woodland creatures drop ingredients and rare spell tomes.",75) end
@@ -171,7 +179,7 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
-        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · A jump",116)
+        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock\nF broom · Space climbs · Q dives\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -313,7 +321,7 @@ function U:Build()
         local label=text(frame,name,12,palette.White,{Position=UDim2.fromOffset(8,0),Size=UDim2.new(1,-16,1,0)})
         self.Bars[name]={Fill=fill,Label=label}
     end
-    self.Hotbar=make("Frame",self.Root,{BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-18),Size=UDim2.fromOffset(560,72)})
+    self.Hotbar=make("Frame",self.Root,{BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-18),Size=UDim2.fromOffset(#self.SpellSlots*80,72)})
     for i,slot in ipairs(self.SpellSlots) do
         local b=button(self.Hotbar,slot,function() if self.C.InputController then self.C.InputController:UseSlot(slot) end end,
             {Size=UDim2.fromOffset(72,68),Position=UDim2.fromOffset((i-1)*80,0),BackgroundColor3=palette.Ink,TextColor3=palette.White,TextSize=12})
@@ -346,7 +354,7 @@ function U:Layout()
         self.Hotbar.Size=UDim2.fromOffset(292,144); self.Hotbar.Position=UDim2.new(1,-14,1,-83); self.Hotbar.AnchorPoint=Vector2.new(1,1)
         for i,slot in ipairs(self.SpellSlots) do self.Buttons[slot].Size=UDim2.fromOffset(66,66); self.Buttons[slot].Position=UDim2.fromOffset(((i-1)%4)*74,math.floor((i-1)/4)*74) end
     else
-        self.Hotbar.Size=UDim2.fromOffset(560,72); self.Hotbar.Position=UDim2.new(0.5,0,1,-18); self.Hotbar.AnchorPoint=Vector2.new(0.5,1)
+        self.Hotbar.Size=UDim2.fromOffset(#self.SpellSlots*80,72); self.Hotbar.Position=UDim2.new(0.5,0,1,-18); self.Hotbar.AnchorPoint=Vector2.new(0.5,1)
         for i,slot in ipairs(self.SpellSlots) do self.Buttons[slot].Size=UDim2.fromOffset(72,68); self.Buttons[slot].Position=UDim2.fromOffset((i-1)*80,0) end
     end
 end
@@ -356,12 +364,13 @@ function U:UpdateHUD()
         local q=Quests[d.Quest]
         self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
         self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
-        local keys={Basic="LMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="RMB",Dodge="SHIFT"}
-        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="LT",Dodge="LB"} end
+        local keys={Basic="LMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="RMB",Dodge="SHIFT",Broom="F"}
+        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="LT",Dodge="LB",Broom="DOWN"} end
+        local flying=self.Player:GetAttribute("Broom")~=nil
         for _,slot in ipairs(self.SpellSlots) do
             local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
-            local remaining=math.max(0,(self.Cooldowns[id] or 0)-os.clock())
-            local name=slot=="Dodge" and "Dodge" or (id and id~="" and id or "Empty")
+            local remaining=math.max(0,(id and self.Cooldowns[id] or 0)-os.clock())
+            local name=slot=="Dodge" and "Dodge" or slot=="Broom" and (flying and "Land" or "Broom") or (id and id~="" and id or "Empty")
             self.Buttons[slot].Text=(UIS.TouchEnabled and "" or keys[slot].."\n")..name..(remaining>0 and string.format("\n%.1fs",remaining) or "")
             self.Buttons[slot].TextColor3=remaining>0 and palette.Muted or palette.White
         end
@@ -392,7 +401,7 @@ function U:Welcome()
     self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",80)
     self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",95)
     self:Paragraph("Approach a named character and use the interaction prompt. Follow the quest card. Red ground circles warn you where enemies will strike.",90)
-    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift or double-tap WASD dodges\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
+    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
     button(self.Body,"BEGIN YOUR FIRST YEAR",function() self:Close() end,{BackgroundColor3=palette.Gold,Size=UDim2.new(1,-12,0,56)})
 end
 function U:Start()

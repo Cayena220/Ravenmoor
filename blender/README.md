@@ -5,8 +5,8 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 ```text
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews, EEVEE pictures
 blender/terrain.py        Mountain ranges, woods and ground mist, as Roblox meshes
-blender/models/           One script per static model (cauldron.py, waystone.py, the whole village in hollowmere.py, and
-                          the mountain ranges and woods round the world in ranges.py)
+blender/models/           One script per static model (cauldron.py, waystone.py, the four flying brooms in brooms.py, the
+                          whole village in hollowmere.py, and the mountain ranges and woods round the world in ranges.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py, character.py)
 blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
 blender/world/            world.py: assembles the whole game in one scene, exports/World.blend
@@ -16,6 +16,7 @@ blender/place_waystones.lua  Studio script that stands the Waystone meshes at th
 blender/place_ranges.lua  Studio script that sets up the imported mountain ranges and woods
 blender/place_hollowmere.lua  Studio script that sets up the imported village over the part one
 blender/place_dash.lua    Studio script that puts the imported dash effect in ReplicatedStorage.VFX
+blender/place_brooms.lua  Studio script that puts the imported brooms in ReplicatedStorage.Brooms
 tools/blender.py          Finds Blender and runs scripts
 ```
 
@@ -143,7 +144,7 @@ Import it like any model (step 3), then paste [place_dash.lua](place_dash.lua) i
 
 ## Character animations
 
-`animations/character.py` animates R15 avatars: `Walk` (1 s loop), `Sprint` (0.6 s loop) and a roll each way, 0.5 s: sideways (`TumbleRight` and `TumbleLeft`), a somersault (`TumbleForward`) and a back roll (`TumbleBack`). The rig's bones are the R15 joints, named after the part each one moves and placed at a Studio avatar's rest pose. Each bone's axes are turned to Roblox's (X right, Y up, Z back). R15 joint frames are axis-aligned, so a keyed rotation is the joint's Transform in game. The script exports `Character<Name>.fbx` with preview strips, plus `CharacterAnimations.json`, which holds every key pose as Roblox CFrames.
+`animations/character.py` animates R15 avatars: `Walk` (1 s loop), `Sprint` (0.6 s loop) and a roll each way, 0.5 s: sideways (`TumbleRight` and `TumbleLeft`), a somersault (`TumbleForward`) and a back roll (`TumbleBack`), and `BroomRide` (2 s loop), the pose for riding a broom: leaning into the flight, hands on the grip, legs splayed round the shaft and back to the stirrups. The rig's bones are the R15 joints, named after the part each one moves and placed at a Studio avatar's rest pose. Each bone's axes are turned to Roblox's (X right, Y up, Z back). R15 joint frames are axis-aligned, so a keyed rotation is the joint's Transform in game. The script exports `Character<Name>.fbx` with preview strips, plus `CharacterAnimations.json`, which holds every key pose as Roblox CFrames.
 
 These clips are not imported with the 3D Importer. Claude builds them over the Studio connection from the JSON, as KeyframeSequences inside the Animations in `ReplicatedStorage.Animations`. `EffectsController` then works as follows:
 
@@ -151,6 +152,31 @@ These clips are not imported with the 3D Importer. Claude builds them over the S
 - On your own dodge, it turns you to face where the camera looks and plays the Tumble the way you went: Right or Left across the camera's view, Forward into it, Back toward it. Shift dodges the way you are moving; tapping W, A, S or D twice within 0.3 s dodges that way. Without the clip, a dodge turns you to face the way you went.
 
 Until a clip is published, Studio playtests play it from its KeyframeSequence, and a live game keeps Roblox's defaults. To publish one, right-click its KeyframeSequence and choose **Save to Roblox**. Then paste the new ID into that Animation's `AnimationId`. Publish under the account or group that owns the experience.
+
+## Brooms
+
+`models/brooms.py` builds `Brooms.fbx`: four flying brooms, one primary and three with designs of their own. Each is 7 to 9 studs long, lies with its tip to the front and has its seat, the point on the shaft where a rider sits, on the origin of its own model.
+
+| Broom | Design | Glow |
+|---|---|---|
+| **Ashwind**, the primary broom | The academy's own, issued to every first-year. A straight ash shaft that lifts a little at the brass-capped tip, a leather grip between brass collars, an arcane rune on each side of the collar, brass stirrups, and a classic flared tail of straw-brown twigs in three brass bands. | Arcane violet |
+| **Swiftquill** | A racer. A long slim silverbirch shaft with a frost crystal held out in silver claws at the nose, glowing speed stripes, a low padded seat, swept silver stirrup fins, and a tight tail that tapers to a point between three stabiliser fins. | Frost blue |
+| **Stoutbough** | A hauler. A thick knotted ironoak shaft with an iron cap and tow ring, a lantern hung under the tip, iron bands and rivets, a deep saddle with saddlebags, a plank footboard on iron struts, and a big round tail lashed with rope. | Lamplight |
+| **Nightwing** | A wild one. A twisting blackthorn shaft wound with a vine and set with thorns, curling into a crook that cradles an ember gem, and pewter claws gripping a ragged fan of raven-dark twigs and feathers with smouldering tips. | Ember orange |
+
+Each broom is a Model of up to five meshes, one per Roblox material: `Wood`, `Bristles` (Wood too, since Fabric darkens the straw), `Metal`, `Leather` and `Glow` (Neon, in the broom's colour). A broom is 7,000 to 12,500 triangles, most of them in its twigs. With `--preview` the script renders a lineup (`Brooms.png`), a side view of each (`Brooms_<name>.png`), Ashwind with a rider for scale (`Brooms_rider.png`) and an EEVEE picture of all four (`Brooms_picture.png`).
+
+```bash
+python tools/blender.py blender/models/brooms.py --preview
+```
+
+To put them in the game:
+
+1. Import `Brooms.fbx` as in step 3. Insert Using Scene Position can be on or off; the script puts the brooms back where they belong.
+2. Paste [place_brooms.lua](place_brooms.lua) into **View → Command Bar** and press Enter. It moves the four into `ReplicatedStorage.Brooms` and pivots each on its seat. It sets each mesh's material and the Glow colour, and makes the meshes massless and uncollidable, welded to the broom's `Wood`, its PrimaryPart. One weld to a rider then carries the whole broom.
+3. Save the place. Running the script again changes nothing. After rebuilding the brooms, import the new file and run the script again: it replaces the old ones.
+
+In game, F takes off and lands (`FlightService` on the server, `FlightController` on the client, stats in `src/shared/BroomData.lua`). The server welds a copy of your chosen broom 1.35 studs under your HumanoidRootPart, so you sit on its seat, and your client flies you there in the `BroomRide` pose. Ashwind is every student's from their first wand. Stoutbough unlocks at level 6, Swiftquill at 12 and Nightwing at 18, and you choose among them in the Bag.
 
 ## Mountains and woods
 
@@ -191,6 +217,7 @@ Running the script again changes nothing. After rebuilding the ranges, delete `W
 - **Showcase** (its own collection, beside the arrival pad):
   - A dodge across the pad, frozen just after it lands on the mannequin, laid out as `EffectsController:Dash` draws it (`vfx/dash.py`).
   - Three more mannequins, posed mid-walk, mid-sprint and mid-tumble.
+  - The four brooms (`models/brooms.py`), hovering in a row south of the pad with each seat at a rider's height, tips to the north, and a mannequin riding Ashwind in the `BroomRide` pose.
 - **Animations.** Every clip (Walk, Sprint, the four Tumbles and the Spellbook's opening) is kept in the file. To play one, select a rig and pick the clip in Blender's Action editor.
 - **Markers.** Every interaction and quest point is a labelled empty.
 - **Config zones.** `Config.Zones` and `Config.WorldBounds` are frames over the map. They are red where monsters attack, blue where they don't, and gold for the bounds. Switch the collection off to hide them.

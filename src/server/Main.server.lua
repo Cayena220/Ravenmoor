@@ -1,7 +1,7 @@
 local Players = game:GetService("Players")
 Players.CharacterAutoLoads = false
 local order = {"NetworkService", "PlayerDataService", "ProgressionService", "WorldService",
-    "CombatService", "SpellService", "MonsterService", "ClassService", "DuelService", "WandService", "InteractionService"}
+    "CombatService", "SpellService", "MonsterService", "ClassService", "DuelService", "WandService", "InteractionService", "FlightService"}
 local services = {}
 for _, name in ipairs(order) do services[name] = require(script.Parent.Services[name]) end
 for _, name in ipairs(order) do services[name]:Init(services) end

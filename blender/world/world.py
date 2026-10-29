@@ -426,6 +426,13 @@ for i, (clip, frame, label) in enumerate((('CharacterWalk', 0, 'Walk'), ('Charac
                                           ('CharacterTumbleRight', 6, 'Tumble'))):
     x = PAD[0] + 8 + 5 * i
     pose(showcase, rig, body, clip, frame, (x, ground_at(x, PAD[2], PAD[1] + 1) + ROOT_HEIGHT, PAD[2]), 'Mannequin ' + label)
+# The four brooms (blender/models/brooms.py) hovering in a row south of the pad, each seat at a rider's height and
+# each tip to the north; the row runs west from Ashwind, the primary broom.
+BROOMS_AT = (PAD[0] + 8, PAD[2] + 9)
+seat = ground_at(*BROOMS_AT, PAD[1] + 1) + ROOT_HEIGHT
+place(append('Brooms.blend'), (BROOMS_AT[0], seat, BROOMS_AT[1]), 0.0, showcase)
+# A mannequin riding Ashwind, its root 1.35 studs over the seat as FlightService welds it (BroomData's SeatDrop).
+pose(showcase, rig, body, 'CharacterBroomRide', 0, (BROOMS_AT[0], seat + 1.35, BROOMS_AT[1]), 'Mannequin Broom ride')
 bpy.context.scene.frame_set(0)
 
 rbx.viewport(bl(88, 0, 150), 240, turn=(55, 0, 153))
@@ -434,8 +441,8 @@ rbx.EXPORTS.mkdir(exist_ok=True)
 bpy.context.preferences.filepaths.save_version = 0
 bpy.ops.wm.save_as_mainfile(filepath=str(rbx.EXPORTS / f'{NAME}.blend'), check_existing=False)
 total = sum(counts.values())
-rbx.say(f'exports/{NAME}.blend: {total:,} map parts in {len(counts)} areas, {len(PLACED) + 2} Blender models '
-        f'(with the Waystone and the dash), {len(actions)} animations, {len(markers.findall("Item"))} markers')
+rbx.say(f'exports/{NAME}.blend: {total:,} map parts in {len(counts)} areas, {len(PLACED) + 3} Blender models '
+        f'(with the Waystone, the dash and the brooms), {len(actions)} animations, {len(markers.findall("Item"))} markers')
 rbx.say(f'exports/{NAME}.blend: built in code by the game: ' + (', '.join(f'{n} {g.lower()}' for g, n in built.items()) or 'none'))
 
 

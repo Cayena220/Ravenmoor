@@ -7,6 +7,7 @@ local Config = require(Shared.Config)
 local SpellData = require(Shared.SpellData)
 local WandData = require(Shared.WandData)
 local SkillData = require(Shared.SkillData)
+local BroomData = require(Shared.BroomData)
 local D = {}
 local function clone(value)
     if type(value) ~= "table" then return value end
@@ -21,7 +22,8 @@ local function template()
         Daily = {Day = 0, Kills = 0, Claimed = false}, DuelWins = 0,
         Settings = {SpokenCasting = true, ReducedEffects = false},
         BossDefeated = false, SealDefeated = false, LessonRewards = {}, LastRespec = 0,
-        Wands = {}, EquippedWand = 0, WandsHeld = {}, WandRewards = {}, Talents = {}, LastTalentReset = 0}
+        Wands = {}, EquippedWand = 0, WandsHeld = {}, WandRewards = {}, Talents = {}, LastTalentReset = 0,
+        Broom = BroomData.Default}
 end
 local function reconcile(data, defaults)
     for k,v in pairs(defaults) do
@@ -64,7 +66,7 @@ function D:Load(player)
     reconcile(data, template())
     data.Level = math.clamp(math.floor(data.Level), 1, Config.LevelCap)
     for id in pairs(data.Spells) do if not SpellData[id] then data.Spells[id] = nil end end
-    WandData.Sanitize(data); SkillData.Sanitize(data)
+    WandData.Sanitize(data); SkillData.Sanitize(data); BroomData.Sanitize(data)
     local profile = {Data = data, SavedAt = os.time(), Busy = false, Closing = false}
     self.Profiles[player] = profile
     if not player.Parent or self.Closing then self:Release(player); return end

@@ -95,6 +95,7 @@ function C:Damage(player, target, amount, spell, dot)
     target.LastCombat = os.clock()
     if player and self.States[player] then self.States[player].LastCombat = os.clock() end
     if amount > 0 then target.Statuses.Asleep = nil end
+    if amount > 0 and target.Player then target.HurtAt = os.clock() end   -- a hit knocks a rider off their broom
     if player and target.MonsterId then
         target.Contributors[player] = (target.Contributors[player] or 0)+amount
         target.Threat[player] = (target.Threat[player] or 0)+amount
@@ -161,7 +162,7 @@ function C:BindPlayer(player)
 end
 function C:Dodge(player, direction)
     local s=self.States[player]
-    if not self:CanAct(s) or self:Has(s,"Rooted") or s.Stamina<35 or os.clock()-s.DodgeAt<0.8 then return end
+    if not self:CanAct(s) or self:Has(s,"Rooted") or s.FlySpeed or s.Stamina<35 or os.clock()-s.DodgeAt<0.8 then return end
     if typeof(direction)~="Vector3" or not F.Finite(direction.X) or not F.Finite(direction.Y) or not F.Finite(direction.Z) then return end
     local flat=Vector3.new(direction.X,0,direction.Z); if flat.Magnitude<0.1 then flat=s.Root.CFrame.LookVector*Vector3.new(1,0,1) end
     if flat.Magnitude<0.1 then return end

@@ -54,6 +54,8 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Ward | Right mouse | LT | Ward button |
 | Spell slots | 1, 2, 3, 4 | X, Y, B, RB | Four spell buttons |
 | Dodge | Left Shift, or double-tap W/A/S/D | LB | Dodge button |
+| Broom: take off and land | F | D-pad Down | Broom button |
+| Broom: climb and dive | Space and Q, or look up or down while flying forward | A and L3 | Look up or down |
 | Jump | Space | A | Roblox jump button |
 | Spellbook | K | D-pad Up | Spellbook button |
 | Bag (wands and items) | B | D-pad Left | Bag tab in spellbook |

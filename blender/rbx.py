@@ -157,6 +157,23 @@ class Mesh:
         if not closed: faces += [self.bm.faces.new(grid[0][::-1]), self.bm.faces.new(grid[-1])]
         return self._paint(faces, colour, bone)
 
+    def tube(self, points, radii, colour, sides=8, bone=None):
+        """A tube through `points`, `radii` studs thick at each (or one radius for all), capped at both ends. Its
+        rings stand square to the path and are carried along it without twisting, so it bends cleanly: a shaft,
+        a twig, a bent bar."""
+        pts = [Vector(p) for p in points]; n = len(pts)
+        radii = radii if isinstance(radii, (list, tuple)) else [radii] * n
+        heading = [(pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]).normalized() for i in range(n)]
+        side, rings = heading[0].orthogonal().normalized(), []
+        for p, t, r in zip(pts, heading, radii):
+            side = (side - t * side.dot(t)).normalized(); up = t.cross(side)
+            rings.append([self.bm.verts.new(self.frame @ (p + r * (math.cos(a) * side + math.sin(a) * up)))
+                          for a in (2 * math.pi * k / sides for k in range(sides))])
+        faces = [self.bm.faces.new((lo[k], lo[(k + 1) % sides], hi[(k + 1) % sides], hi[k]))
+                 for lo, hi in zip(rings, rings[1:]) for k in range(sides)]
+        faces += [self.bm.faces.new(rings[0][::-1]), self.bm.faces.new(rings[-1])]
+        return self._paint(faces, colour, bone)
+
     def finish(self, sharp=30, rig=None):
         """Make the Blender object, or return None if nothing was added. Edges sharper than `sharp` degrees stay
         hard; the rest shade smooth."""
