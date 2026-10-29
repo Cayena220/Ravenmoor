@@ -34,7 +34,7 @@ function D:Respond(player,accept)
     for i,p in ipairs(m.Players) do
         self.S.ClassService:Cancel(p)
         local s=self.S.CombatService.States[p]; s.Humanoid.Health=s.Humanoid.MaxHealth; s.Mana=s.MaxMana; s.Stamina=100; s.Statuses={}; s.Shield=0; s.Cooldowns={}; s.InvulnerableUntil=m.Starts
-        self.S.WorldService:Teleport(p,Vector3.new(240,5,i==1 and -120 or -170))
+        self.S.WorldService:Teleport(p,Vector3.new(240,5,i==1 and -420 or -470))
         self.S.NetworkService.UI:FireClient(p,"DuelStart",3)
     end
 end
@@ -80,7 +80,7 @@ function D:Start()
             for player,m in pairs(self.Matches) do
                 local root=self.S.WorldService:Root(player)
                 if os.clock()>m.Ends then self:Finish(m,nil)
-                elseif root and (math.abs(root.Position.X-240)>39 or math.abs(root.Position.Z+145)>45) then self:Defeated(player) end
+                elseif root and (math.abs(root.Position.X-240)>39 or math.abs(root.Position.Z+445)>45) then self:Defeated(player) end
             end
             for player,inv in pairs(self.Invites) do if not player.Parent or not inv.From.Parent or os.clock()>inv.Expires then self.Invites[player]=nil end end
         end

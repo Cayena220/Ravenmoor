@@ -185,11 +185,11 @@ function M:Tick(dt)
 end
 function M:Start()
     local placements={
-        {"Thornimp",-65,12},{"Thornimp",-82,33},{"Thornimp",-95,5},{"Thornimp",-76,-17},
-        {"Gloomspider",-140,52},{"Gloomspider",-162,70},{"Gloomspider",-137,82},
-        {"Lanternwisp",-215,30},{"Lanternwisp",-231,48},{"Lanternwisp",-211,62},
-        {"Moonhowler",-207,-65},{"Moonhowler",-229,-88},{"Moonhowler",-190,-84},
-        {"RotbarkSentinel",-122,-87},{"MotherVexweave",-160,-183},
+        {"Thornimp",-365,12},{"Thornimp",-382,33},{"Thornimp",-395,5},{"Thornimp",-376,-17},
+        {"Gloomspider",-440,52},{"Gloomspider",-462,70},{"Gloomspider",-437,82},
+        {"Lanternwisp",-515,30},{"Lanternwisp",-531,48},{"Lanternwisp",-511,62},
+        {"Moonhowler",-507,-65},{"Moonhowler",-529,-88},{"Moonhowler",-490,-84},
+        {"RotbarkSentinel",-422,-87},{"MotherVexweave",-460,-183},
     }
     for _,p in ipairs(placements) do self.Spawns[#self.Spawns+1]={Id=p[1],Position=Vector3.new(p[2],0,p[3]),Next=0} end
     task.spawn(function() while true do task.wait(0.2); self:Tick(0.2) end end)

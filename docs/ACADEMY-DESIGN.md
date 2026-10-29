@@ -32,7 +32,7 @@ Every stair uses a 1-stud rise and a 2-stud run. An east walk runs from the trai
 | Teacher_Restoration / Alteration | (116 / 145, 3, −180) | (164, 23, −201 / −151), east wing |
 | Duelmaster | (190, 3, −86) | (240, 3, −94), south of the arena |
 
-The meadow and world boundary now run north to z −650, and `Config.WorldBounds` lets players walk there. The Castle zone in `Config.Zones` covers the terraces and the house quarters as two rectangles, without taking in any of Whisperwood.
+These are the campus's coordinates as `tools/academy.py` lays it out. `tools/layout.py` then stands the whole campus, with its grounds, yard, duel arena and Mirrorlake, 300 studs further north, so in the game every z above is 300 less: the Mirror is at (85, 43, −592) (see `src/shared/WorldPoints.lua`). The meadow and world boundary run north to z −950, and `Config.WorldBounds` lets players walk there. The Castle zone in `Config.Zones` is one rectangle over the terraces, the house quarters and the gardens, from z −322 north.
 
 The old interiors are gone: infirmary, potions laboratory, staff office, dining tables and dormitory beds. Halls are built as exteriors with floors, doors and windows, and keep only what gameplay needs: the Mirror, blackboards and spell lanes in each classroom, and the restricted shelf.
 

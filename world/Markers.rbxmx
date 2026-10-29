@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
-<roblox version="4"><Item class="Folder" referent="RBX00000E11">
+<roblox version="4"><Item class="Folder" referent="RBX00001192">
       <Properties>
         <string name="Name">Markers</string>
       </Properties>
-      <Item class="Part" referent="RBX00000E12">
+      <Item class="Part" referent="RBX00001193">
         <Properties>
           <string name="Name">Oakhart</string>
           <Vector3 name="size">
@@ -37,7 +37,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E13">
+      <Item class="Part" referent="RBX00001194">
         <Properties>
           <string name="Name">Mirror</string>
           <Vector3 name="size">
@@ -48,7 +48,7 @@
           <CoordinateFrame name="CFrame">
             <X>85</X>
             <Y>43</Y>
-            <Z>-292</Z>
+            <Z>-592</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -71,7 +71,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E14">
+      <Item class="Part" referent="RBX00001195">
         <Properties>
           <string name="Name">Teacher_Hex</string>
           <Vector3 name="size">
@@ -82,7 +82,7 @@
           <CoordinateFrame name="CFrame">
             <X>10</X>
             <Y>23</Y>
-            <Z>-201</Z>
+            <Z>-501</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -105,7 +105,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E15">
+      <Item class="Part" referent="RBX00001196">
         <Properties>
           <string name="Name">Teacher_Ward</string>
           <Vector3 name="size">
@@ -116,7 +116,7 @@
           <CoordinateFrame name="CFrame">
             <X>10</X>
             <Y>23</Y>
-            <Z>-151</Z>
+            <Z>-451</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -139,7 +139,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E16">
+      <Item class="Part" referent="RBX00001197">
         <Properties>
           <string name="Name">Teacher_Charm</string>
           <Vector3 name="size">
@@ -150,7 +150,7 @@
           <CoordinateFrame name="CFrame">
             <X>10</X>
             <Y>23</Y>
-            <Z>-101</Z>
+            <Z>-401</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -173,7 +173,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E17">
+      <Item class="Part" referent="RBX00001198">
         <Properties>
           <string name="Name">Teacher_Restoration</string>
           <Vector3 name="size">
@@ -184,7 +184,7 @@
           <CoordinateFrame name="CFrame">
             <X>164</X>
             <Y>23</Y>
-            <Z>-201</Z>
+            <Z>-501</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -207,7 +207,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E18">
+      <Item class="Part" referent="RBX00001199">
         <Properties>
           <string name="Name">Teacher_Alteration</string>
           <Vector3 name="size">
@@ -218,7 +218,7 @@
           <CoordinateFrame name="CFrame">
             <X>164</X>
             <Y>23</Y>
-            <Z>-151</Z>
+            <Z>-451</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -241,7 +241,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E19">
+      <Item class="Part" referent="RBX0000119A">
         <Properties>
           <string name="Name">Tobb</string>
           <Vector3 name="size">
@@ -250,7 +250,7 @@
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-5</X>
+            <X>-305</X>
             <Y>3</Y>
             <Z>12</Z>
             <R00>1.0</R00>
@@ -275,7 +275,7 @@
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E1A">
+      <Item class="Part" referent="RBX0000119B">
         <Properties>
           <string name="Name">Bank</string>
           <Vector3 name="size">
@@ -308,7 +308,7 @@
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000E1B">
+        <Item class="BillboardGui" referent="RBX0000119C">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -325,7 +325,7 @@
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000E1C">
+          <Item class="TextLabel" referent="RBX0000119D">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -349,7 +349,7 @@ Deposit &amp; withdraw</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000E1D">
+      <Item class="Part" referent="RBX0000119E">
         <Properties>
           <string name="Name">Apothecary</string>
           <Vector3 name="size">
@@ -382,7 +382,7 @@ Deposit &amp; withdraw</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000E1E">
+        <Item class="BillboardGui" referent="RBX0000119F">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -399,7 +399,7 @@ Deposit &amp; withdraw</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000E1F">
+          <Item class="TextLabel" referent="RBX000011A0">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -423,7 +423,7 @@ Potions &amp; brewing</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000E20">
+      <Item class="Part" referent="RBX000011A1">
         <Properties>
           <string name="Name">Library</string>
           <Vector3 name="size">
@@ -434,7 +434,7 @@ Potions &amp; brewing</string>
           <CoordinateFrame name="CFrame">
             <X>9</X>
             <Y>43</Y>
-            <Z>-268</Z>
+            <Z>-568</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -456,7 +456,7 @@ Potions &amp; brewing</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000E21">
+        <Item class="BillboardGui" referent="RBX000011A2">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -473,7 +473,7 @@ Potions &amp; brewing</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000E22">
+          <Item class="TextLabel" referent="RBX000011A3">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -497,7 +497,7 @@ Tractum at level 14</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000E23">
+      <Item class="Part" referent="RBX000011A4">
         <Properties>
           <string name="Name">Duelmaster</string>
           <Vector3 name="size">
@@ -508,7 +508,7 @@ Tractum at level 14</string>
           <CoordinateFrame name="CFrame">
             <X>240</X>
             <Y>3</Y>
-            <Z>-94</Z>
+            <Z>-394</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -531,7 +531,7 @@ Tractum at level 14</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E24">
+      <Item class="Part" referent="RBX000011A5">
         <Properties>
           <string name="Name">Training</string>
           <Vector3 name="size">
@@ -542,7 +542,7 @@ Tractum at level 14</string>
           <CoordinateFrame name="CFrame">
             <X>166</X>
             <Y>3</Y>
-            <Z>8</Z>
+            <Z>-292</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -564,7 +564,7 @@ Tractum at level 14</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000E25">
+        <Item class="BillboardGui" referent="RBX000011A6">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -581,7 +581,7 @@ Tractum at level 14</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000E26">
+          <Item class="TextLabel" referent="RBX000011A7">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -605,7 +605,7 @@ Practice your Spark Bolt</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000E27">
+      <Item class="Part" referent="RBX000011A8">
         <Properties>
           <string name="Name">ForestGate</string>
           <Vector3 name="size">
@@ -614,7 +614,7 @@ Practice your Spark Bolt</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-58</X>
+            <X>-358</X>
             <Y>3</Y>
             <Z>15</Z>
             <R00>1.0</R00>
@@ -638,7 +638,7 @@ Practice your Spark Bolt</string>
           <token name="TopSurface">0</token>
           <token name="BottomSurface">0</token>
         </Properties>
-        <Item class="BillboardGui" referent="RBX00000E28">
+        <Item class="BillboardGui" referent="RBX000011A9">
           <Properties>
             <string name="Name">Nameplate</string>
             <UDim2 name="Size">
@@ -655,7 +655,7 @@ Practice your Spark Bolt</string>
             <bool name="AlwaysOnTop">false</bool>
             <float name="MaxDistance">95</float>
           </Properties>
-          <Item class="TextLabel" referent="RBX00000E29">
+          <Item class="TextLabel" referent="RBX000011AA">
             <Properties>
               <string name="Name">Title</string>
               <UDim2 name="Size">
@@ -679,7 +679,7 @@ Levels 5–20 · PvE</string>
           </Item>
         </Item>
       </Item>
-      <Item class="Part" referent="RBX00000E2A">
+      <Item class="Part" referent="RBX000011AB">
         <Properties>
           <string name="Name">SpiderClearing</string>
           <Vector3 name="size">
@@ -688,7 +688,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-145</X>
+            <X>-445</X>
             <Y>3</Y>
             <Z>65</Z>
             <R00>1.0</R00>
@@ -713,7 +713,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E2B">
+      <Item class="Part" referent="RBX000011AC">
         <Properties>
           <string name="Name">Moonwell</string>
           <Vector3 name="size">
@@ -722,7 +722,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-216</X>
+            <X>-516</X>
             <Y>3</Y>
             <Z>44</Z>
             <R00>1.0</R00>
@@ -747,7 +747,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E2C">
+      <Item class="Part" referent="RBX000011AD">
         <Properties>
           <string name="Name">HowlerDen</string>
           <Vector3 name="size">
@@ -756,7 +756,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-213</X>
+            <X>-513</X>
             <Y>3</Y>
             <Z>-76</Z>
             <R00>1.0</R00>
@@ -781,7 +781,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E2D">
+      <Item class="Part" referent="RBX000011AE">
         <Properties>
           <string name="Name">Rotbark</string>
           <Vector3 name="size">
@@ -790,7 +790,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-122</X>
+            <X>-422</X>
             <Y>3</Y>
             <Z>-87</Z>
             <R00>1.0</R00>
@@ -815,7 +815,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E2E">
+      <Item class="Part" referent="RBX000011AF">
         <Properties>
           <string name="Name">Vexweave</string>
           <Vector3 name="size">
@@ -824,7 +824,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-160</X>
+            <X>-460</X>
             <Y>3</Y>
             <Z>-183</Z>
             <R00>1.0</R00>
@@ -849,7 +849,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E2F">
+      <Item class="Part" referent="RBX000011B0">
         <Properties>
           <string name="Name">Waystone_Hollowmere</string>
           <Vector3 name="size">
@@ -883,7 +883,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E30">
+      <Item class="Part" referent="RBX000011B1">
         <Properties>
           <string name="Name">Waystone_Castle</string>
           <Vector3 name="size">
@@ -894,7 +894,7 @@ Levels 5–20 · PvE</string>
           <CoordinateFrame name="CFrame">
             <X>85</X>
             <Y>3</Y>
-            <Z>-48</Z>
+            <Z>-348</Z>
             <R00>1.0</R00>
             <R01>0</R01>
             <R02>0.0</R02>
@@ -917,7 +917,7 @@ Levels 5–20 · PvE</string>
           <token name="BottomSurface">0</token>
         </Properties>
       </Item>
-      <Item class="Part" referent="RBX00000E31">
+      <Item class="Part" referent="RBX000011B2">
         <Properties>
           <string name="Name">Waystone_Whisperwood</string>
           <Vector3 name="size">
@@ -926,7 +926,7 @@ Levels 5–20 · PvE</string>
             <Z>1</Z>
           </Vector3>
           <CoordinateFrame name="CFrame">
-            <X>-36</X>
+            <X>-336</X>
             <Y>3</Y>
             <Z>20</Z>
             <R00>1.0</R00>

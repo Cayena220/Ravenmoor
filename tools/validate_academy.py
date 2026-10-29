@@ -7,10 +7,12 @@ studs: the stairs use 1-stud steps. The walk starts on the arrival plaza.
 from collections import deque
 from math import ceil, floor
 from academy import ARRIVAL, BOUNDS, COURTS, FLOORS, ROOMS, SCHOOLS
+from layout import AZ, FX, MEADOW
 
 STEP=1.15; BODY=5.5; REACH=1.25
-# Places the campus must leave alone: the Whisperwood zone, the duel arena and the training platform.
-KEEP_OUT={'Whisperwood':(-290,-20,-235,165),'Dueling Club':(202,278,-188,-102),'Training platform':(141,191,-20,16)}
+# tools/academy.py gives the campus where it was laid out; tools/layout.py stands it AZ studs north, so every z below
+# is moved by AZ. Places the campus must leave alone: Whisperwood, the duel arena and the training platform.
+KEEP_OUT={'Whisperwood':(-290+FX,-20+FX,-235,165),'Dueling Club':(202,278,-188+AZ,-102+AZ),'Training platform':(141,191,-20+AZ,16+AZ)}
 
 
 def validate_academy(world, geometry, spots, box, name_of):
@@ -19,12 +21,13 @@ def validate_academy(world, geometry, spots, box, name_of):
     assert all(room[4] in names for room in ROOMS), 'Missing academy room'
     parts=[n for n in campus.iter('Item') if n.get('class') in ('Part','WedgePart')]
     assert len(parts)<=1600, f'Academy has {len(parts)} parts; its allocation is 1600'
+    wx0,wx1,wz0,wz1=MEADOW
     for node in parts:
         (cx,_,cz),(hx,_,hz)=box(node)
-        assert -330<cx-hx and cx+hx<330 and -650<cz-hz and cz+hz<285, f'{name_of(node)} is outside the world'
+        assert wx0<cx-hx and cx+hx<wx1 and wz0<cz-hz and cz+hz<wz1, f'{name_of(node)} is outside the world'
         for place,(x0,x1,z0,z1) in KEEP_OUT.items():
             assert not (cx+hx>x0+0.05 and cx-hx<x1-0.05 and cz+hz>z0+0.05 and cz-hz<z1-0.05), f'{name_of(node)} overlaps {place}'
-    xmin,xmax,zmin,zmax=BOUNDS
+    xmin,xmax,zmin,zmax=BOUNDS[0],BOUNDS[1],BOUNDS[2]+AZ,BOUNDS[3]+AZ
     floors={}; blocks={}
     for _,(cx,cy,cz),(hx,hy,hz) in geometry:
         top,bottom=cy+hy,cy-hy
@@ -36,7 +39,7 @@ def validate_academy(world, geometry, spots, box, name_of):
             for z in range(max(zmin,ceil(cz-hz-REACH)),min(zmax,floor(cz+hz+REACH))+1): blocks.setdefault((x,z),[]).append((bottom,top))
     def levels(cell): return floors.get(cell,set())|{0.0}   # the meadow is everywhere
     def clear(cell,h): return all(b>=h+BODY or t<=h+STEP for b,t in blocks.get(cell,()))
-    start=(round((ARRIVAL[0]+ARRIVAL[1])/2),ARRIVAL[3]-10,0.4)
+    start=(round((ARRIVAL[0]+ARRIVAL[1])/2),ARRIVAL[3]-10+AZ,0.4)
     assert clear(start[:2],start[2]), 'Arrival plaza blocked'
     seen={start}; queue=deque([start])
     while queue:
@@ -51,9 +54,9 @@ def validate_academy(world, geometry, spots, box, name_of):
         cell=(round(x),round(z))
         return any((*cell,level) in seen for level in levels(cell) if abs(level-h)<=0.5)
     for x0,x1,north,south,name,_ in ROOMS:
-        assert reached((x0+x1)/2,(north+south)/2,FLOORS[name]), f'No player-width path to {name}'
+        assert reached((x0+x1)/2,(north+south)/2+AZ,FLOORS[name]), f'No player-width path to {name}'
     for house,(x,z,h) in COURTS.items():
-        assert reached(x,z,h), f'No player-width path to the {house} quarter'
+        assert reached(x,z+AZ,h), f'No player-width path to the {house} quarter'
     for name in ['Mirror','Library']+['Teacher_'+s for s in SCHOOLS]:
         x,y,z=spots[name]
         assert reached(x,z,y-2.6), f'Quest interaction {name} is unreachable'

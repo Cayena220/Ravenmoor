@@ -18,19 +18,19 @@ return {
         {Q = "Your group is lost in Whisperwood.", A = {"Lead the way", "Keep everyone together", "Read the stars", "Follow a hidden trail"}},
         {Q = "What will Ravenmoor remember you for?", A = {"My courage", "My loyalty", "My wisdom", "My ambition"}},
     },
-    -- A zone can span several rectangles; the first match wins. The academy is its terraces, then its
-    -- house quarters and gardens to the north.
+    -- A zone can span several rectangles; the first match wins. The academy stands 300 studs north of Hollowmere
+    -- and Whisperwood 300 west (tools/layout.py). Castle Grounds is all the land between: the training yard,
+    -- Mirrorlake, the flying pitch, the ruins, the greenhouses and Tobb's hut at the forest edge.
     Zones = {
-        {Id = "Castle", Name = "Ravenmoor Academy", Center = {90, -196.5}, Size = {220, 297}, Safe = true},
-        {Id = "Castle", Name = "Ravenmoor Academy", Center = {0, -497.5}, Size = {660, 305}, Safe = true},
-        {Id = "Whisperwood", Name = "Whisperwood", Center = {-155, -35}, Size = {270, 400}, Safe = false},
+        {Id = "Castle", Name = "Ravenmoor Academy", Center = {0, -638.5}, Size = {680, 633}, Safe = true},
+        {Id = "Whisperwood", Name = "Whisperwood", Center = {-460, -35}, Size = {280, 420}, Safe = false},
         {Id = "Hollowmere", Name = "Hollowmere Village", Center = {90, 140}, Size = {260, 155}, Safe = true},
-        {Id = "Grounds", Name = "Castle Grounds", Center = {100, 0}, Size = {270, 130}, Safe = true},
+        {Id = "Grounds", Name = "Castle Grounds", Center = {-150, -16}, Size = {980, 612}, Safe = true},
     },
     -- Where travellers land, and return after a knock-out: in front of each stone's sigil, clear of its dais.
-    Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -58}, Whisperwood = {-28, 5, 20}},
+    Waystones = {Hollowmere = {90, 5, 164}, Castle = {85, 5, -358}, Whisperwood = {-328, 5, 20}},
     -- Players outside these limits are returned to their last position.
-    WorldBounds = {MinX = -340, MaxX = 340, MinZ = -655, MaxZ = 290},
+    WorldBounds = {MinX = -640, MaxX = 340, MinZ = -955, MaxZ = 290},
     -- Map parts with these names are night lights: glass by day, glowing with their lights on after dark.
     NightLights = {"Lit window", "Lantern"},
     Teachers = {

@@ -4,15 +4,16 @@ Python scripts in this folder build meshes, rigs and animations in Blender and e
 
 ```text
 blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Roblox-checked FBX export, previews, EEVEE pictures
-blender/terrain.py        Mountain ranges, woods and ground mist for the layout plans (Blender only)
-blender/models/           One script per static model (cauldron.py, waystone.py, and the whole village in hollowmere.py)
+blender/terrain.py        Mountain ranges, woods and ground mist, as Roblox meshes
+blender/models/           One script per static model (cauldron.py, waystone.py, the whole village in hollowmere.py, and
+                          the mountain ranges and woods round the world in ranges.py)
 blender/animations/       One script per rigged model and its animations (spellbook.py, character.py)
 blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
-blender/world/            world.py: assembles the whole game in one scene, exports/World.blend;
-                          world_plan.py: the same with the areas spread apart, exports/WorldPlan.blend
+blender/world/            world.py: assembles the whole game in one scene, exports/World.blend
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
 blender/place_waystones.lua  Studio script that stands the Waystone meshes at the map's three Waystones
+blender/place_ranges.lua  Studio script that sets up the imported mountain ranges and woods
 tools/blender.py          Finds Blender and runs scripts
 ```
 
@@ -143,16 +144,35 @@ These clips are not imported with the 3D Importer. Claude builds them over the S
 
 Until a clip is published, Studio playtests play it from its KeyframeSequence, and a live game keeps Roblox's defaults. To publish one, right-click its KeyframeSequence and choose **Save to Roblox**. Then paste the new ID into that Animation's `AnimationId`. Publish under the account or group that owns the experience.
 
+## Mountains and woods
+
+`models/ranges.py` builds the mountain ranges and woods round Ravenmoor (`terrain.py`) and exports `Ranges.fbx`. Knife-edged ridges and needle spires rise from 18 studs off every road and every area players walk: the village, the campus, the yard, the arena, the lake, the forest and each Castle Grounds landmark. They reach full height about 140 studs further on, and the tallest stand past the meadow's edge with snow on their peaks, closing the world in. The faces are coloured by height and slope: grass, moor and heather, scree, banded crags and snow. About 4,500 round-canopy trees crowd the foot of the slopes and stand in woods across the meadow, never within 8 studs of a road or an area.
+
+The script rebuilds the map with `tools/build.py` and `tools/layout.py`, so the ranges always fit it. Rebuild them after the layout or an area changes:
+
+```bash
+python tools/blender.py blender/models/ranges.py --preview
+```
+
+`Ranges.fbx` is one model, Ranges, holding Mountains (16 tiles) and Woods (25 meshes of up to 300 trees). That is 41 meshes and about 483,000 triangles, the largest 19,200, under Roblox's 20,000. Everything has vertex colours and stands where the game has it. To put it in the game:
+
+1. Import `Ranges.fbx` as in step 3, with **Insert Using Scene Position** on. The importer uploads all 41 meshes to your account.
+2. Paste [place_ranges.lua](place_ranges.lua) into **View → Command Bar** and press Enter. It moves the model into `Workspace.Scenery`, out of `Workspace.Map`, so `tools/sync_scripts.py --map` leaves it alone. It also streams Scenery persistently, so the far ranges never vanish past the streaming radius.
+3. The script also remakes each mountain tile with PreciseConvexDecomposition collision, so players walk up the slopes and are stopped by the crags. It anchors every mesh and turns it white, so the vertex colours show true. The trees are scenery: players and spells pass through them.
+
+Running the script again changes nothing. After rebuilding the ranges, delete `Workspace.Scenery.Ranges` and import the new file.
+
 ## The whole world
 
 `world/world.py` puts the whole game in one Blender scene, `exports/World.blend`. Open it to see every model where the game has it before you change one, or to block out a new model where it will stand. Each area is a collection under `Ravenmoor`:
 
-- **The part-built map.** The script calls `tools/build.py` itself, so the scene always matches the map it makes: land, roads, lamps, the academy, Whisperwood, Castle Grounds and the training yard, the duel arena, Mirrorlake, the chests and the staff. Every part becomes a mesh in its colour, one object per model.
+- **The part-built map.** The script calls `tools/build.py` itself, so the scene always matches the map it makes, laid out by `tools/layout.py` (see "The layout" below). That covers the land, roads, lamps, the academy, Whisperwood, Castle Grounds with the training yard and the four landmarks, the duel arena, Mirrorlake, the chests and the staff. Every part becomes a mesh in its colour, one object per model.
 - **The Blender models**, appended from their own `.blend` files and stood where the game has them (`PLACED` in the script).
   - Hollowmere replaces the map's part village, its road lamps, dock and ferry, and keeps the map's square, lanes and paths.
   - The three Waystones replace the slate stones, turned as `place_waystones.lua` turns them.
   - The Cauldron stands at the Apothecary and the Spellbook in the Library.
   - The character mannequin stands on the arrival pad for scale.
+  - The mountain ranges and woods (`Ranges.blend`) fill the Scenery collection.
 - **The models the game builds in code.** `world/game_models.lua` runs the game's own builders outside Roblox and records the parts they make, so these always match what the game spawns:
   - every monster at its spawn point, in Whisperwood (`MonsterService`);
   - the training dummies, in Castle Grounds (`InteractionService`);
@@ -165,7 +185,10 @@ Until a clip is published, Studio playtests play it from its KeyframeSequence, a
   - Three more mannequins, posed mid-walk, mid-sprint and mid-tumble.
 - **Animations.** Every clip (Walk, Sprint, both Tumbles and the Spellbook's opening) is kept in the file. To play one, select a rig and pick the clip in Blender's Action editor.
 - **Markers.** Every interaction and quest point is a labelled empty.
-- **Config zones.** `Config.Zones` and `Config.WorldBounds` are frames over the map. They are red where monsters attack, blue where they don't, and gold for the bounds. Switch the collection off to hide them. The build also lists what falls outside them, using `WorldService`'s own rules: a point outside the bounds sends players back, and a point in no zone counts as a safe Castle Grounds, where monsters never attack. In today's game, only a few things are in no zone: the duel arena, the Duelmaster, three lamps on the east walk, Mirrorlake's island and one part at Whisperwood's west edge.
+- **Config zones.** `Config.Zones` and `Config.WorldBounds` are frames over the map. They are red where monsters attack, blue where they don't, and gold for the bounds. Switch the collection off to hide them.
+- **Mist.** A ground mist and a thin air that blues the far ranges: two volumes, Mist and Air, used only by the EEVEE pictures, so the collection is hidden in the viewport. Switch it on and use Rendered shading to see them. EEVEE takes a world volume to be endless and blacks out the sun, so haze must be an object like these.
+
+Each build checks the map against Config by `WorldService`'s own rules. A point outside the bounds sends players back, and a point in no zone counts as a safe Castle Grounds, where monsters never attack. The build lists any map part, monster or marker that falls outside the bounds or every zone, any Castle Grounds landmark in an unsafe zone, and any Waystone landing far from its stone; today there are none. It also prints walking times between the square, the academy gate, the west wing stair, the training yard, Tobb and the forest gate. The times are by road at 16 studs a second, with the straight-line time in brackets. The Waystones stand at the square, the gate and the forest gate.
 
 Build the models before the world. This runs every script in folder order, so `world/` comes last:
 
@@ -173,52 +196,49 @@ Build the models before the world. This runs every script in folder order, so `w
 python tools/blender.py "blender/*/*.py" --preview
 ```
 
-`--preview` also renders `World.png` and close-ups of the village, the academy, the training yard, the showcase, the wand gallery, the monsters and the boss. `World_zones.png` is a map from straight above, north up, with the zones and bounds on it.
+`--preview` also renders `World.png`, the academy road, the forest path and the forest road, and close-ups of the village, the academy, the training yard, the showcase, the wand gallery, the monsters, the boss and each Castle Grounds landmark. `World_zones.png` is a map from straight above, north up, with the zones and bounds on it. Five EEVEE pictures go through `rbx.beauty`: `World_vista_academy.png` up the academy road, `World_vista_west.png` over the forest and the western ranges, `World_vista_aerial.png`, `World_vista_ruins.png` and `World_vista_pitch.png`. They have a low sun behind the camera, a sky, the haze and the mist.
 
-The scene is assembled from the scripts, so don't save hand edits into `World.blend`; the next build replaces it. Change a model in its own script, and change the part map in `tools/build.py`, then rebuild. To add a model to the game:
+The scene is assembled from the scripts, so don't save hand edits into `World.blend`; the next build replaces it. Change a model in its own script, and change the part map in `tools/build.py` or `tools/layout.py`, then rebuild. To add a model to the game:
 
 1. Write its script under `blender/models/`.
 2. Add its `.blend` and where the game stands it to `PLACED`.
 3. Export and import it into Studio as before (steps 3 to 5).
 
-### Layout plans
+### The layout
 
-`world/world_plan.py` builds `exports/WorldPlan.blend`. It's the whole world with the academy and Whisperwood moved away from Hollowmere, so players travel further between them. Only the Blender scene changes. The game keeps its layout, and `World.blend` keeps showing it, until a plan is chosen and made in `tools/build.py` and `tools/academy.py`. The zones, `WorldBounds` and Waystone landings in `src/shared/Config.lua`, and the markers, must then move with it.
-
-The plan scene draws Config as the game has it, so its zones list (see "Config zones" above) shows what Config must follow. It also lists what moves into another zone and which new roads cross an unsafe one, and `WorldPlan_zones.png` maps it. For this plan:
-
-- Whisperwood is outside `WorldBounds`: all its monsters and 358 of its 362 parts. So is the north of the academy, 567 of its 1,501 parts, past z −655.
-- The unsafe Whisperwood zone now covers empty meadow and 85 parts of the new roads. The forest's edge, Tobb and the Whisperwood Waystone fall in no zone, so they count as safe.
-- `Config.Waystones` would land travellers about 290 and 308 studs from the Castle and Whisperwood stones.
-
-`PLAN` at the top of the script gives each area's move in studs. It now moves the academy 300 north and the forest 300 west:
+`tools/layout.py` sets where the areas stand. `tools/build.py`'s builders lay every area out beside Hollowmere, where the map was first made, at the points in `build.LAID_OUT`. The layout then moves them, so the walks between them take half a minute. `build.POINTS`, `src/shared/WorldPoints.lua` and `Workspace.Markers` hold the moved points.
 
 - **Hollowmere stays put,** since players spawn there.
-- **The academy** moves with its grounds: the training yard, the duel arena, Mirrorlake, its lamps, teachers and lesson targets.
-- **Whisperwood** moves with its monsters, chests, gate and Waystone, and with Tobb, who sends players into it.
-- **Roads:** the academy road and the forest path are carried out to them by `build.py`'s own road builders and lamps. With both areas moved, a forest road also leaves the academy road just south of the gate and runs straight to the forest path beside Tobb. The west wing's campus path is carried down to it.
-- **Ground:** the meadow widens to hold everything.
-- **Castle Grounds.** `GROUNDS` in the script stands four landmarks from the design plan on the open land, each with a gravel path from a road. They are built by `tools/grounds.py` as plain parts in the build kit, at full size, and each is its own object in the Castle Grounds plan collection.
+- **The academy** stands 300 studs north with its grounds: the training yard, the duel arena, Mirrorlake, its lamps, teachers and lesson targets.
+- **Whisperwood** stands 300 studs west with its monsters, chests, gate and Waystone, and with Tobb, who sends players into it.
+- **Roads:** the academy road and the forest path are carried out to them by `build.py`'s own road builders and lamps. A forest road leaves the academy road just south of the gate and runs straight to the forest path beside Tobb, and the west wing's campus path is carried down to it.
+- **Ground:** the meadow and the invisible world edge widen to hold everything.
+- **Castle Grounds landmarks.** `GROUNDS` stands four landmarks from the design plan on the land between, each with a gravel path from a road. `tools/grounds.py` builds them as plain parts in the build kit, at full size:
   - The **flying pitch** is east of the academy road: a 160 × 84 field with markings, a beacon spire and two marker posts at each end, and three-tier stands down both sides under the house banners. It stays empty until the flying sport.
   - The **Ruins of Old Ravenmoor**, for the House War, are between the three roads. A breached wall surrounds a 120 × 110 court with tower stumps, the old keep's broken tower, a fallen colonnade and the three control points.
   - The **greenhouses**, for herb gathering, are south of the forest path near the village: three glasshouses, herb beds and a potting shed.
   - The **groundskeeper's hut** is across the path from Tobb at the forest edge: a stone cottage with a vegetable plot, a woodpile and a beast pen.
 
-  The zones report lists the greenhouses, the hut and half the ruins as inside today's unsafe Whisperwood zone. `--preview` renders a close-up of each, and two EEVEE pictures, `WorldPlan_vista_ruins.png` and `WorldPlan_vista_pitch.png`.
-- **Mountains and woods** (`terrain.py`) fill the open land. Knife-edged ridges and needle spires rise from 18 studs off every road and every area players walk: the village, the campus, the yard, the arena, the lake, the forest and each Castle Grounds landmark. They reach full height about 140 studs further on, and the tallest stand beyond the meadow's edge with snow on their peaks. The faces are coloured by height and slope: grass, moor and heather, scree, banded crags and snow. Round-canopy trees, about 5,000 of them, crowd the foot of the slopes and stand in woods across the meadow, never within 8 studs of a road or an area. Both are one mesh each, Mountains and Woods, in the Scenery collection. They are Blender only: in the game the ranges would be Terrain.
+The game's code follows the layout. `Config.Zones`, `Config.WorldBounds` and `Config.Waystones` cover the moved areas. `MonsterService`'s spawns, `DuelService`'s arena and `InteractionService`'s training dummies stand where their areas now are. `tools/validate_academy.py` moves the campus constants from `tools/academy.py` by the same 300 studs. Walking times against the layout before the move:
 
-With `--preview`, the plan also renders three EEVEE pictures through `rbx.beauty`: `WorldPlan_vista_academy.png` up the academy road, `WorldPlan_vista_west.png` over the forest and the western ranges, and `WorldPlan_vista_aerial.png`. They have a low sun behind the camera, a sky, distance haze and a ground mist that pools in the low land. The haze and the mist are two volumes, Air and Mist, in the Mist collection, which is hidden in the viewport and in the Workbench previews. Switch it on and use Rendered shading to see it in Blender. EEVEE takes a world volume to be endless and blacks out the sun, so haze must be an object like these. The terrain makes `WorldPlan.blend` about 15 MB, up from 2 MB.
-
-Each build prints walking times between the square, the academy gate, the west wing stair, the training yard, Tobb and the forest gate. The times are by road at 16 studs a second, with the straight-line time in brackets. The Waystones stand at the square, the gate and the forest gate. Some of this plan's times against the game's:
-
-| Walk | Today | Plan |
+| Walk | Before | Now |
 |---|---|---|
 | Square to academy gate | 10 s | 29 s |
 | Square to forest gate | 14 s | 32 s |
 | Academy gate to forest gate | 12 s | 37 s |
 | Training yard to Tobb | 12 s | 40 s |
 
-Change the numbers and run the script again to try another spacing.
+After changing the layout, rebuild the map and copy it into the place:
+
+```bash
+python tools/build.py --world-only
+```
+
+```bash
+python tools/sync_scripts.py --map
+```
+
+Then rebuild the ranges and import them again. Run `place_waystones.lua` again too, because a map sync brings back the slate stones.
 
 ## Conventions
 

@@ -95,8 +95,9 @@ def main():
         hits=[n for n,g in ground if overlap(houses[a],g)]
         assert not hits, f'{a} sits on {hits}'
     map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart'))
-    # The terraced academy campus (stairs, halls, towers, house quarters) takes the map to about 3,000 parts.
-    assert map_parts<=3300, f'Map has {map_parts} parts; the budget is 3300'
+    # The terraced academy campus (stairs, halls, towers, house quarters) takes the map to about 3,000 parts, and the
+    # long roads, their lamps and the Castle Grounds landmarks (tools/layout.py, tools/grounds.py) to about 4,100.
+    assert map_parts<=4400, f'Map has {map_parts} parts; the budget is 4400'
     # Night lights (Config.NightLights): every window pane can light up, all are glass by day, and every
     # lantern carries a light for WorldService to switch on.
     lights=[n for n in world.iter('Item') if n.get('class') in ('Part','WedgePart') and name_of(n) in ('Lit window','Lantern')]

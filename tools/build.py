@@ -8,7 +8,10 @@ import json
 import copy
 import sys
 from types import SimpleNamespace
+# Run as a script, this module is also `build` to tools/layout.py and tools/grounds.py, so they share its referent counter.
+if __name__ == '__main__': sys.modules['build'] = sys.modules['__main__']
 from academy import build_academy, LAMPS
+import layout
 from palette import *  # noqa: F401,F403 (world colour tokens)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,9 +86,10 @@ def label(parent, title, subtitle='', offset=4, distance=100):
 def model(parent,name):
     m=item(parent,'Model',name); prop(m,'token','ModelStreamingMode',1); return m
 
+# Anchors where the builders lay them out, beside the village; POINTS below are where tools/layout.py moves them.
 # Academy anchors sit 2.6 studs above their floor: the classroom wings are 20 studs up and the
 # Great Hall and Library 40 (tools/academy.py).
-POINTS={
+LAID_OUT={
     'Oakhart':(49,3,121),'Mirror':(85,43,-292),'Teacher_Hex':(10,23,-201),
     'Teacher_Ward':(10,23,-151),'Teacher_Charm':(10,23,-101),
     'Teacher_Restoration':(164,23,-201),'Teacher_Alteration':(164,23,-151),
@@ -95,6 +99,7 @@ POINTS={
     'HowlerDen':(-213,3,-76),'Rotbark':(-122,3,-87),'Vexweave':(-160,3,-183),
     'Waystone_Hollowmere':(90,3,157),'Waystone_Castle':(85,3,-48),'Waystone_Whisperwood':(-36,3,20),
 }
+POINTS=layout.moved_points(LAID_OUT)
 
 def npc(parent,name,pos,color):
     """An NPC standing on the floor 3 studs below pos (anchors on raised floors lift the NPC with them)."""
@@ -533,7 +538,7 @@ def make_world(workspace):
     part(lake,'Water',(218,0.1,123),(93,0.45,100),WATER,'Glass',shape=0,transparent=0.25,collide=False,query=False)
     part(lake,'Small island',(239,0.4,105),(20,1,18),MEADOW,shape=0)
     tree(lake,239,105,0.75)
-    build_academy(world,SimpleNamespace(part=part,model=model,sign=sign,light=light,glazing=glazing,tree=tree),POINTS)
+    build_academy(world,SimpleNamespace(part=part,model=model,sign=sign,light=light,glazing=glazing,tree=tree),LAID_OUT)
     # The original hall consumed 84 draws for floating candles. Keep the forest seed stable.
     for _ in range(84): RNG.random()
     # Forest clearings and low-poly vegetation.
@@ -578,14 +583,17 @@ def make_world(workspace):
     for school,(name,title) in teacher_titles.items(): names['Teacher_'+school]=(name,title,(76,101,120))
     for anchor,(name,title,color) in names.items():
         # NPCs stand behind prompts, leaving room to interact without getting stuck.
-        x,y,z=POINTS[anchor]; n=npc(people,name,(x,y,z-2.8),color)
+        x,y,z=LAID_OUT[anchor]; n=npc(people,name,(x,y,z-2.8),color)
         head=next(o for o in n.findall('Item') if o.find("Properties/string[@name='Name']").text=='Head')
         label(head,name,title,3,90)
     mirror=model(world,'Mirror of Choosing')
-    x,y,z=POINTS['Mirror']
+    x,y,z=LAID_OUT['Mirror']
     part(mirror,'Frame',(x,y+3,z-4),(9,12,1),GOLD,'Metal')
     p=part(mirror,'Mirror',(x,y+3,z-3.3),(7,10,0.3),(152,189,215),'Glass',transparent=0.2)
     label(p,'THE MIRROR OF CHOOSING','Courage · Loyalty · Wisdom · Ambition',8,90)
+    # Everything above stands where it was laid out; the layout moves the academy and the forest and lays what joins
+    # them. The Waystones and markers below stand at their moved points.
+    layout.lay(world)
     for key in ('Hollowmere','Castle','Whisperwood'):
         x,y,z=POINTS['Waystone_'+key]
         m=model(world,key+' Waystone'); p=part(m,'Stone',(x,3.5,z),(3,7,3),RUNESTONE,'Slate')

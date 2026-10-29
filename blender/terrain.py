@@ -1,8 +1,7 @@
-"""Mountain ranges and woods for a layout plan (blender/world/world_plan.py), built in Blender only to show how the
-land round Ravenmoor could rise and grow. The game has none of it yet: in Studio the ranges would be Terrain and the
-trees MeshParts.
+"""Mountain ranges and woods round Ravenmoor, as Roblox meshes: blender/models/ranges.py exports them for Studio,
+and blender/world/world.py shows them with the map.
 
-The ranges are one heightfield. Knife-edged ridges and needle spires climb out of the meadow wherever it is clear of
+The ranges are one heightfield, cut into tiles of under 20,000 triangles. Knife-edged ridges and needle spires climb out of the meadow wherever it is clear of
 what players walk, and tower over it from beyond its edge. Each face takes its colour from its height and slope:
 grass, then moor and heather, scree, crags in bands like strata, and snow on the highest peaks. Round-canopy trees
 crowd the foot of the slopes and stand in woods across the open meadow, never on a road. mist() lays a ground mist
@@ -118,46 +117,53 @@ def paint(h, up, x, z):
     return HILLSIDE
 
 
-def ranges(collection, land):
-    """The ranges as one mesh, Mountains, in `collection`. The meadow's flat land is left to the meadow, so only
-    faces that rise above it are made there. Returns the Heights, for woods()."""
-    heights = Heights(land)
-    mesh = rbx.Mesh('Mountains'); made = {}
+TILE = 96     # heightfield cells a side per mesh: at most 96 × 96 × 2 = 18,432 triangles, under Roblox's 20,000
+CHUNK = 300   # trees per mesh, at 64 triangles a tree
+REACH = 600   # studs a side of the squares the woods are gathered in, so each mesh is one stretch of land
 
-    def vert(i, j):
-        if (i, j) not in made:
-            x, h, z = heights.point(i, j)
-            made[i, j] = mesh.bm.verts.new(bl(x, h - SINK, z))
-        return made[i, j]
 
-    for i in range(heights.nx - 1):
-        for j in range(heights.nz - 1):
-            # Two triangles a quad, wound to face up in Blender's mirrored axes, split on alternate diagonals so the
-            # facets don't line up into stripes.
-            a, d, b, c = (i, j), (i, j + 1), (i + 1, j), (i + 1, j + 1)
-            for tri in ((a, d, c), (a, c, b)) if (i + j) % 2 else ((a, d, b), (d, c, b)):
-                (ax, ah, az), (bx, bh, bz), (cx, ch, cz) = (heights.point(*k) for k in tri)
-                mx, mz = (ax + bx + cx) / 3, (az + bz + cz) / 3
-                if max(ah, bh, ch) < 0.05 and land.outside(mx, mz) == 0: continue
-                n = Vector((bx - ax, bh - ah, bz - az)).cross(Vector((cx - ax, ch - ah, cz - az)))
-                rgba = (*(c / 255 for c in paint((ah + bh + ch) / 3, abs(n.y) / n.length, mx, mz)), 1.0)
-                face = mesh.bm.faces.new([vert(*k) for k in tri])
-                for loop in face.loops: loop[mesh.colour] = rgba
-    obj = mesh.finish(sharp=0)   # every edge hard: flat facets
-    for c in list(obj.users_collection): c.objects.unlink(obj)
-    collection.objects.link(obj)
-    return heights
+def ranges(land):
+    """The ranges as meshes 'Mountains i-j', one per TILE × TILE cells of the grid. The meadow's flat land is left
+    to the meadow, so only faces that rise above it are made there. Returns the Heights, for woods(), and the meshes."""
+    heights, tiles = Heights(land), []
+    for ti in range(0, heights.nx - 1, TILE):
+        for tj in range(0, heights.nz - 1, TILE):
+            mesh, made = rbx.Mesh(f'Mountains {ti // TILE + 1}-{tj // TILE + 1}'), {}
+
+            def vert(i, j):
+                if (i, j) not in made:
+                    x, h, z = heights.point(i, j)
+                    made[i, j] = mesh.bm.verts.new(bl(x, h - SINK, z))
+                return made[i, j]
+
+            for i in range(ti, min(ti + TILE, heights.nx - 1)):
+                for j in range(tj, min(tj + TILE, heights.nz - 1)):
+                    # Two triangles a quad, wound to face up in Blender's mirrored axes, split on alternate diagonals
+                    # so the facets don't line up into stripes.
+                    a, d, b, c = (i, j), (i, j + 1), (i + 1, j), (i + 1, j + 1)
+                    for tri in ((a, d, c), (a, c, b)) if (i + j) % 2 else ((a, d, b), (d, c, b)):
+                        (ax, ah, az), (bx, bh, bz), (cx, ch, cz) = (heights.point(*k) for k in tri)
+                        mx, mz = (ax + bx + cx) / 3, (az + bz + cz) / 3
+                        if max(ah, bh, ch) < 0.05 and land.outside(mx, mz) == 0: continue
+                        n = Vector((bx - ax, bh - ah, bz - az)).cross(Vector((cx - ax, ch - ah, cz - az)))
+                        rgba = (*(c / 255 for c in paint((ah + bh + ch) / 3, abs(n.y) / n.length, mx, mz)), 1.0)
+                        face = mesh.bm.faces.new([vert(*k) for k in tri])
+                        for loop in face.loops: loop[mesh.colour] = rgba
+            obj = mesh.finish(sharp=0)   # every edge hard: flat facets
+            if obj: tiles.append(obj)
+    return heights, tiles
 
 
 def tree(mesh, x, y, z, rng):
-    """A round-canopy tree standing on (x, y, z): a tapered trunk and two lumpy crowns in the FOLIAGE tones."""
+    """A round-canopy tree standing on (x, y, z): a tapered trunk and two lumpy crowns in the FOLIAGE tones, 64
+    triangles in all, so thousands stay light in Roblox."""
     s = rng.uniform(0.7, 1.35); trunk = 7 * s
     mesh.cylinder(0.8 * s, trunk + 1, bl(x, y + trunk / 2, z), TRUNK, top=0.55 * s, segments=5)
     r = rng.uniform(4.5, 6.5) * s
-    mesh.sphere(r, bl(x, y + trunk + r * 0.55, z), rng.choice(FOLIAGE), segments=8, scale=(1, 1, 0.8))
+    mesh.sphere(r, bl(x, y + trunk + r * 0.55, z), rng.choice(FOLIAGE), segments=6, scale=(1, 1, 0.8))
     r2 = r * rng.uniform(0.55, 0.75)
     ox, oz = rng.uniform(-0.5, 0.5) * r, rng.uniform(-0.5, 0.5) * r
-    mesh.sphere(r2, bl(x + ox, y + trunk + r * 0.95 + r2 * 0.3, z + oz), rng.choice(FOLIAGE), segments=8, scale=(1, 1, 0.85))
+    mesh.sphere(r2, bl(x + ox, y + trunk + r * 0.95 + r2 * 0.3, z + oz), rng.choice(FOLIAGE), segments=6, scale=(1, 1, 0.85))
 
 
 def shapes(count=10):
@@ -173,12 +179,13 @@ def shapes(count=10):
     return made
 
 
-def woods(collection, land, heights, spacing=10):
-    """Trees as one mesh, Woods, in `collection`: thick round the foot of the slopes and in woods across the
-    meadow, thinning higher up, and none near a road or an area, on crags or above the tree line. Each is one of
-    shapes(), turned and sized at random. Returns how many."""
+def woods(land, heights, spacing=10):
+    """Trees, thick round the foot of the slopes and in woods across the meadow, thinning higher up, and none near
+    a road or an area, on crags or above the tree line. Each is one of shapes(), turned and sized at random. They
+    are gathered by REACH-stud squares into meshes 'Woods i-j-k' of at most CHUNK trees. Returns the meshes and how
+    many trees."""
     rng, kinds = random.Random(SEED), shapes()
-    mesh, count = rbx.Mesh('Woods'), 0
+    stands = {}   # (i, j) square: [(x, y, z, kind, spin, size)]
     x0, x1, z0, z1 = land.meadow
     for gx in range(int(x0) - 150, int(x1) + 150, spacing):
         for gz in range(int(z0) - 150, int(z1) + 150, spacing):
@@ -189,17 +196,19 @@ def woods(collection, land, heights, spacing=10):
             wood = 0.5 + 0.5 * noise.noise(Vector((x / 170, z / 170, 4.2)))   # where the woods stand
             foot = smooth(h / 10) * (1 - smooth((h - 80) / 60))                # the foot of the slopes
             if rng.random() > 0.03 + 0.8 * wood ** 3 + 0.55 * foot: continue
-            points, faces = rng.choice(kinds)
-            spin, size, at = Matrix.Rotation(rng.uniform(0, math.tau), 3, 'Z'), rng.uniform(0.85, 1.15), bl(x, h - SINK - 0.4, z)
-            verts = [mesh.bm.verts.new(at + spin @ (p * size)) for p in points]
-            for corners, rgba in faces:
-                for loop in mesh.bm.faces.new([verts[k] for k in corners]).loops: loop[mesh.colour] = rgba
-            count += 1
-    obj = mesh.finish(sharp=40)
-    if obj:
-        for c in list(obj.users_collection): c.objects.unlink(obj)
-        collection.objects.link(obj)
-    return count
+            square = (int((x - x0 + 150) // REACH) + 1, int((z - z0 + 150) // REACH) + 1)
+            stands.setdefault(square, []).append((x, h - SINK - 0.4, z, rng.choice(kinds),
+                                                  Matrix.Rotation(rng.uniform(0, math.tau), 3, 'Z'), rng.uniform(0.85, 1.15)))
+    meshes = []
+    for (i, j), trees in sorted(stands.items()):
+        for k in range(0, len(trees), CHUNK):
+            mesh = rbx.Mesh(f'Woods {i}-{j}-{k // CHUNK + 1}')
+            for x, y, z, (points, faces), spin, size in trees[k:k + CHUNK]:
+                verts = [mesh.bm.verts.new(bl(x, y, z) + spin @ (p * size)) for p in points]
+                for corners, rgba in faces:
+                    for loop in mesh.bm.faces.new([verts[n] for n in corners]).loops: loop[mesh.colour] = rgba
+            meshes.append(mesh.finish(sharp=40))
+    return meshes, sum(len(t) for t in stands.values())
 
 
 def mist(collection, meadow):

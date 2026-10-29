@@ -60,11 +60,14 @@ def beam(mesh, p0, p1, normal, thick, width, colour):
 
 
 def replay():
-    """Run the map builder once, noting the arguments of every house, lamp, bench and planter it places."""
+    """Run the map builder once, noting the arguments of every house, lamp, bench and planter it places. Only the
+    village's own houses count: the groundskeeper's hut by the forest (tools/grounds.py) is a timber house too."""
     calls = {}
     for name in ('timber_house', 'lamp', 'bench', 'planter'):
-        def spy(*args, _real=getattr(build, name), _log=calls.setdefault(name, []), **kw):
-            _log.append(args[1:]); return _real(*args, **kw)
+        def spy(*args, _real=getattr(build, name), _log=calls.setdefault(name, []), _name=name, **kw):
+            if _name != 'timber_house' or args[0].findtext("Properties/string[@name='Name']") == 'Hollowmere':
+                _log.append(args[1:])
+            return _real(*args, **kw)
         setattr(build, name, spy)
     build.make_world(build.item(ET.Element('roblox'), 'Workspace', 'Workspace'))
     return calls

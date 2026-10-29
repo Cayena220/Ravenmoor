@@ -1,8 +1,8 @@
 """Castle Grounds landmarks from the design plan (docs/Original-design-plan.txt), blocked out in the build kit: the
 greenhouses where students gather herbs, the groundskeeper's hut, the Ruins of Old Ravenmoor where the House War is
 fought, and the flying pitch, empty at launch, for the flying sport to come. They are plain parts at full size, to
-walk and judge before any detail. A layout plan places them (blender/world/world_plan.py); the game has none of them
-yet.
+walk and judge before any detail. tools/layout.py stands them on the land between the village, the academy and the
+forest (GROUNDS).
 
 build() takes a landmark's name, its centre and the point on a road where its gravel path starts, which must line
 up with the landmark's entrance in x or z. Points are Roblox studs, (x, z) across the ground.
