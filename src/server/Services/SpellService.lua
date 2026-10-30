@@ -9,7 +9,7 @@ local S={}
 local function vector(v)
     return typeof(v)=="Vector3" and F.Finite(v.X) and F.Finite(v.Y) and F.Finite(v.Z)
 end
-function S:Init(services) self.S=services; self.Projectiles={}; self.Domes={}; self.Aims={}; self.SeenMessages={} end
+function S:Init(services) self.S=services; self.Projectiles={}; self.Domes={}; self.Aims={}; self.SeenMessages={}; self.Lances={} end
 function S:Reject(player,id,reason)
     if player.Parent then self.S.NetworkService.CastReply:FireClient(player,id,false,reason) end
 end
@@ -40,11 +40,12 @@ function S:Trace(player,origin,direction,radius,params)
         local ignore=params.FilterDescendantsInstances; ignore[#ignore+1]=target.Model; params.FilterDescendantsInstances=ignore
     end
 end
-function S:Impact(player,target,spell,spoken,scale,position)
+-- `lance` marks a spark lance's strike (Pour): Mirror Ward reflects only bolts, and only bolts feed Stormfork's Static.
+function S:Impact(player,target,spell,spoken,scale,position,lance)
     local C=self.S.CombatService
     if not C:CanDamage(player,target) then return end
     if player and self.S.DuelService:IsCounting(player) then return end
-    if spell.Type=="Projectile" and C:Has(target,"Speculo") and target.Player and player then
+    if spell.Type=="Projectile" and not lance and C:Has(target,"Speculo") and target.Player and player then
         target.Statuses.Speculo=nil
         local caster=C.States[player]
         if caster then self:Projectile(target.Player,spell,target.Root.Position+Vector3.new(0,1,0),(caster.Root.Position-target.Root.Position).Unit,spoken,true) end
@@ -60,7 +61,7 @@ function S:Impact(player,target,spell,spoken,scale,position)
     if spell.Element=="Fire" and target.MonsterId=="RotbarkSentinel" then amount=amount*1.5 end
     if not C:Damage(player,target,amount,spell) then return end
     if combo then self.S.ProgressionService:Combo(player,combo) end
-    if spell.Id=="Scintara" and target.MonsterId and Wands.Signature(data)=="Static" then self:Static(player,target,amount) end
+    if spell.Id=="Scintara" and not lance and target.MonsterId and Wands.Signature(data)=="Static" then self:Static(player,target,amount) end
     if target.Humanoid.Health<=0 or target.Dummy then return end
     if spell.Status then C:Status(target,spell.Status,F.Duration(spell,data),player,spell.Dps and F.Power(spell.Dps,data,spell,spoken) or 0) end
     if spell.Id=="Ruptara" and not C:Has(target,"Rooted") and target.Rank~="Boss" then self:Displace(target,position,-8) end
@@ -115,7 +116,7 @@ function S:Projectile(player,spell,origin,direction,spoken,reflected)
     local params=self:Params({state.Model,workspace.Markers})
     local p={Player=player,Spell=spell,Pos=origin,Dir=direction,Distance=0,Spoken=spoken,Params=params,Reflected=reflected,State=state}
     self.Projectiles[#self.Projectiles+1]=p
-    self.S.NetworkService.FX:FireAllClients("Projectile",origin,direction,spell.Id,spell.Speed,spell.Range)
+    self.S.NetworkService.FX:FireAllClients("Projectile",origin,direction,spell.Id,spell.Speed,spell.Range,player)
 end
 function S:HitProjectile(p,part,position)
     if p.Spell.Blast then self:Blast(p.Player,p.Spell,p.Spoken,position)
@@ -128,8 +129,78 @@ function S:HitProjectile(p,part,position)
     end
     self.S.NetworkService.FX:FireAllClients("Impact",position,p.Spell.Id)
 end
+-- Spark lance: Scintara held on the right mouse button (InputController). Lighting it costs Lance.Ignite mana and
+-- holding it drains Lance.Drain a second, both lowered by mana-cost bonuses as the bolt's cost is. Every Lance.Tick
+-- it strikes the first thing along the caster's aim (the Aim updates), up to Lance.Range studs, for Lance.Damage at
+-- the bolt's power. The player's ScintaraLance attribute is where the lance ends, so every client can draw it
+-- (EffectsController); it is nil while no lance pours.
+function S:Channel(player,on)
+    local C=self.S.CombatService; local s=C.States[player]
+    if not s then return end
+    if on~=true then if s.Lance then self:EndLance(player,s) end; return end
+    if s.Lance then return end
+    local spell=Spells.Scintara; local data=self.S.PlayerDataService:Get(player)
+    if not data or not data.HasWand or not data.Spells.Scintara then return self:Reject(player,"ScintaraLance","Learn this spell first.") end
+    if not C:CanAct(s) or C:Has(s,"Silenced") or s.FlySpeed or self.S.DuelService:IsCounting(player) then
+        return self:Reject(player,"ScintaraLance","You cannot cast right now.")
+    end
+    local now=os.clock()
+    if now<s.BusyUntil or now<(s.Cooldowns.ScintaraLance or 0) then return self:Reject(player,"ScintaraLance","Cooling down") end
+    local scale=player:GetAttribute("FreeCast") and 0 or F.ManaCost(spell,data)/spell.ManaCost
+    local ignite=spell.Lance.Ignite*scale
+    if s.Mana<ignite then return self:Reject(player,"ScintaraLance","Not enough mana") end
+    s.Mana=s.Mana-ignite; s.InvulnerableUntil=0
+    s.Lance={Scale=scale,Since=now,Look=0,Strike=now+spell.Lance.Tick}
+    self.Lances[player]=s
+end
+function S:EndLance(player,s,reason)
+    s.Lance=nil; self.Lances[player]=nil
+    player:SetAttribute("ScintaraLance",nil)
+    local cooldown=player:GetAttribute("FreeCast") and 0 or Spells.Scintara.Lance.Cooldown
+    s.Cooldowns.ScintaraLance=os.clock()+cooldown
+    if player.Parent then
+        self.S.NetworkService.CastReply:FireClient(player,"ScintaraLance",true,cooldown)
+        if reason then self:Reject(player,"ScintaraLance",reason) end
+    end
+end
+-- Each frame: drain the mana. Ten times a second: trace the aim and move the lance's end. Every Lance.Tick: strike.
+function S:Pour(player,s,dt,now)
+    local C=self.S.CombatService; local spell=Spells.Scintara; local lance=spell.Lance
+    if C.States[player]~=s or not player.Parent or not self.S.PlayerDataService:Get(player) or not C:CanAct(s)
+        or C:Has(s,"Silenced") or s.FlySpeed or s.DodgeAt>s.Lance.Since or self.S.DuelService:IsCounting(player) then
+        return self:EndLance(player,s)
+    end
+    local cost=lance.Drain*dt*s.Lance.Scale
+    if s.Mana<cost then return self:EndLance(player,s,"Out of mana") end
+    s.Mana=s.Mana-cost
+    if now<s.Lance.Look then return end
+    s.Lance.Look=now+0.1
+    local origin=s.Root.Position+Vector3.new(0,1.2,0)
+    local update=self.Aims[player]
+    local delta=update and update.Position-origin or Vector3.zero
+    local dir=delta.Magnitude>0.01 and delta.Unit or s.Root.CFrame.LookVector
+    local hit=self:Trace(player,origin,dir*lance.Range,lance.Radius,self:Params({s.Model,workspace.Markers}))
+    local reach=hit and (hit.Position-origin).Magnitude or lance.Range
+    -- A rival duellist's Bastion Dome stops the lance at its edge, as it stops bolts.
+    local blocked=false
+    for _,d in ipairs(self.Domes) do
+        if d.Player~=player and self.S.DuelService:CanDamage(player,d.Player) then
+            local along=(d.Pos-origin):Dot(dir); local miss=(origin+dir*along-d.Pos).Magnitude
+            local half=miss<10 and math.sqrt(100-miss*miss)
+            -- Where the lance enters the dome; a dome wholly behind the caster does not count.
+            if half and along+half>0 and along-half<reach then reach=math.max(0,along-half); blocked=true end
+        end
+    end
+    local endpoint=origin+dir*reach
+    player:SetAttribute("ScintaraLance",endpoint)
+    if now<s.Lance.Strike then return end
+    s.Lance.Strike=math.max(now,s.Lance.Strike+lance.Tick)
+    local target=not blocked and hit and C:Resolve(hit.Instance)
+    if target then self:Impact(player,target,spell,false,lance.Damage/spell.Damage,endpoint,true) end
+end
 function S:Step(dt)
     local now=os.clock()
+    for player,s in pairs(self.Lances) do self:Pour(player,s,dt,now) end
     for i=#self.Domes,1,-1 do if now>self.Domes[i].Until or not self.Domes[i].Player.Parent then table.remove(self.Domes,i) end end
     for i=#self.Projectiles,1,-1 do
         local p=self.Projectiles[i]
@@ -223,7 +294,7 @@ function S:Cast(player,id,aim,spoken)
     if not spell or not spell.Implemented or not data or not data.HasWand or not data.Spells[id] then return self:Reject(player,id,"Learn this spell first.") end
     local C=self.S.CombatService
     if not C:CanAct(s) or C:Has(s,"Silenced") or self.S.DuelService:IsCounting(player) then return self:Reject(player,id,"You cannot cast right now.") end
-    if (aim-s.Root.Position).Magnitude>1000 then return end
+    if s.Lance or (aim-s.Root.Position).Magnitude>1000 then return end
     if not spoken then
         local equipped=id=="Scintara"
         for _,value in pairs(data.Loadout) do if value==id then equipped=true end end
@@ -232,6 +303,8 @@ function S:Cast(player,id,aim,spoken)
     local now=os.clock()
     if now<s.BusyUntil or now<(s.Cooldowns[id] or 0) then return self:Reject(player,id,"Cooling down") end
     local cost=F.ManaCost(spell,data); local cooldown=F.Cooldown(spell,data)
+    -- Admin testing: the server sets FreeCast, so clients cannot grant it to themselves.
+    if player:GetAttribute("FreeCast") then cost,cooldown=0,0 end
     if s.Mana<cost then return self:Reject(player,id,"Not enough mana") end
     local castTime=spell.CastTime+(spoken and 0.3 or 0)
     s.Mana=s.Mana-cost; s.Cooldowns[id]=now+cooldown
@@ -251,6 +324,7 @@ function S:Spoken(player,text)
 end
 function S:Start()
     self.S.NetworkService:Bind("Cast",10,12,function(player,id,aim) self:Cast(player,id,aim,false) end)
+    self.S.NetworkService:Bind("Channel",6,8,function(player,on) self:Channel(player,on) end)
     self.S.NetworkService:Bind("Aim",12,15,function(player,aim)
         local root=self.S.WorldService:Root(player)
         if root and vector(aim) and (aim-root.Position).Magnitude<=500 then self.Aims[player]={Position=aim,Time=os.clock()} end
@@ -276,6 +350,6 @@ function S:Start()
         end
     end)
     task.spawn(function() while true do task.wait(30); for id,t in pairs(self.SeenMessages) do if os.clock()-t>30 then self.SeenMessages[id]=nil end end end end)
-    Players.PlayerRemoving:Connect(function(player) self.Aims[player]=nil end)
+    Players.PlayerRemoving:Connect(function(player) self.Aims[player]=nil; self.Lances[player]=nil end)
 end
 return S

@@ -50,8 +50,9 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 
 | Action | Keyboard / mouse | Gamepad | Touch |
 |---|---|---|---|
-| Spark Bolt | Left mouse; hold to repeat | RT | Scintara button |
-| Ward | Right mouse | LT | Ward button |
+| Spark Bolt: one bolt a click | Left mouse | RT | Scintara button |
+| Spark Lance: pours while held, 5 mana to light and 20 a second | Hold right mouse | Hold LT | Hold Lance button |
+| Ward | R | R3 | Ward button |
 | Spell slots | 1, 2, 3, 4 | X, Y, B, RB | Four spell buttons |
 | Dodge | Left Shift, or double-tap W/A/S/D | LB | Dodge button |
 | Broom: take off and land | F | D-pad Down | Broom button |
@@ -61,11 +62,16 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Bag (wands and items) | B | D-pad Left | Bag tab in spellbook |
 | Map | M | D-pad Right | Waystone prompt |
 | Free cursor / aim lock | Left Ctrl | Default camera | Default camera |
+| First person | V, or scroll all the way in | Right stick zoom | Pinch zoom |
+| Admin panel (Studio, or the experience owner) | P, or the ADMIN button | — | ADMIN button |
 | Interact | Prompt, usually E | Prompt, usually X | Tap prompt |
 | Gesture lesson | Drag one stroke | Hold RT + left stick, X to submit | Drag one stroke |
 
 In the spellbook, click **1–4** beneath a learned spell to equip it. Ward spells
-also offer **Ward** for the right-mouse / LT ward slot. Basic Spark Bolt stays bound.
+also offer **Ward** for the R / R3 ward slot. Scintara stays bound to both mouse buttons:
+click for a spark bolt, or hold the right button for the spark lance. The lance strikes
+what you aim at for 5 damage every 0.2 s, up to 60 studs, slows you while it pours and
+stops when you let go or run out of mana.
 Spell controls pause while a menu or text box has focus.
 
 Spoken casting recognizes an exact learned incantation in general chat, such as

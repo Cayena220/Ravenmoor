@@ -431,8 +431,11 @@ for i, (clip, frame, label) in enumerate((('CharacterWalk', 0, 'Walk'), ('Charac
 BROOMS_AT = (PAD[0] + 8, PAD[2] + 9)
 seat = ground_at(*BROOMS_AT, PAD[1] + 1) + ROOT_HEIGHT
 place(append('Brooms.blend'), (BROOMS_AT[0], seat, BROOMS_AT[1]), 0.0, showcase)
-# A mannequin riding Ashwind, its root 1.35 studs over the seat as FlightService welds it (BroomData's SeatDrop).
-pose(showcase, rig, body, 'CharacterBroomRide', 0, (BROOMS_AT[0], seat + 1.35, BROOMS_AT[1]), 'Mannequin Broom ride')
+# A mannequin on each broom in that broom's own ride, its root 1.35 studs over the seat as FlightService welds it
+# (BroomData's SeatDrop). brooms.py lays the brooms out 3.2 studs apart in this order.
+for k, (broom, frame) in enumerate((('Ashwind', 18), ('Swiftquill', 0), ('Stoutbough', 0), ('Nightwing', 12))):
+    pose(showcase, rig, body, 'CharacterBroomRide' + broom, frame, (BROOMS_AT[0] - 3.2 * k, seat + 1.35, BROOMS_AT[1]),
+         'Mannequin ' + broom)
 bpy.context.scene.frame_set(0)
 
 rbx.viewport(bl(88, 0, 150), 240, turn=(55, 0, 153))

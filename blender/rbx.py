@@ -285,7 +285,6 @@ def export(name, objects, animation=False, preview_frames=None, auto_preview=Tru
 
 def preview(name, meshes, frames):
     """Render exports/<name>.png from the front right, framed around the meshes across `frames`."""
-    import numpy as np
     sc = bpy.context.scene; pts = []
     for f in frames:
         sc.frame_set(f); depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -294,8 +293,16 @@ def preview(name, meshes, frames):
     lo, hi = Vector(map(min, zip(*pts))), Vector(map(max, zip(*pts)))
     centre, radius = (lo + hi) / 2, max((hi - lo).length / 2, 0.5)
     view = Vector((0.7, -1.0, 0.65)).normalized()   # from the front right and above; the front faces -Y
-    _camera(centre + view * radius * 3.0, centre)   # 3 radii fits the bounding sphere in a 50 mm lens
-    _look((640, 640) if len(frames) == 1 else (480, 480))
+    # 3 radii fits the bounding sphere in a 50 mm lens
+    strip(name, frames, centre + view * radius * 3.0, centre, resolution=(640, 640) if len(frames) == 1 else (480, 480))
+
+
+def strip(name, frames, eye, target, lens=50, resolution=(480, 480)):
+    """Render exports/<name>.png from `eye` looking at `target`, in Blender coordinates: a still of one frame, or
+    each of `frames` side by side, left to right. `lens` is in millimetres on a 36 mm wide sensor."""
+    import numpy as np
+    sc = bpy.context.scene
+    _camera(eye, target, lens); _look(resolution)
     out = EXPORTS / f'{name}.png'; shots = []
     try:
         for f in frames:

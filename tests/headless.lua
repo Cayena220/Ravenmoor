@@ -34,6 +34,9 @@ check(F.Elo(1000,1000,0,1)==1024,"placement Elo"); check(F.Elo(1000,1000,10,0)==
 local count,implemented=0,0
 for _,spell in pairs(spells) do count=count+1; if spell.Implemented then implemented=implemented+1; check(spell.UnlockLevel<=20,"launch spell gate") end end
 check(count==29,"29 reference spells"); check(implemented==19,"19 executable spells")
+-- Every spell but Spark Bolt is cast with one of blender/animations/casting.py's gestures; Scintara's are its own.
+local gestures={Lash=1,Thrust=1,Hurl=1,Zap=1,Pull=1,Uplift=1,Chop=1,Lull=1,Ward=1,Dome=1,Swirl=1,Mend=1,Twist=1}
+for id,spell in pairs(spells) do check((id=="Scintara" and spell.Motion==false) or gestures[spell.Motion]~=nil,"a cast gesture for "..id) end
 for _,case in ipairs({{0,1},{24,1},{25,2},{74,2},{75,3},{149,3},{150,4},{299,4},{300,5}}) do check(F.Mastery(case[1])==case[2],"mastery threshold") end
 check(not F.Finite(0/0),"reject NaN"); check(not F.Finite(math.huge),"reject infinity"); check(not F.Finite("1"),"reject string")
 local data={Level=10,House="",Attributes={Power=10,Focus=0,Vitality=0,Agility=0,Unspent=0},Spells={Flamara={Mastery=2}},Loadout={Slot1="Flamara"}}
@@ -101,7 +104,7 @@ local profileData={}
 local deps={NetworkService=N,DuelService=duel,PlayerDataService={Get=function(_,p) return profileData[p] end},
     MonsterService={Killed=fire},ProgressionService={Hit=fire,Event=fire}}
 C:Init(deps); deps.CombatService=C
-local player={Parent=true,UserId=7}; local other={Parent=true,UserId=9}
+local player={Parent=true,UserId=7,Attributes={},GetAttribute=function(self,key) return self.Attributes[key] end}; local other={Parent=true,UserId=9}
 local function target(p)
     return {Player=p,Model={Parent=true},Humanoid={Health=110,MaxHealth=110},Root={Position=Vector3.zero},Statuses={},Shield=0,LastCombat=-100}
 end
@@ -143,6 +146,11 @@ S:Cast(player,"Flamara",Vector3.new(0,0,20),true); check(state.Mana==100,"spoken
 data.Settings.SpokenCasting=true; state.Statuses.Silenced={Until=os.clock()+5}
 S:Cast(player,"Flamara",Vector3.new(0,0,20),false); check(state.Mana==100,"silence enforced")
 state.Statuses={}
+-- Admin free casting (a server-set attribute): no mana cost, no cooldown.
+player.Attributes.FreeCast=true; state.Mana=14
+S:Cast(player,"Flamara",Vector3.new(0,0,20),false)
+check(state.Mana==14 and state.Cooldowns.Flamara<=os.clock(),"free casting skips mana and cooldown")
+player.Attributes.FreeCast=nil; state.Mana=100; state.Cooldowns={}; state.BusyUntil=0
 
 -- Named wand signatures.
 local rnd=math.random; math.random=function() return 0.99 end
@@ -179,6 +187,48 @@ check(state.Mana==56 and state.Humanoid.Health>40,"Sapflow refunds 6 mana")
 state.Mana=98; state.Humanoid.Health=40; S:Execute(player,spells.Vitara,Vector3.new(0,0,20),false); check(state.Mana==100,"Sapflow refund caps at max mana")
 data.Wands={rare}; state.Mana=50; state.Humanoid.Health=40; S:Execute(player,spells.Vitara,Vector3.new(0,0,20),false)
 check(state.Mana==50,"no Sapflow without Hearthroot")
+-- Spark lance: Scintara poured while the right mouse button is held.
+math.random=function() return 0.99 end
+data.Spells.Scintara={Mastery=1}; player.SetAttribute=function(self,key,value) self.Attributes[key]=value end
+state.DodgeAt=-100; S.Aims[player]={Position=Vector3.new(0,1.2,30),Time=os.clock()}
+local lanced=mob(0); lanced.Root={Position=Vector3.new(0,1.2,20)}
+workspace.Spherecast=function() return {Instance=lanced.Model,Position=Vector3.new(0,1.2,19)} end
+state.Cooldowns={}; state.BusyUntil=0; state.Mana=100
+S:Channel(player,true); check(state.Mana==95 and state.Lance~=nil,"lighting the lance costs 5 mana")
+S:Channel(player,true); check(state.Mana==95,"a lit lance does not light again")
+S:Cast(player,"Scintara",Vector3.new(0,0,20),false); check(state.Mana==95,"no bolt while the lance pours")
+local strike=F.Power(10,data,spells.Scintara,false)*0.5
+S:Step(0.1); check(near(state.Mana,93),"the lance drains 20 mana a second")
+check(player.Attributes.ScintaraLance and near(player.Attributes.ScintaraLance.Z,19),"the lance ends where it strikes")
+check(lanced.Humanoid.Health==110,"no strike before the first tick")
+state.Lance.Strike=0; state.Lance.Look=0; S:Step(0.05)
+check(near(lanced.Humanoid.Health,110-strike),"a lance strike hits for half a bolt")
+state.Mana=0.5; S:Step(0.1)
+check(state.Lance==nil and player.Attributes.ScintaraLance==nil,"the lance goes out with the mana")
+check(state.Cooldowns.ScintaraLance>os.clock(),"a spent lance cools down")
+state.Mana=100; S:Channel(player,true); check(state.Lance==nil and state.Mana==100,"no lance while it cools down")
+state.Cooldowns={}; state.Mana=4; S:Channel(player,true); check(state.Lance==nil and state.Mana==4,"no lance without 5 mana")
+state.Mana=100; S:Channel(player,true); S:Channel(player,false)
+check(state.Lance==nil and state.Cooldowns.ScintaraLance>os.clock(),"letting go ends the lance")
+state.Cooldowns={}; S:Channel(player,true); state.DodgeAt=os.clock()+1; S:Step(0.05); check(state.Lance==nil,"a dodge ends the lance")
+state.DodgeAt=-100; player.Attributes.FreeCast=true; state.Cooldowns={}; state.Mana=0
+S:Channel(player,true); S:Step(0.1); check(state.Lance~=nil and state.Mana==0,"free casting pours the lance for nothing")
+S:Channel(player,false); check(state.Cooldowns.ScintaraLance<=os.clock(),"free casting skips the lance's cooldown")
+player.Attributes.FreeCast=nil
+data.Wands={storm}; data.EquippedWand=1; state.StaticHits=0
+local first,second=mob(300),mob(305)
+for _=1,4 do S:Impact(player,first,spells.Scintara,false,0.5,Vector3.zero,true) end
+check(second.Humanoid.Health==110,"lance strikes do not feed Static")
+duel.allowed=true; S.Domes={{Player=other,Pos=Vector3.new(0,1.2,-30),Until=os.clock()+5}}
+lanced.Humanoid.Health=110; state.Cooldowns={}; state.Mana=100; S:Channel(player,true); state.Lance.Strike=0; S:Step(0.05)
+check(near(lanced.Humanoid.Health,110-strike),"a rival's dome behind the caster does not stop the lance")
+S.Domes[1].Pos=Vector3.new(0,1.2,12); state.Lance.Strike=0; state.Lance.Look=0; S:Step(0.05)
+check(near(lanced.Humanoid.Health,110-strike) and near(player.Attributes.ScintaraLance.Z,2),"a rival's dome in the way stops the lance at its edge")
+S:Channel(player,false); S.Domes={}
+local mirrored=target(other); mirrored.Statuses.Speculo={Until=os.clock()+1}
+S:Impact(player,mirrored,spells.Scintara,false,0.5,Vector3.zero,true)
+check(C:Has(mirrored,"Speculo") and mirrored.Humanoid.Health<110,"Mirror Ward does not turn the lance")
+duel.allowed=false; workspace.Spherecast=nil; S.Aims={}; math.random=rnd; state.Cooldowns={}
 data.Wands=nil; data.EquippedWand=nil; state.Humanoid.Health=110; state.Mana=100; C.Targets={}
 
 local M=require(ROOT.."/src/server/Services/MonsterService.lua"); M:Init(deps)
@@ -371,7 +421,7 @@ do
     local rs=folder("RS")
     game={GetService=function(_,name) assert(name=="ReplicatedStorage"); return rs end}
     script={Parent=folder("PlayerScripts")}
-    local order={"UIController","EffectsController","InputController","FlightController"}
+    local order={"UIController","EffectsController","InputController","AdminController","FlightController"}
     local initialized,started,loaded={},{},{}
     local calls={}
     local modules={}
@@ -400,8 +450,8 @@ do
         ok,waiting=coroutine.resume(client)
         check(ok,"delayed client startup failed: "..tostring(waiting))
     end
-    check(started.UIController and started.InputController and started.EffectsController and started.FlightController,
-        "UI, inventory inputs, effects and broom flight all start")
+    check(started.UIController and started.InputController and started.EffectsController and started.AdminController and started.FlightController,
+        "UI, inventory inputs, effects, the admin panel and broom flight all start")
     check(table.concat(calls,",")==table.concat(order,","),"UI starts before input and effects")
     game,script,require=oldGame,oldScript,oldRequire
 end
@@ -588,30 +638,43 @@ do
     local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
     local enum=setmetatable({},{__index=function(t,k) rawset(t,k,k); return k end})
     Enum={UserInputType=enum,KeyCode=enum,UserInputState=enum,ContextActionResult=enum,ContextActionPriority={High={Value=3000}},RenderPriority={Camera={Value=200}}}
-    local bindings={}
-    local cas={BindAction=function(_,name,fn) bindings[name]=fn end,BindActionAtPriority=function(_,name,fn) bindings[name]=fn end}
+    local bindings,keys={},{}
+    local cas={BindAction=function(_,name,fn) bindings[name]=fn end,BindActionAtPriority=function(_,name,fn,_,_,...) bindings[name]=fn; keys[name]={...} end}
     local focused=false
     local uis={GetFocusedTextBox=function() return focused end,GetMouseLocation=function() return {X=0,Y=0} end,
         InputBegan=signal(),TextBoxFocused=signal(),TextBoxFocusReleased=signal(),WindowFocusReleased=signal()}
-    local player={PlayerGui={GetGuiObjectsAtPosition=function() return {} end},CharacterAdded=signal()}
+    local player={PlayerGui={GetGuiObjectsAtPosition=function() return {} end},CharacterAdded=signal(),GetAttribute=function() return nil end}
     local prompts={PromptShown=signal(),PromptHidden=signal()}
     local services={Players={LocalPlayer=player},ReplicatedStorage={},UserInputService=uis,ContextActionService=cas,RunService={BindToRenderStep=function() end},ProximityPromptService=prompts}
     game={GetService=function(_,name) return services[name] end}
     local input=dofile(ROOT.."/src/client/Controllers/InputController.lua")
-    local ui={Menu=nil,IsOpen=function(self) return self.Menu~=nil end,Close=function(self) self.Menu=nil end,Show=function(self,menu) self.Menu=menu end}
-    input:Init({UIController=ui}); input.CameraMode=function() end
+    local toast
+    local ui={Menu=nil,Data={HasWand=true},Cooldowns={},IsOpen=function(self) return self.Menu~=nil end,Close=function(self) self.Menu=nil end,
+        Show=function(self,menu) self.Menu=menu end,Toast=function(_,message) toast=message end}
+    local channel,starts,stops={},0,0
+    local effects={LanceStart=function() starts=starts+1 end,LanceStop=function() stops=stops+1 end}
+    services.ReplicatedStorage.Remotes={Channel={FireServer=function(_,on) channel[#channel+1]=on end},Aim={FireServer=function() end}}
+    input:Init({UIController=ui,EffectsController=effects}); input.CameraMode=function() end; input.Aim=function() return nil end
     local casts=0; input.UseSlot=function() casts=casts+1 end
     input:Start()
+    local function has(list,key) for _,k in ipairs(list) do if k==key then return true end end; return false end
+    check(has(keys.Wandbound_Lance,"MouseButton2") and has(keys.Wandbound_Lance,"ButtonL2") and has(keys.Wandbound_Ward,"R")
+        and has(keys.Wandbound_Ward,"ButtonR3") and not has(keys.Wandbound_Ward,"MouseButton2"),"the lance takes RMB and LT; Ward moves to R and R3")
     local mouse={UserInputType=Enum.UserInputType.MouseButton1}
+    local right={UserInputType=Enum.UserInputType.MouseButton2}
     local pad={UserInputType="Gamepad1"}
-    local basic=bindings.Wandbound_Basic
-    basic(nil,"Begin",pad); check(input.Holding and casts==1,"trigger begins held casting")
-    basic(nil,"Change",pad); check(input.Holding and casts==1,"analog changes preserve hold without duplicate casts")
-    basic(nil,"End",pad); check(not input.Holding,"trigger release stops casting")
-    basic(nil,"Begin",mouse); basic(nil,"Cancel",mouse); check(not input.Holding,"cancel stops held casting")
-    basic(nil,"Begin",mouse); uis.WindowFocusReleased.Callback(); check(not input.Holding,"window focus loss stops casting")
-    basic(nil,"Begin",mouse); uis.TextBoxFocused.Callback(); check(not input.Holding,"typing stops held casting")
-    input:ToggleMenu("Bag"); check(ui.Menu=="Bag" and not input.Holding,"bag hotkey opens bag")
+    local basic,lance=bindings.Wandbound_Basic,bindings.Wandbound_Lance
+    basic(nil,"Begin",pad); check(casts==1 and not input.Lancing,"a trigger pull casts one bolt")
+    basic(nil,"Change",pad); basic(nil,"End",pad); check(casts==1,"holding the trigger casts no more bolts")
+    lance(nil,"Begin",right); check(input.Lancing and channel[1]==true and starts==1,"right mouse lights the lance")
+    lance(nil,"Change",right); check(#channel==1,"holding the button sends nothing more")
+    lance(nil,"End",right); check(not input.Lancing and channel[2]==false and stops==1,"letting go ends the lance")
+    lance(nil,"Begin",pad); lance(nil,"Cancel",pad); check(not input.Lancing,"cancel ends the lance")
+    lance(nil,"Begin",right); uis.WindowFocusReleased.Callback(); check(not input.Lancing,"window focus loss ends the lance")
+    lance(nil,"Begin",right); uis.TextBoxFocused.Callback(); check(not input.Lancing,"typing ends the lance")
+    ui.Cooldowns.ScintaraLance=os.clock()+5; lance(nil,"Begin",right); check(not input.Lancing,"no lance while it cools down"); ui.Cooldowns={}
+    ui.Data.HasWand=false; lance(nil,"Begin",right); check(not input.Lancing and toast:find("Oakhart"),"no lance without a wand"); ui.Data.HasWand=true
+    lance(nil,"Begin",right); input:ToggleMenu("Bag"); check(ui.Menu=="Bag" and not input.Lancing,"bag hotkey opens bag and ends the lance")
     input:ToggleMenu("Spells"); check(ui.Menu=="Spells","different menu hotkey switches directly")
     input:ToggleMenu("Spells"); check(ui.Menu==nil,"same menu hotkey closes menu")
     focused=true
@@ -619,7 +682,8 @@ do
     local before=casts
     check(basic(nil,"Begin",mouse)=="Pass" and casts==before,"typing blocks casting")
     focused=false; ui.Menu="Bag"
-    check(basic(nil,"Begin",pad)=="Pass" and casts==before and not input.Holding,"menu blocks casting and passes gamepad input")
+    check(basic(nil,"Begin",pad)=="Pass" and casts==before,"menu blocks casting and passes gamepad input")
+    check(lance(nil,"Begin",pad)=="Pass" and not input.Lancing,"menu blocks the lance")
     ui.Menu=nil
     local prompt={Parent={},Enabled=true,GamepadKeyCode=Enum.KeyCode.ButtonX}
     local interact={UserInputType="Gamepad1",KeyCode=Enum.KeyCode.ButtonX}
@@ -636,4 +700,4 @@ do
     prompt.Enabled=true; prompt.Parent=nil
     slot(nil,"Begin",interact); check(casts==before+4,"removed prompts do not block spells")
 end
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing).")
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing).")

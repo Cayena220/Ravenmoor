@@ -4,7 +4,7 @@ local N = {}
 function N:Init(services)
     self.S = services; self.Buckets = {}; self.Handlers = {}
     self.Folder = Instance.new("Folder"); self.Folder.Name = "Remotes"; self.Folder.Parent = RS
-    for _, name in ipairs({"Cast", "Action", "Gesture", "Profile", "State", "UI", "CastReply"}) do
+    for _, name in ipairs({"Cast", "Channel", "Action", "Gesture", "Profile", "State", "UI", "CastReply"}) do
         local r = Instance.new("RemoteEvent"); r.Name = name; r.Parent = self.Folder; self[name] = r
     end
     for _, name in ipairs({"Aim", "FX"}) do

@@ -32,9 +32,11 @@ local function button(parent,txt,callback,props)
     for k,v in pairs(props or {}) do p[k]=v end
     local b=make("TextButton",parent,p); corner(b,7); b.Activated:Connect(callback); return b
 end
+-- Shared with other controllers (the admin panel) so their menus match this one.
+U.Kit={make=make,corner=corner,stroke=stroke,text=text,button=button,palette=palette}
 function U:Init(controllers)
     self.C=controllers; self.Player=Players.LocalPlayer; self.Remotes=RS.Remotes; self.Data=nil; self.State={}; self.Cooldowns={}; self.Menu=nil
-    self.SpellSlots={"Basic","Slot1","Slot2","Slot3","Slot4","Ward","Dodge","Broom"}; self.Buttons={}; self.TraceConnections={}
+    self.SpellSlots={"Basic","Lance","Slot1","Slot2","Slot3","Slot4","Ward","Dodge","Broom"}; self.Buttons={}; self.TraceConnections={}
 end
 function U:Action(action,a,b) self.Remotes.Action:FireServer(action,a,b) end
 function U:IsOpen() return self.Panel.Visible end
@@ -49,7 +51,7 @@ function U:Close()
     if self.C.InputController then self.C.InputController:CameraMode() end
 end
 function U:Open(title,menu)
-    self:Close(); if self.C.InputController then self.C.InputController.Holding=false end; self.Menu=menu; self.Panel.Visible=true; self.PanelTitle.Text=title
+    self:Close(); if self.C.InputController then self.C.InputController:Lance(false) end; self.Menu=menu; self.Panel.Visible=true; self.PanelTitle.Text=title
     for _,child in ipairs(self.Body:GetChildren()) do if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end end
     self.Body.CanvasPosition=Vector2.zero
     if self.C.InputController then self.C.InputController:CameraMode() end
@@ -109,7 +111,7 @@ function U:SkillTree()
 end
 function U:Spellbook()
     self:Open("THE RAVENMOOR SPELLBOOK", "Spells"); self:Tabs()
-    self:Paragraph("Select a learned spell, then choose a slot. The Ward button assigns your right-mouse / LT slot. Type a learned incantation in chat for +10% power.",58)
+    self:Paragraph("Select a learned spell, then choose a slot. The Ward button assigns your R / R3 slot. Scintara is always on the left mouse button: click for a spark bolt, or hold the right mouse button to pour a spark lance. Type a learned incantation in chat for +10% power.",76)
     local list={}; for _,s in pairs(Spells) do list[#list+1]=s end
     table.sort(list,function(a,b) if a.UnlockLevel==b.UnlockLevel then return a.Id<b.Id end return a.UnlockLevel<b.UnlockLevel end)
     for _,s in ipairs(list) do
@@ -133,6 +135,7 @@ function U:Show(menu)
     if not self.Data then return self:Toast("Opening your student record…") end
     if menu=="Spells" then return self:Spellbook() end
     if menu=="Map" then return self:Map() end
+    if menu=="Admin" then return self.C.AdminController and self.C.AdminController:Render() end
     self:Open(string.upper(menu),menu); self:Tabs()
     local d=self.Data
     if menu=="Skills" then self:SkillTree()
@@ -179,7 +182,7 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
-        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock\nF broom · Space climbs · Q dives\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
+        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -323,9 +326,18 @@ function U:Build()
     end
     self.Hotbar=make("Frame",self.Root,{BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-18),Size=UDim2.fromOffset(#self.SpellSlots*80,72)})
     for i,slot in ipairs(self.SpellSlots) do
-        local b=button(self.Hotbar,slot,function() if self.C.InputController then self.C.InputController:UseSlot(slot) end end,
+        local b=button(self.Hotbar,slot,function() if self.C.InputController and slot~="Lance" then self.C.InputController:UseSlot(slot) end end,
             {Size=UDim2.fromOffset(72,68),Position=UDim2.fromOffset((i-1)*80,0),BackgroundColor3=palette.Ink,TextColor3=palette.White,TextSize=12})
         stroke(b,palette.Gold,0.35); self.Buttons[slot]=b
+        -- The lance pours while the button is held, as the right mouse button does.
+        if slot=="Lance" then
+            b.InputBegan:Connect(function(input)
+                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(true) end
+            end)
+            b.InputEnded:Connect(function(input)
+                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(false) end
+            end)
+        end
     end
     self.ToastFrame=make("Frame",self.Root,{AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,64),Size=UDim2.new(0.6,0,0,56),BackgroundColor3=palette.Ink,BorderSizePixel=0,Visible=false,ZIndex=7}); corner(self.ToastFrame); stroke(self.ToastFrame)
     self.ToastLabel=text(self.ToastFrame,"",15,palette.White,{Size=UDim2.new(1,-20,1,0),Position=UDim2.fromOffset(10,0),TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=8})
@@ -351,7 +363,7 @@ function U:Layout()
     self.StatFrame.Size=UDim2.fromOffset(mobile and 180 or 235,95)
     self.StatFrame.Position=UDim2.new(0,22,1,mobile and -270 or -200)
     if mobile then
-        self.Hotbar.Size=UDim2.fromOffset(292,144); self.Hotbar.Position=UDim2.new(1,-14,1,-83); self.Hotbar.AnchorPoint=Vector2.new(1,1)
+        self.Hotbar.Size=UDim2.fromOffset(292,math.ceil(#self.SpellSlots/4)*74-4); self.Hotbar.Position=UDim2.new(1,-14,1,-83); self.Hotbar.AnchorPoint=Vector2.new(1,1)
         for i,slot in ipairs(self.SpellSlots) do self.Buttons[slot].Size=UDim2.fromOffset(66,66); self.Buttons[slot].Position=UDim2.fromOffset(((i-1)%4)*74,math.floor((i-1)/4)*74) end
     else
         self.Hotbar.Size=UDim2.fromOffset(#self.SpellSlots*80,72); self.Hotbar.Position=UDim2.new(0.5,0,1,-18); self.Hotbar.AnchorPoint=Vector2.new(0.5,1)
@@ -364,13 +376,14 @@ function U:UpdateHUD()
         local q=Quests[d.Quest]
         self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
         self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
-        local keys={Basic="LMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="RMB",Dodge="SHIFT",Broom="F"}
-        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="LT",Dodge="LB",Broom="DOWN"} end
+        local keys={Basic="LMB",Lance="RMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="R",Dodge="SHIFT",Broom="F"}
+        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Lance="LT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="R3",Dodge="LB",Broom="DOWN"} end
         local flying=self.Player:GetAttribute("Broom")~=nil
         for _,slot in ipairs(self.SpellSlots) do
-            local id=slot=="Basic" and "Scintara" or d.Loadout[slot]
+            local id=slot=="Basic" and "Scintara" or slot=="Lance" and "ScintaraLance" or d.Loadout[slot]
             local remaining=math.max(0,(id and self.Cooldowns[id] or 0)-os.clock())
-            local name=slot=="Dodge" and "Dodge" or slot=="Broom" and (flying and "Land" or "Broom") or (id and id~="" and id or "Empty")
+            local name=slot=="Dodge" and "Dodge" or slot=="Broom" and (flying and "Land" or "Broom") or slot=="Lance" and "Lance"
+                or (id and id~="" and id or "Empty")
             self.Buttons[slot].Text=(UIS.TouchEnabled and "" or keys[slot].."\n")..name..(remaining>0 and string.format("\n%.1fs",remaining) or "")
             self.Buttons[slot].TextColor3=remaining>0 and palette.Muted or palette.White
         end
@@ -408,7 +421,7 @@ function U:Start()
     self:Build(); self:Layout(); self.Root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() self:Layout() end)
     self.Remotes.Profile.OnClientEvent:Connect(function(data)
         self.Data=data
-        if self.Menu and ({Spells=true,Skills=true,Journal=true,Bag=true,Settings=true,Bank=true,Shop=true,House=true,Library=true,Wandery=true})[self.Menu] then
+        if self.Menu and ({Spells=true,Skills=true,Journal=true,Bag=true,Settings=true,Bank=true,Shop=true,House=true,Library=true,Wandery=true,Admin=true})[self.Menu] then
             -- Re-render in place: keep the scroll position once the new layout has been measured.
             local menu=self.Menu; local scroll=self.Body.CanvasPosition; self:Show(menu)
             task.spawn(function() Run.RenderStepped:Wait(); if self.Menu==menu then self.Body.CanvasPosition=scroll end end)

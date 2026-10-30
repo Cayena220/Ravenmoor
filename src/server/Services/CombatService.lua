@@ -3,6 +3,7 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local Config = require(Shared.Config)
 local F = require(Shared.Formulas)
 local Wands = require(Shared.WandData)
+local Spells = require(Shared.SpellData)
 local C = {}
 local CC = {Silenced=true,Rooted=true,Airborne=true,Asleep=true,Stunned=true}
 function C:Init(services) self.S = services; self.States = {}; self.Targets = {} end
@@ -195,6 +196,7 @@ function C:Tick(dt)
                 if self:Has(s,"Chilled") then factor=factor*0.7 end
                 if self:Has(s,"Durassa") then factor=factor*0.8 end
                 if self:Has(s,"Velocis") then factor=factor*1.35 end
+                if s.Lance then factor=factor*Spells.Scintara.Lance.Slow end
                 if self:Has(s,"Rooted") or not self:CanAct(s) or self.S.DuelService:IsCounting(s.Player) then factor=0 end
                 s.Humanoid.WalkSpeed=s.BaseSpeed*factor
                 s.Humanoid.JumpPower=factor==0 and 0 or 50

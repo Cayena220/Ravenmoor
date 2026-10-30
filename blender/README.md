@@ -7,8 +7,11 @@ blender/rbx.py            Helpers: shapes, vertex colours, rigs, keyframes, Robl
 blender/terrain.py        Mountain ranges, woods and ground mist, as Roblox meshes
 blender/models/           One script per static model (cauldron.py, waystone.py, the four flying brooms in brooms.py, the
                           whole village in hollowmere.py, and the mountain ranges and woods round the world in ranges.py)
-blender/animations/       One script per rigged model and its animations (spellbook.py, character.py)
-blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py)
+blender/animations/       One script per rigged model and its animations (spellbook.py, character.py, and every other
+                          spell's wand gesture in casting.py)
+blender/r15.py            The R15 avatar rig and the tools for posing it, for casting.py (character.py has its own copy)
+blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py,
+                          scintara.py)
 blender/world/            world.py: assembles the whole game in one scene, exports/World.blend
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
@@ -16,8 +19,10 @@ blender/place_waystones.lua  Studio script that stands the Waystone meshes at th
 blender/place_ranges.lua  Studio script that sets up the imported mountain ranges and woods
 blender/place_hollowmere.lua  Studio script that sets up the imported village over the part one
 blender/place_dash.lua    Studio script that puts the imported dash effect in ReplicatedStorage.VFX
+blender/place_scintara.lua  Studio script that puts the imported Scintara effect in ReplicatedStorage.VFX
 blender/place_brooms.lua  Studio script that puts the imported brooms in ReplicatedStorage.Brooms
 tools/blender.py          Finds Blender and runs scripts
+tools/place_animations.py Writes character clips from CharacterAnimations.json and CastAnimations.json into the place
 ```
 
 ## 1. Install Blender
@@ -142,16 +147,107 @@ The script prints a line for each Waystone. It warns if anything stands inside a
 
 Import it like any model (step 3), then paste [place_dash.lua](place_dash.lua) into **View → Command Bar** and press Enter. It moves the DashVFX model into `ReplicatedStorage.VFX`, so every client can clone it, drops Blender's `.001` name suffixes and turns the meshes white. Until it is there, a dodge shows the old plain burst.
 
+## Scintara effect
+
+`vfx/scintara.py` builds `ScintaraVFX.fbx`: one Model, ScintaraVFX, holding seven near-white meshes for Scintara, the spell every wand knows. A left click throws one spark bolt. Holding the right mouse button (LT, or the touch Lance button) pours a spark lance: 5 mana to light it, then 20 mana a second while it pours. Every mesh runs along the way the spell goes, with its front (the part's LookVector) away from the wand. Nothing is animated in Blender: `EffectsController` clones the meshes, tints them arcane violet, makes them Neon and moves them each frame.
+
+| Mesh | What it is | In the game |
+|---|---|---|
+| `Spark` | A six-spiked star round a small ball, with four short spikes between | The bolt's head, spinning |
+| `Tail` | A tapered core and three ribbons twisting 3.4 studs back | Behind the spark, growing out over the bolt's first studs |
+| `Flash` | Two six-pointed stars, a twelfth of a turn apart | Blooms at the wand tip as a bolt leaves; spins there, with a light, while the lance pours |
+| `Beam` | A tube 1 stud long and 1 across | The lance's white core and its violet glow, stretched to the lance's length |
+| `Coil` | Two helix ribbons, 2.5 turns in 6 studs | Tiled end to end along the lance and spun, so the twist seems to pour out of the wand |
+| `Ring` | A thin ring with a fainter ripple inside | Three run out along the lance, fading |
+| `Splash` | Seven sparks spraying back round a shock ring | Pulses where the lance strikes; blooms where a bolt lands |
+
+The bolt leaves the wand tip and closes onto the server's path, which starts at the chest, over its first 12 studs. Every client draws each lance from the caster's wand to the end the server sets in the caster's `ScintaraLance` attribute ten times a second. Your own lance follows your aim each frame. With Reduced effects on, a lance keeps only its core, glow and splash. Until the meshes are imported, the bolt is the old ball and the lance a plain neon rod.
+
+```bash
+python tools/blender.py blender/vfx/scintara.py --preview
+```
+
+`--preview` renders `ScintaraVFX.png`, the seven meshes in a row. It also renders `ScintaraVFX_bolt.png`, the bolt put together, and `ScintaraVFX_lance.png`, a 14-stud lance put together. The file has 4,800 triangles; the largest mesh, `Coil`, has 2,100.
+
+Import it like any model (step 3), then paste [place_scintara.lua](place_scintara.lua) into **View → Command Bar** and press Enter. It moves the ScintaraVFX model into `ReplicatedStorage.VFX`, drops Blender's `.001` name suffixes and turns the meshes white. Running it again changes nothing, and after a rebuild it replaces the old copy with the new import.
+
 ## Character animations
 
-`animations/character.py` animates R15 avatars: `Walk` (1 s loop), `Sprint` (0.6 s loop) and a roll each way, 0.5 s: sideways (`TumbleRight` and `TumbleLeft`), a somersault (`TumbleForward`) and a back roll (`TumbleBack`), and `BroomRide` (2 s loop), the pose for riding a broom: leaning into the flight, hands on the grip, legs splayed round the shaft and back to the stirrups. The rig's bones are the R15 joints, named after the part each one moves and placed at a Studio avatar's rest pose. Each bone's axes are turned to Roblox's (X right, Y up, Z back). R15 joint frames are axis-aligned, so a keyed rotation is the joint's Transform in game. The script exports `Character<Name>.fbx` with preview strips, plus `CharacterAnimations.json`, which holds every key pose as Roblox CFrames.
+`animations/character.py` animates R15 avatars: `Walk` (1 s loop), `Sprint` (0.6 s loop) and a roll each way, 0.5 s: sideways (`TumbleRight` and `TumbleLeft`), a somersault (`TumbleForward`) and a back roll (`TumbleBack`), and `BroomRide` (2 s loop), the pose for riding a broom: leaning into the flight, hands on the grip, legs splayed round the shaft and back to the stirrups. Scintara's casts have three clips (see "Casting Scintara" below). Each broom also has a ride of its own, `BroomRide<Broom>`, and each house a dash for every broom, `BroomDash<House><Broom>` (see "Flying each broom" and "Dashing through the air" below). The rig's bones are the R15 joints, named after the part each one moves and placed at a Studio avatar's rest pose. Each bone's axes are turned to Roblox's (X right, Y up, Z back). R15 joint frames are axis-aligned, so a keyed rotation is the joint's Transform in game. The script exports `Character<Name>.fbx` with preview strips, plus `CharacterAnimations.json`, which holds every key pose as Roblox CFrames.
 
-These clips are not imported with the 3D Importer. Claude builds them over the Studio connection from the JSON, as KeyframeSequences inside the Animations in `ReplicatedStorage.Animations`. `EffectsController` then works as follows:
+These clips are not imported with the 3D Importer. They are KeyframeSequences inside the Animations in `ReplicatedStorage.Animations`, built from the JSON. With the place closed in Studio, `tools/place_animations.py` writes them into the `.rbxlx`: run it bare to list the clips and see which the place lacks, then name the ones to add or replace:
+
+```bash
+python tools/place_animations.py BroomRideAshwind BroomRideStoutbough BroomRideSwiftquill BroomRideNightwing --force
+```
+
+Claude can also build them over the Studio connection. `EffectsController` then works as follows:
 
 - When your character spawns, it puts Walk and Sprint into the default Animate script's `walk` and `run` slots. Animate plays walk up to 8 studs a second and run at full speed.
 - On your own dodge, it turns you to face where the camera looks and plays the Tumble the way you went: Right or Left across the camera's view, Forward into it, Back toward it. Shift dodges the way you are moving; tapping W, A, S or D twice within 0.3 s dodges that way. Without the clip, a dodge turns you to face the way you went.
+- On a broom, `FlightController` plays that broom's ride, or `BroomRide` if it has none, slower in a hover and quicker flat out. Flat out, your house's dash on that broom takes over.
 
 Until a clip is published, Studio playtests play it from its KeyframeSequence, and a live game keeps Roblox's defaults. To publish one, right-click its KeyframeSequence and choose **Save to Roblox**. Then paste the new ID into that Animation's `AnimationId`. Publish under the account or group that owns the experience.
+
+### Casting Scintara
+
+Scintara's clips key only the upper body: the torso, head and arms. The legs keep walking or standing under a cast. They play at priority Action2, over the walk, the rides and the tumbles.
+
+| Clip | Length | The cast |
+|---|---|---|
+| `ScintaraBolt` | 0.4 s | A left click. The shoulders turn right as the wand is cocked back over the shoulder (frame 2). It is flicked out level at frame 4 (0.13 s), as the server lets the bolt go after Scintara's 0.12 s cast time, and the body turns into it. The wrist dips through, and the arm settles. |
+| `ScintaraBeamStart` | 0.2 s | The right button pressed. The wand is drawn in to the chest with the left hand coming up to it, then thrust out at the aim with both arms. |
+| `ScintaraBeam` | 0.6 s loop | Held while the lance pours. The wand arm reaches in across the chest with the wand level, and the left hand braces under the wand wrist. The body leans back against the pour. A quick tremor runs through the wand arm and wrist, and a slow heave pushes the shoulders back. |
+
+The wand is welded below the middle of the right hand and points along the hand's front, so a hanging arm holds it level and a raised one points it up. Wherever a cast aims the wand, the script solves the wrist (`aimed`) so the wand points straight ahead, whatever the arm and body do. In the lance, the left hand is fitted under the wand wrist at every key, as the brooms' grips are (`hold`). The build prints how close it comes. The previews are taken from the wand side, with a preview-only wand in the hand, `_Wand`, which is never exported.
+
+On a left click, `InputController` fires the bolt and `EffectsController:CastBolt` turns you to face the aim and plays `ScintaraBolt`. Holding the right button plays `ScintaraBeamStart`, then loops `ScintaraBeam`. While the lance pours, you face your aim. Letting go fades the hold out over 0.15 s. Animations played on your own character show to every player. Put the clips in the place like the others:
+
+```bash
+python tools/place_animations.py ScintaraBolt ScintaraBeamStart ScintaraBeam
+```
+
+### Casting every other spell
+
+`animations/casting.py` gives every other spell a wand gesture of its own: a clip per gesture, `Cast<Motion>`, and `SpellData` gives each spell its `Motion`. A spell's type picks one (a projectile thrusts, a beam zaps, an area spell raises a dome, a ward on yourself wards, a heal mends) unless the spell names its own. Spark Bolt has none, since Scintara's casts are the clips above.
+
+| Clip | Spells | The gesture |
+|---|---|---|
+| `CastLash` | Flame Lash | A whip. The wand is drawn back high over the right shoulder while the left hand points the way, then lashed down and across the body to the far hip, the shoulders turning through. |
+| `CastThrust` | Frost Shard, Disarm | A fencer's lunge. The wand is chambered at the ribs with the left hand out as a guide, then stabbed at the aim at full stretch as the left hand sweeps back to the hip. |
+| `CastHurl` | Blast Hex | Both hands. The wand stands over the cupped left hand as if holding an orb at the chest, draws it in, and both hands hurl it out at the aim. |
+| `CastZap` | Chain Lightning | The wand raised high, struck down at the aim and held there, shuddering with the discharge, while the left hand braces the wand arm from below. |
+| `CastPull` | Pull | Both hands reach out at the aim as the beam takes hold, then yank back to the chest, leaning away. |
+| `CastUplift` | Lift | A scoop: both hands low and palm up, swept up together. |
+| `CastChop` | Stone Bind | An overhead chop, brought down hard at the aim. |
+| `CastLull` | Slumber | A lullaby: the wand sways side to side like a pendulum, releasing on the first swing, while the left hand smooths the air, palm down. |
+| `CastWard` | Ward Shield, Mirror Ward, Stoneskin | The wand swept up to stand straight before the face, and the left palm pushed out beside it like a shield. |
+| `CastDome` | Bastion Dome | Both hands flung up overhead, then spread wide and drawn down round the sides, tracing the dome. |
+| `CastSwirl` | Light Orb, Swiftstep | The wand held up and stirred once round overhead, its tip ringing the air, then flourished down to the front. |
+| `CastMend` | Mend, Cleanse | The left hand held out palm up while the wand stirs above it, then the palm pushes the healing out at the aim. |
+| `CastTwist` | Unseal | The wand pushed into the lock like a key, then turned. |
+
+Each gesture is written as where the hands go, not as joint angles. At each key the script gives where the middle of the wand hand goes and which way the wand points, and for the left hand which way its palm faces and its fingers point. It then bends each arm onto those marks (`arm`, a least-squares solve over the shoulder, elbow, forearm twist and wrist). When a mark can't all be met, the wand's aim wins over where its hand goes: a hand a fraction of a stud off doesn't show, a wand off its aim does. The build prints how close each clip comes, and stops if a hand misses its mark by 0.6 studs or 40 degrees. R15 hands have no fingers, so the hands gesture from the wrist. The wand is held as `WandService` welds it, as for Scintara.
+
+Every gesture is timed to the server. It starts when the server accepts the cast (`CastReply`), and the server fires the spell 0.2 s later, the spell's cast time. So the wand strikes at frame 6, and that keyframe carries a `Release` marker, where `EffectsController` flashes the wand tip in the spell's colour. A gesture keys only the arms, upper torso and head, at priority Action2, so the legs go on walking, sprinting or riding under it, and the head turns against the torso to keep looking ahead. Animations played on your own character show to every player.
+
+The gestures work in both views:
+
+- **Third person.** You turn to face the aim and hold that facing through the gesture.
+- **Both views.** While any cast plays, a gesture or one of Scintara's, `EffectsController:Arms` tilts the arms about the shoulders toward the aim, by the shoulder joints' `C0`, so the wand strikes up or down at it.
+- **First person.** The camera sits a stud above the shoulders, so the arms would play low at the bottom of the view. While a cast plays they are lifted 14 degrees and turned 8 degrees toward the middle of the view. Your forearms, hands and wand are always drawn there. The upper arms stay hidden, since a stud from the camera they would fill the view.
+
+`--preview` renders three strips of four frames for each clip. `Cast<Motion>.png` is from the front right. `Cast<Motion>_third.png` is from the game's over-the-shoulder camera, closed in on the character. `Cast<Motion>_first.png` is from the first-person camera, with the arms lifted as in game and only the forearms, hands and wand drawn.
+
+```bash
+python tools/blender.py blender/animations/casting.py --preview
+```
+
+The script writes `CastAnimations.json` beside `CharacterAnimations.json`, and `tools/place_animations.py` reads both and writes each `Release` marker as a KeyframeMarker. Put the clips in the place like the others:
+
+```bash
+python tools/place_animations.py CastLash CastThrust CastHurl CastZap CastPull CastUplift CastChop CastLull CastWard CastDome CastSwirl CastMend CastTwist
+```
 
 ## Brooms
 
@@ -176,7 +272,37 @@ To put them in the game:
 2. Paste [place_brooms.lua](place_brooms.lua) into **View → Command Bar** and press Enter. It moves the four into `ReplicatedStorage.Brooms` and pivots each on its seat. It sets each mesh's material and the Glow colour, and makes the meshes massless and uncollidable, welded to the broom's `Wood`, its PrimaryPart. One weld to a rider then carries the whole broom.
 3. Save the place. Running the script again changes nothing. After rebuilding the brooms, import the new file and run the script again: it replaces the old ones.
 
-In game, F takes off and lands (`FlightService` on the server, `FlightController` on the client, stats in `src/shared/BroomData.lua`). The server welds a copy of your chosen broom 1.35 studs under your HumanoidRootPart, so you sit on its seat, and your client flies you there in the `BroomRide` pose. Ashwind is every student's from their first wand. Stoutbough unlocks at level 6, Swiftquill at 12 and Nightwing at 18, and you choose among them in the Bag.
+In game, F takes off and lands (`FlightService` on the server, `FlightController` on the client, stats in `src/shared/BroomData.lua`). The server welds a copy of your chosen broom 1.35 studs under your HumanoidRootPart, so you sit on its seat, and your client flies you there in that broom's own ride. Ashwind is every student's from their first wand. Stoutbough unlocks at level 6, Swiftquill at 12 and Nightwing at 18, and you choose among them in the Bag.
+
+### Flying each broom
+
+Each broom is flown in a looped ride of its own, made in `animations/character.py`:
+
+| Clip | Loop | The ride |
+|---|---|---|
+| `BroomRideAshwind` | 2.4 s | A first-year's easy cruise. A comfortable lean with both hands on the grip, right ahead of left, knees in and feet in the brass stirrups. The body rocks gently side to side and bobs, and the head looks round, left and then right. |
+| `BroomRideStoutbough` | 3.2 s | The hauler's slow roll. Sat deep in the saddle, one hand driving at the back of the grip and the other on the hip, elbow out, boots flat on the footboard. The whole body rocks forward and back with the heavy broom, and the head nods along. |
+| `BroomRideSwiftquill` | 1.2 s | A racer's tuck. Chest down along the shaft, head up, both hands far forward on the bare birch with the elbows in, legs folded back onto the pegs and up on the toes, shaken by quick small tremors from the wind. |
+| `BroomRideNightwing` | 1.6 s | Ridden like a bucking beast. Both hands clamped on the grip, the body rolls hard from side to side and twists with it, knees clamped round the thorny shaft. |
+
+The broom is welded to the HumanoidRootPart, so it never moves in the rig's space. Each ride is written as the body's motion over one loop and keyed every 3 frames. At every key the script bends the gripping arms so the hands close on that broom's grip, and the legs so the feet stand on its stirrups, pegs or footboard (`fit`, a small least-squares solve). Each key's solve starts from the key before, and the loop is gone round twice, so an arm that could reach two ways keeps to one all the way round. The body sways while the hands and feet stay put, and the build stops if a hand or foot can't reach. The keys are joined by straight lines (`Linear` easing), which keeps the motion even. With `--preview`, each ride's strip shows the mannequin on its broom, read from `exports/Brooms.blend`.
+
+`FlightController` plays `BroomRide<Broom>` for the broom you fly, falling back to `BroomRide`. It speeds the loop up as you go faster, from three quarters speed in a hover to one and a quarter flat out. Like the other clips, the rides play from their KeyframeSequences in Studio playtests and need publishing for a live game (see "Character animations").
+
+### Dashing through the air
+
+Flown at four fifths of the broom's top speed or more, a rider is dashing through the air. Their house's dash takes over from the ride, with a 0.3 s blend, until they slow below three fifths. Every house tucks low into the wind its own way, and the wind's quick shakes run through the head and shoulders on top:
+
+| House | Loop | The dash |
+|---|---|---|
+| Emberclaw | 1.0 s | The charge. Head down like a ram and elbows flared, the rider drives forward twice a second as if spurring the broom on. |
+| Stoneroot | 1.2 s | The brace. Low, square and still, elbows locked in and eyes level. Only a slow heave and a fine shudder in the shoulders. |
+| Skyquill | 1.6 s | The glide. Flat like a diving hawk, the rider carves a long slow curve one way and back, keeping the head level as the body banks. |
+| Nightfang | 1.2 s | The prowl. Low and coiled, the rider weaves like a serpent, hips one way and shoulders the other, head locked ahead. |
+
+Each house's dash is fitted to every broom's grip and stirrups as the rides are, so there are sixteen clips, `BroomDash<House><Broom>`. They are keyed every 2 frames, fine enough for the shakes. A rider not yet sorted into a house keeps the ride.
+
+Every client also draws the wind round each dashing rider, in the colour of the rider's house (`Config.Houses`), or arcane violet before sorting. It uses the dodge's Blender meshes, `ReplicatedStorage.VFX.DashVFX` (see "Dash effect"), so there is nothing more to import. The Streak's two ribbons wrap the rider and spin about the line of flight, trailing 12 studs behind. The Speed lines stream back past the rider and fade, and the Ring bursts behind them as the dash begins. With Reduced effects on, only a fainter streak shows.
 
 ## Mountains and woods
 
@@ -217,8 +343,8 @@ Running the script again changes nothing. After rebuilding the ranges, delete `W
 - **Showcase** (its own collection, beside the arrival pad):
   - A dodge across the pad, frozen just after it lands on the mannequin, laid out as `EffectsController:Dash` draws it (`vfx/dash.py`).
   - Three more mannequins, posed mid-walk, mid-sprint and mid-tumble.
-  - The four brooms (`models/brooms.py`), hovering in a row south of the pad with each seat at a rider's height, tips to the north, and a mannequin riding Ashwind in the `BroomRide` pose.
-- **Animations.** Every clip (Walk, Sprint, the four Tumbles and the Spellbook's opening) is kept in the file. To play one, select a rig and pick the clip in Blender's Action editor.
+  - The four brooms (`models/brooms.py`), hovering in a row south of the pad with each seat at a rider's height, tips to the north, and a mannequin on each one in that broom's own ride.
+- **Animations.** Every clip (Walk, Sprint, the four Tumbles, BroomRide, each broom's ride and the Spellbook's opening) is kept in the file. To play one, select a rig and pick the clip in Blender's Action editor.
 - **Markers.** Every interaction and quest point is a labelled empty.
 - **Config zones.** `Config.Zones` and `Config.WorldBounds` are frames over the map. They are red where monsters attack, blue where they don't, and gold for the bounds. Switch the collection off to hide them.
 - **Mist.** A ground mist and a thin air that blues the far ranges: two volumes, Mist and Air, used only by the EEVEE pictures, so the collection is hidden in the viewport. Switch it on and use Rendered shading to see them. EEVEE takes a world volume to be endless and blacks out the sun, so haze must be an object like these.
