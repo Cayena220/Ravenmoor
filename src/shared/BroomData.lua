@@ -6,6 +6,8 @@ local B = {Default = "Ashwind",
     Ceiling = 180,          -- no climbing above this height; FlightService grounds riders 25 studs over it
     CombatLockout = 6,      -- seconds after dealing or taking damage before you can take off
     ToggleCooldown = 1.5,   -- seconds between taking off and landing
+    KnockOff = 15,          -- damage within KnockWindow seconds that knocks a rider off (CombatService:Damage)
+    KnockWindow = 2,
     SeatDrop = 1.35}        -- the broom's seat sits this far under the rider's HumanoidRootPart
 B.Brooms = {
     Ashwind = {Title = "Ashwind", Level = 1, Speed = 40, Climb = 20, Handling = 6,

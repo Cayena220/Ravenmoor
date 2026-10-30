@@ -12,7 +12,7 @@ local colors={Arcane=Color3.fromRGB(194,163,255),Fire=Color3.fromRGB(255,153,72)
     Lightning=Color3.fromRGB(255,236,134),Ward=Color3.fromRGB(246,205,118),Restoration=Color3.fromRGB(139,235,163),
     Alteration=Color3.fromRGB(110,210,189),Enemy=Color3.fromRGB(226,95,129)}
 function E:Init(controllers)
-    self.C=controllers; self.Pool={}; self.Flying={}; self.Labels={}; self.Zone=nil; self.Lances={}; self.Clips={}
+    self.C=controllers; self.Pool={}; self.Flying={}; self.Labels={}; self.Zone=nil; self.Lances={}; self.Clips={}; self.PvPTags={}
     self.Shoulders=setmetatable({},{__mode="k"}); self.Marked=setmetatable({},{__mode="k"}); self.Tilt={0,0}
 end
 function E:Color(id)
@@ -469,6 +469,38 @@ function E:Label(model)
     hum.HealthChanged:Connect(function(health) fill.Size=UDim2.fromScale(math.clamp(health/hum.MaxHealth,0,1),1) end)
     model.Destroying:Connect(function() self.Labels[model]=nil end)
 end
+-- Whether you and `player` may fight in open PvP (CombatService:Rivals): both have it on and you aren't housemates.
+function E:Rival(player)
+    local me=Players.LocalPlayer; local house=me:GetAttribute("House")
+    return player~=me and me:GetAttribute("PvP")==true and player:GetAttribute("PvP")==true
+        and (house==nil or house=="" or player:GetAttribute("House")~=house)
+end
+-- A red PvP tag over the head of every open-PvP rival, drawn on this client only.
+function E:DrawTags()
+    for _,player in ipairs(Players:GetPlayers()) do
+        local head=self:Rival(player) and player.Character and player.Character:FindFirstChild("Head")
+        local tag=self.PvPTags[player]
+        if head and not tag then
+            tag=Instance.new("BillboardGui"); tag.Name="PvPTag"; tag.Size=UDim2.fromOffset(60,20); tag.StudsOffset=Vector3.new(0,3.4,0)
+            tag.MaxDistance=120; tag.AlwaysOnTop=true
+            local label=Instance.new("TextLabel"); label.Size=UDim2.fromScale(1,1); label.BackgroundTransparency=1; label.Font=Enum.Font.GothamBold
+            label.Text="PvP"; label.TextSize=13; label.TextColor3=colors.Enemy; label.TextStrokeTransparency=0.4; label.Parent=tag
+            tag.Parent=self.Folder; self.PvPTags[player]=tag
+        end
+        if tag then if head then tag.Adornee=head else tag:Destroy(); self.PvPTags[player]=nil end end
+    end
+    for player,tag in pairs(self.PvPTags) do if not player.Parent then tag:Destroy(); self.PvPTags[player]=nil end end
+end
+-- Aerovanta's lift on you (CombatService:Status). You own your character's physics, so this client throws you up,
+-- about six studs: as high as a lifted monster rises. A rider is knocked off their broom instead (FlightService).
+local LIFT=50
+function E:Lift()
+    local character=Players.LocalPlayer.Character
+    local hum=character and character:FindFirstChildOfClass("Humanoid"); local root=character and character:FindFirstChild("HumanoidRootPart")
+    if not (hum and root) or Players.LocalPlayer:GetAttribute("Broom") then return end
+    hum:ChangeState(Enum.HumanoidStateType.Freefall)
+    local v=root.AssemblyLinearVelocity; root.AssemblyLinearVelocity=Vector3.new(v.X,math.max(v.Y,0)+LIFT,v.Z)
+end
 function E:UpdateZone()
     local zone=Players.LocalPlayer:GetAttribute("Zone")
     if zone==self.Zone then return end; self.Zone=zone
@@ -524,7 +556,7 @@ function E:Start()
         self:DrawLances(dt)
         elapsed=elapsed+dt
         if elapsed>0.4 then
-            elapsed=0; self:UpdateZone()
+            elapsed=0; self:UpdateZone(); self:DrawTags()
             local data=self.C.UIController.Data; local q=data and Quests[data.Quest]; local p=q and Points[q.Anchor]
             if p then
                 self.Waypoint.Position=Vector3.new(p[1],p[2]+8,p[3])

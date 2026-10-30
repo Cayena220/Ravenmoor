@@ -39,6 +39,7 @@ DataStore automatically. See `docs/SAVING.md` before testing persistence.
 | Houses | Sorting, perks, colored avatar sash, saved personal contribution, standings for the current server |
 | Economy | Gilders, ingredients, spell tomes, bank, Health Draught purchase/brewing/use, three Resero chests, discovered Waystones with 25-Gilder travel |
 | Duels | Two-sided invitation, 3-second countdown, 1-HP loss, timeout/forfeit, no item loss, one active match at a time, reward cap of 10 per hour |
+| Open PvP | Students who keep open PvP on (Settings, on by default) can fight students of other houses anywhere, on foot or on a broom, except within 30 studs of a Waystone (a sanctuary). Housemates are allies: bolts pass through them and Mend heals only allies. Rivals carry a red PvP tag. Within 10 seconds of combat you can't switch PvP off or start a duel. Damage against players is ×0.7, spawn protection lasts 5 seconds, a knock-out names who did it, only monsters teach Mastery, and 15 damage within 2 seconds knocks a rider off their broom |
 | Presentation | Parchment menus, brass accents, resource bars, cooldowns, boss bar, quest marker, local spell effects, zone color transition and 20-minute day |
 | Data | Native UpdateAsync profile store, expiring session lock, periodic save, leave/shutdown save, no blank live fallback on load failure |
 
@@ -51,7 +52,7 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Action | Keyboard / mouse | Gamepad | Touch |
 |---|---|---|---|
 | Spark Bolt: one bolt a click | Left mouse | RT | Scintara button |
-| Spark Lance: pours while held, 5 mana to light and 20 a second | Hold right mouse | Hold LT | Hold Lance button |
+| Spark Lance: pours while held, on foot or on a broom, 5 mana to light and 20 a second | Hold right mouse | Hold LT | Hold Lance button |
 | Ward | R | R3 | Ward button |
 | Spell slots | 1, 2, 3, 4 | X, Y, B, RB | Four spell buttons |
 | Dodge | Left Shift, or double-tap W/A/S/D | LB | Dodge button |
@@ -71,7 +72,8 @@ In the spellbook, click **1–4** beneath a learned spell to equip it. Ward spel
 also offer **Ward** for the R / R3 ward slot. Scintara stays bound to both mouse buttons:
 click for a spark bolt, or hold the right button for the spark lance. The lance strikes
 what you aim at for 5 damage every 0.2 s, up to 60 studs, slows you while it pours and
-stops when you let go or run out of mana.
+stops when you let go or run out of mana. On a broom it slows the broom the same way and
+turns you to face your aim.
 Spell controls pause while a menu or text box has focus.
 
 Spoken casting recognizes an exact learned incantation in general chat, such as

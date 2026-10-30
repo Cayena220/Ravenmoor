@@ -99,7 +99,7 @@ check(G.Score(far,G.Path(1))==0,"out of bounds gesture fails")
 
 local C=require(ROOT.."/src/server/Services/CombatService.lua")
 local N={Notice=fire,Sync=fire,FX=event,UI=event,CastReply=event,Handlers={},Allow=function() return true end}
-local duel={allowed=false,CanDamage=function(self) return self.allowed end,IsBusy=function() return false end,IsCounting=function() return false end}
+local duel={allowed=false,CanDamage=function(self) return self.allowed end,IsBusy=function(self) return self.allowed end,IsCounting=function() return false end}
 local profileData={}
 local deps={NetworkService=N,DuelService=duel,PlayerDataService={Get=function(_,p) return profileData[p] end},
     MonsterService={Killed=fire},ProgressionService={Hit=fire,Event=fire}}
@@ -109,9 +109,46 @@ local function target(p)
     return {Player=p,Model={Parent=true},Humanoid={Health=110,MaxHealth=110},Root={Position=Vector3.zero},Statuses={},Shield=0,LastCombat=-100}
 end
 local t=target(other)
-check(not C:CanDamage(player,t),"safe-zone PvP is rejected")
-duel.allowed=true; check(C:CanDamage(player,t),"consented duel can hit"); check(not C:CanDamage(other,t),"cannot self-hit")
+-- Open PvP: rivals (Settings.PvP on for both, not housemates) fight anywhere but a Waystone's sanctuary (CombatService:Hostile).
+local function rival(pvp) return {Level=1,House="",Attributes={Power=0,Focus=0,Vitality=0,Agility=0,Unspent=0},Settings={PvP=pvp}} end
+C.States[player]=target(player); C.States[other]=t
+check(not C:CanDamage(player,t),"no PvP before both profiles load")
+profileData[player]=rival(true); profileData[other]=rival(false)
+check(not C:CanDamage(player,t),"no PvP against a student who switched it off")
+profileData[other].Settings.PvP=true; check(C:CanDamage(player,t),"open PvP lets two students fight anywhere")
+check(not C:CanDamage(other,t),"cannot self-hit")
+profileData[player].House="Emberclaw"; profileData[other].House="Emberclaw"; check(not C:CanDamage(player,t),"housemates are allies")
+profileData[other].House="Skyquill"; check(C:CanDamage(player,t),"students of different houses are rivals")
+local stone=require(shared.Config).Waystones.Hollowmere
+t.Root.Position=Vector3.new(stone[1],stone[2],stone[3]+20); check(not C:CanDamage(player,t),"no open PvP on a student in a Waystone's sanctuary")
+t.Root.Position=Vector3.zero; C.States[player].Root.Position=Vector3.new(stone[1]+25,stone[2],stone[3])
+check(not C:CanDamage(player,t),"no open PvP from inside a sanctuary"); C.States[player].Root.Position=Vector3.zero
+duel.allowed=true; check(C:CanDamage(player,t),"consented duel can hit")
+duel.CanDamage=function() return false end; check(not C:CanDamage(player,t),"open PvP cannot reach a duellist")
+duel.CanDamage=function(self) return self.allowed end
 duel.allowed=false
+local hits=0; deps.ProgressionService.Hit=function() hits=hits+1 end
+C:Damage(player,t,1,spells.Scintara); check(t.Humanoid.Health<110 and hits==0,"hits on students teach no Mastery")
+local imp0=target(nil); imp0.MonsterId="Thornimp"; imp0.Contributors={}; imp0.Threat={}
+C:Damage(player,imp0,1,spells.Scintara); check(hits==1,"hits on monsters teach Mastery"); deps.ProgressionService.Hit=fire
+t.Humanoid.Health=1; C:Damage(player,t,50,nil); check(t.Humanoid.Health==0 and t.KnockedOutBy==player,"a knock-out remembers who did it")
+t.Humanoid.Health=110; t.KnockedOutBy=nil
+profileData[player]=nil; profileData[other]=nil; C.States[player]=nil; C.States[other]=nil
+-- Duels can't start within Config.PvPLockout seconds of combat, so they are no way out of an open-PvP fight.
+do
+    local D=require(ROOT.."/src/server/Services/DuelService.lua")
+    local a,b={UserId=1,Parent=true,DisplayName="A"},{UserId=2,Parent=true,DisplayName="B"}
+    services.Players.GetPlayerByUserId=function(_,id) return id==2 and b or nil end
+    local sa,sb=target(a),target(b); local said,invited
+    D:Init({CombatService={States={[a]=sa,[b]=sb}},WorldService={Near=function() return true end},
+        NetworkService={Notice=function(_,_,text) said=text end,UI={FireClient=function(_,_,kind) invited=kind end}}})
+    sa.LastCombat=os.clock(); D:Invite(a,2)
+    check(not invited and said:find("combat"),"no duel invitation straight after combat")
+    sa.LastCombat=-100; D:Invite(a,2); check(invited=="DuelInvite","a calm student can send an invitation")
+    said=nil; sb.LastCombat=os.clock(); D:Respond(b,true)
+    check(not D:IsBusy(b) and said and said:find("combat"),"no duel accepted straight after combat")
+    services.Players.GetPlayerByUserId=nil
+end
 local mob=target(nil); mob.Rank="Normal"
 C:Status(mob,"Rooted",2,player); check(mob.CCCount==1,"first crowd control")
 local now=os.clock(); C:Status(mob,"Silenced",2,player); check(mob.Statuses.Silenced.Until-now<1.01,"second CC half duration")
@@ -211,6 +248,8 @@ state.Cooldowns={}; state.Mana=4; S:Channel(player,true); check(state.Lance==nil
 state.Mana=100; S:Channel(player,true); S:Channel(player,false)
 check(state.Lance==nil and state.Cooldowns.ScintaraLance>os.clock(),"letting go ends the lance")
 state.Cooldowns={}; S:Channel(player,true); state.DodgeAt=os.clock()+1; S:Step(0.05); check(state.Lance==nil,"a dodge ends the lance")
+state.DodgeAt=-100; state.Cooldowns={}; state.FlySpeed=40; S:Channel(player,true); S:Step(0.05)
+check(state.Lance~=nil,"the lance pours from a broom"); S:Channel(player,false); state.FlySpeed=nil
 state.DodgeAt=-100; player.Attributes.FreeCast=true; state.Cooldowns={}; state.Mana=0
 S:Channel(player,true); S:Step(0.1); check(state.Lance~=nil and state.Mana==0,"free casting pours the lance for nothing")
 S:Channel(player,false); check(state.Cooldowns.ScintaraLance<=os.clock(),"free casting skips the lance's cooldown")
@@ -219,7 +258,8 @@ data.Wands={storm}; data.EquippedWand=1; state.StaticHits=0
 local first,second=mob(300),mob(305)
 for _=1,4 do S:Impact(player,first,spells.Scintara,false,0.5,Vector3.zero,true) end
 check(second.Humanoid.Health==110,"lance strikes do not feed Static")
-duel.allowed=true; S.Domes={{Player=other,Pos=Vector3.new(0,1.2,-30),Until=os.clock()+5}}
+data.Settings.PvP=true; profileData[other]=rival(true); C.States[other]=target(other)
+S.Domes={{Player=other,Pos=Vector3.new(0,1.2,-30),Until=os.clock()+5}}
 lanced.Humanoid.Health=110; state.Cooldowns={}; state.Mana=100; S:Channel(player,true); state.Lance.Strike=0; S:Step(0.05)
 check(near(lanced.Humanoid.Health,110-strike),"a rival's dome behind the caster does not stop the lance")
 S.Domes[1].Pos=Vector3.new(0,1.2,12); state.Lance.Strike=0; state.Lance.Look=0; S:Step(0.05)
@@ -228,7 +268,7 @@ S:Channel(player,false); S.Domes={}
 local mirrored=target(other); mirrored.Statuses.Speculo={Until=os.clock()+1}
 S:Impact(player,mirrored,spells.Scintara,false,0.5,Vector3.zero,true)
 check(C:Has(mirrored,"Speculo") and mirrored.Humanoid.Health<110,"Mirror Ward does not turn the lance")
-duel.allowed=false; workspace.Spherecast=nil; S.Aims={}; math.random=rnd; state.Cooldowns={}
+data.Settings.PvP=nil; profileData[other]=nil; C.States[other]=nil; workspace.Spherecast=nil; S.Aims={}; math.random=rnd; state.Cooldowns={}
 data.Wands=nil; data.EquippedWand=nil; state.Humanoid.Health=110; state.Mana=100; C.Targets={}
 
 local M=require(ROOT.."/src/server/Services/MonsterService.lua"); M:Init(deps)
@@ -259,6 +299,9 @@ mob2.Humanoid.Health=0
 check(S:Trace(player,Vector3.zero,Vector3.new(0,0,10),0.8,{FilterDescendantsInstances={}})==nil,"defeated units do not absorb bolts")
 duel.allowed=true; hit=S:Trace(player,Vector3.zero,Vector3.new(0,0,10),0.8,{FilterDescendantsInstances={}})
 check(hit and hit.Instance==lane[1],"duel opponent still stops bolts"); duel.allowed=false
+data.Settings.PvP=true; profileData[other]=rival(true); C.States[other]=ally
+hit=S:Trace(player,Vector3.zero,Vector3.new(0,0,10),0.8,{FilterDescendantsInstances={}})
+check(hit and hit.Instance==lane[1],"an open-PvP rival stops bolts"); data.Settings.PvP=nil; profileData[other]=nil; C.States[other]=nil
 C.Targets={}
 
 local P=require(ROOT.."/src/server/Services/ProgressionService.lua")
@@ -574,7 +617,8 @@ do
     fresh={Level=20,Broom=5}; Brooms.Sanitize(fresh); check(fresh.Broom=="Ashwind","a bad saved broom is replaced")
     check(Brooms.Stats("Swiftquill")=="Speed 60 · Climb 18 · Handling 4","broom stats line")
     for _,id in ipairs(Brooms.Order) do check(Brooms.Brooms[id].Level<=20,id.." unlocks by the level cap") end
-    local hurt=target(other); C:Damage(nil,hurt,5,nil); check(hurt.HurtAt and hurt.Humanoid.Health==105,"a hit marks the player hurt")
+    local hurt=target(other); C:Damage(nil,hurt,5,nil); check(not hurt.HurtAt and hurt.Humanoid.Health==105,"one light hit leaves a rider on their broom")
+    C:Damage(nil,hurt,10,nil); check(hurt.HurtAt and hurt.Humanoid.Health==95,"hits adding up to 15 within 2 seconds knock a rider off")
     local oldGame,oldInstance,oldCFrame=game,Instance,CFrame
     local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
     local welds={}
@@ -618,7 +662,7 @@ do
     safe=true; busy=true; fly(); check(not rider.Attributes.Broom and notice:find("Duels"),"no take-off in a duel")
     busy=false; s.Statuses.Rooted=true; fly(); check(not rider.Attributes.Broom,"no take-off while rooted"); s.Statuses.Rooted=nil
     rs.Brooms=nil; fly(); check(not rider.Attributes.Broom and notice:find("place_brooms"),"missing broom models are reported"); rs.Brooms=folder
-    fly(); s.HurtAt=os.clock()+1; flight:Check(); check(not rider.Attributes.Broom and notice:find("knocks"),"a hit knocks the rider off")
+    fly(); s.HurtAt=os.clock()+1; flight:Check(); check(not rider.Attributes.Broom and notice:find("knock"),"enough blows knock the rider off")
     s.HurtAt=nil
     fly(); safe=false; flight:Check(); check(not rider.Attributes.Broom and notice:find("wards"),"Whisperwood pulls riders down"); safe=true
     fly(); busy=true; flight:Check(); check(not rider.Attributes.Broom,"a duel grounds the rider"); busy=false
@@ -674,6 +718,9 @@ do
     lance(nil,"Begin",right); uis.TextBoxFocused.Callback(); check(not input.Lancing,"typing ends the lance")
     ui.Cooldowns.ScintaraLance=os.clock()+5; lance(nil,"Begin",right); check(not input.Lancing,"no lance while it cools down"); ui.Cooldowns={}
     ui.Data.HasWand=false; lance(nil,"Begin",right); check(not input.Lancing and toast:find("Oakhart"),"no lance without a wand"); ui.Data.HasWand=true
+    player.GetAttribute=function(_,key) if key=="Broom" then return "Ashwind" end end
+    lance(nil,"Begin",right); check(input.Lancing,"a rider can hold the lance"); lance(nil,"End",right)
+    player.GetAttribute=function() return nil end
     lance(nil,"Begin",right); input:ToggleMenu("Bag"); check(ui.Menu=="Bag" and not input.Lancing,"bag hotkey opens bag and ends the lance")
     input:ToggleMenu("Spells"); check(ui.Menu=="Spells","different menu hotkey switches directly")
     input:ToggleMenu("Spells"); check(ui.Menu==nil,"same menu hotkey closes menu")

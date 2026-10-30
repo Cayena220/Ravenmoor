@@ -6,12 +6,14 @@ local Tween=game:GetService("TweenService")
 local Debris=game:GetService("Debris")
 local Brooms=require(RS.Shared.BroomData)
 local Config=require(RS.Shared.Config)
+local Spells=require(RS.Shared.SpellData)
 -- Flies your character while the server has you on a broom (FlightService sets your Broom attribute). The stick
 -- steers where the camera looks, so pushing forward climbs or dives with the camera; Space or A climbs straight up
 -- and Q or L3 dives. The broom eases toward the wanted speed, banks into turns, pitches with the climb and bobs
 -- gently in a hover. You own your character's physics, so the flight is smooth here and replicates to everyone.
 -- Flown flat out, a rider dashes through the air: they tuck into the wind in their house's own way, and every
--- client draws the wind streaming round them in their house colour.
+-- client draws the wind streaming round them in their house colour. Holding the right mouse button pours the spark
+-- lance from the saddle: the broom slows as your walk would, and turns to face where you aim.
 local Fl={}
 local DASH_IN,DASH_OUT=0.8,0.6   -- of the broom's top speed: start dashing above the first, stop below the second
 local WIND=Color3.fromRGB(194,163,255)   -- for riders not yet in a house: the arcane violet
@@ -60,7 +62,8 @@ function Fl:End()
     if f.Track then f.Track:Stop(0.25) end
     if f.Dash then f.Dash:Stop(0.25) end
     f.Push:Destroy(); f.Turn:Destroy(); f.Attach:Destroy()
-    if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=true; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
+    -- Landing mid-lance, the lance keeps turning you to your aim (EffectsController:DrawLances).
+    if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=not self.C.EffectsController.Pouring; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
     if f.Root.Parent then
         -- Stand upright, facing the way you flew, and drop straight down rather than skid on.
         local look=f.Root.CFrame.LookVector*Vector3.new(1,0,1)
@@ -80,7 +83,8 @@ function Fl:Step(dt)
         move=camera.CFrame.RightVector*stick.X-camera.CFrame.LookVector*stick.Z
         if move.Magnitude>1 then move=move.Unit end
     end
-    local want=move*b.Speed+Vector3.new(0,(busy and 0 or self:Climb())*b.Climb,0)
+    local pouring=self.C.InputController.Lancing
+    local want=move*b.Speed*(pouring and Spells.Scintara.Lance.Slow or 1)+Vector3.new(0,(busy and 0 or self:Climb())*b.Climb,0)
     if want.Y>0 and f.Root.Position.Y>=Brooms.Ceiling then want=Vector3.new(want.X,0,want.Z) end
     f.Velocity=f.Velocity:Lerp(want,1-math.exp(-b.Handling*0.45*dt))
     -- A hover bobs gently; full speed flies level.
@@ -98,7 +102,7 @@ function Fl:Step(dt)
     local playing=f.Dashing and f.Dash or f.Track
     if playing then playing:AdjustSpeed(0.75+0.5*math.min(1,pace)) end
     local flat=Vector3.new(f.Velocity.X,0,f.Velocity.Z)
-    local facing=flat.Magnitude>3 and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
+    local facing=flat.Magnitude>3 and not pouring and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
     if facing.Magnitude<0.1 then return end
     facing=facing.Unit
     -- Bank into turns, by how fast the heading swings, and pitch the nose with the climb.

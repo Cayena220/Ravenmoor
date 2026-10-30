@@ -57,8 +57,10 @@ function U:Open(title,menu)
     if self.C.InputController then self.C.InputController:CameraMode() end
     if UIS.GamepadEnabled then GuiService.SelectedObject=self.CloseButton end
 end
+-- `height` is the least the paragraph takes; it grows to fit its text on a narrow screen.
 function U:Paragraph(content,height)
-    return text(self.Body,content,16,palette.Ink,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
+    return text(self.Body,content,16,palette.Ink,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top,
+        AutomaticSize=Enum.AutomaticSize.Y})
 end
 function U:Row(height)
     return make("Frame",self.Body,{BackgroundTransparency=1,Size=UDim2.new(1,-12,0,height or 50)})
@@ -182,7 +184,10 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
-        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
+        button(self.Body,"Open PvP: "..(d.Settings.PvP and "ON" or "OFF"),function() self:Action("Setting","PvP",not self.Data.Settings.PvP) end)
+        self:Paragraph("With open PvP on, you can fight every student outside your house who has it on too, on foot or on a broom, anywhere but within "
+            ..Config.Sanctuary.." studs of a Waystone. Within "..Config.PvPLockout.." seconds of combat you can't switch it off or start a duel.",62)
+        self:Paragraph("PC: LMB bolt · hold RMB lance · R ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT bolt · hold LT lance · R3 ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -307,7 +312,7 @@ function U:Build()
     self.Root=make("Frame",self.Gui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
     self.Brand=text(self.Root,"WANDBOUND",23,palette.White,{Position=UDim2.fromOffset(22,8),Font=Enum.Font.Garamond,Size=UDim2.fromOffset(280,32)})
     self.Subtitle=text(self.Root,"R A V E N M O O R   A C A D E M Y",10,palette.Gold,{Position=UDim2.fromOffset(23,38),Size=UDim2.fromOffset(300,20)})
-    self.Location=text(self.Root,"Hollowmere Village",15,palette.White,{Position=UDim2.fromOffset(23,63),Size=UDim2.fromOffset(310,28)})
+    self.Location=text(self.Root,"Hollowmere Village",15,palette.White,{Position=UDim2.fromOffset(23,63),Size=UDim2.fromOffset(400,28)})
     self.ClassLabel=text(self.Root,"Next class",14,palette.White,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,9),Size=UDim2.fromOffset(240,40),TextXAlignment=Enum.TextXAlignment.Right,TextWrapped=true})
     self.MenuButton=button(self.Root,"K  SPELLBOOK",function() self:Show("Spells") end,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,57),Size=UDim2.fromOffset(155,42),TextSize=13,BackgroundColor3=palette.Ink,TextColor3=palette.White})
     stroke(self.MenuButton,palette.Gold)
@@ -375,7 +380,9 @@ function U:UpdateHUD()
     if d then
         local q=Quests[d.Quest]
         self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
-        self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
+        local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
+        local sanctuary=d.Settings.PvP and root and F.Sanctuary(root.Position)
+        self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere")..(sanctuary and "  ·  Sanctuary" or "").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
         local keys={Basic="LMB",Lance="RMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="R",Dodge="SHIFT",Broom="F"}
         if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Lance="LT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="R3",Dodge="LB",Broom="DOWN"} end
         local flying=self.Player:GetAttribute("Broom")~=nil
@@ -414,7 +421,7 @@ function U:Welcome()
     self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",80)
     self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",95)
     self:Paragraph("Approach a named character and use the interaction prompt. Follow the quest card. Red ground circles warn you where enemies will strike.",90)
-    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
+    self:Paragraph("LMB casts Spark Bolt · hold RMB for its lance · R raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
     button(self.Body,"BEGIN YOUR FIRST YEAR",function() self:Close() end,{BackgroundColor3=palette.Gold,Size=UDim2.new(1,-12,0,56)})
 end
 function U:Start()
@@ -450,7 +457,9 @@ function U:Start()
             button(self.Body,"Accept duel",function() self:Action("DuelRespond",true); self:Close() end)
             button(self.Body,"Decline",function() self:Action("DuelRespond",false); self:Close() end)
         elseif kind=="DuelStart" then self:Close(); self:Toast("Bow. Ready in "..info.." seconds…")
-        elseif kind=="Knockout" then self:Close(); self:Toast("Knocked out · returning to your Waystone in "..info.." seconds. Nothing lost.")
+        elseif kind=="Knockout" then
+            self:Close(); self:Toast((info.By and "Knocked out by "..info.By or "Knocked out").." · returning to your Waystone in "..info.Seconds.." seconds. Nothing lost.")
+        elseif kind=="Lift" then self.C.EffectsController:Lift()
         else self:Show(kind) end
     end)
     self:Welcome()

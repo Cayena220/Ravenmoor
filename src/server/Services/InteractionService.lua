@@ -7,7 +7,7 @@ local Quests=require(RS.Shared.QuestData)
 local I={}
 function I:Init(services) self.S=services; self.PotionCooldowns={}; self.Interactions={} end
 local advice={
-    Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Right mouse raises your ward; left mouse casts Scintara.",
+    Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Left mouse casts Scintara's bolt, hold the right for its lance, and R raises your ward.",
     Tobb="Watch for red attack circles in Whisperwood. Shift dodges, or tap a movement key twice. Bring Thorn Barbs and Spider Silk to the apothecary to brew Health Draughts.",
     Bank="Your vault keeps Gilders separate from your spending money. Deposits and withdrawals are available here.",
     Apothecary="A Thorn Barb and Spider Silk make one Health Draught. Use it from your bag to recover health over four seconds.",

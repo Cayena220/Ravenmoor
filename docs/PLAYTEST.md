@@ -56,18 +56,18 @@ Use the command bar to grant levels and items where noted. The wands' design she
 - Aegara: absorbs damage and expires after two seconds.
 - Glimmora: toggles light and drains mana while active.
 - Resero: aim at one of the three chests, use the spell from within 35 studs; a repeat opening should be denied for five minutes.
-- Vitara: self-heals when no eligible ally is aimed at; heals eligible allies outside a duel.
+- Vitara: self-heals when no ally is aimed at; heals allies (a housemate, or a student with open PvP off) outside a duel, never a rival.
 - Velocis: temporary movement boost; respects chill and root.
 - Excido: obtain from Vey at level 6; silence prevents casting.
-- Saxifra: root; Aerovanta: lift; Somnara: sleep that breaks on damage. A sleeping or stunned monster shows no attack circle; a lifted monster always lands back on the ground.
+- Saxifra: root; Aerovanta: lift (a student is thrown about six studs up); Somnara: sleep that breaks on damage. A sleeping or stunned monster shows no attack circle; a lifted monster always lands back on the ground.
 - Frigora then Tonitra: Shatter; Ruptara on a burning enemy: Combust. Discoveries appear in the journal.
 - Speculo: reflect a duelist's first projectile or a Lanternwisp attack during its short window.
 - Purgo: removes negative effects; Durassa: damage reduction and slow.
 - Tractum: obtain at level 14 from the Restricted Shelf; pulls non-boss targets without crossing walls.
-- Murallis: unlock after Vexweave at level 20; blocks incoming hostile duel projectiles and monster attacks against its owner.
+- Murallis: unlock after Vexweave at level 20; blocks projectiles and spark lances from hostile players (a duel rival, or an open-PvP rival) and monster attacks against its owner.
 - Shift dodge: stamina cost, short damage immunity, wall clearance, no dodging while rooted. Dodging through a monster is not cut short.
 - Double-tap W, A, S or D: dodges forward, left, back or right as the camera sees it, and tumbles the same way. A slow second tap, or a different key, does nothing.
-- Broom (F, with a wand): you sit astride your broom and fly where the camera looks, at its speed; Space climbs, Q dives, and F lands you upright. No take-off in Whisperwood, in a duel, while rooted or within 6 seconds of combat. Flying into Whisperwood, a hit, a duel or crowd control drops you. The Bag lists the four brooms: Ashwind from the start, Stoutbough at level 6, Swiftquill at 12, Nightwing at 18; choosing one in the air swaps it.
+- Broom (F, with a wand): you sit astride your broom and fly where the camera looks, at its speed; Space climbs, Q dives, and F lands you upright. No take-off in Whisperwood, in a duel, while rooted or within 6 seconds of combat. Flying into Whisperwood, hits adding up to 15 damage within 2 seconds, a duel or crowd control drops you. The Bag lists the four brooms: Ashwind from the start, Stoutbough at level 6, Swiftquill at 12, Nightwing at 18; choosing one in the air swaps it. Hold the right mouse button in the air: the spark lance pours from the saddle, the broom slows to 60% and turns to face your aim, and F still lands you without letting go.
 - Dying: return to the last touched Waystone after five seconds, without losing currency.
 - Exact chat incantation and `/cast Flamara`: one cast per message, including in a multi-client session; normal chat stays filtered and visible normally.
 
@@ -75,11 +75,11 @@ Use the command bar to grant levels and items where noted. The wands' design she
 
 Use Studio's server/client test controls with two players.
 
-1. Shoot each other in the village: no player damage should be possible.
+1. Sort the two players into different houses and shoot each other with open PvP on for both (the default): bolts, lances and spells hurt each other at ×0.7, each sees a red PvP tag over the other, and the knock-out message names who did it. Within 30 studs of a Waystone (the HUD says Sanctuary) no hit lands. Put both in the same house, or switch PvP off for one player: bolts pass through and Mend heals the other. Switching PvP off, or sending or accepting a duel, within 10 seconds of combat is refused. A rider stays up after one lance tick and falls once hits add up to 15 damage within 2 seconds. Lift a player with Aerovanta: they rise about six studs.
 2. Both players stand near Vey. Send an invitation and accept it. Verify countdown, full resources and teleport to the platform.
 3. Win a duel. The loser stops at one HP, both return, and only the winner receives the reward. Walk outside the arena or disconnect to test forfeits.
 4. Invite a third player while a duel is active: a second match should not occupy the same platform.
-5. Attack the same monster with both players. Each contributor in range should receive their own loot and XP. An uninvolved player should receive none. Stand between your partner and the monster: their bolts and beams pass through you and hit the monster. Melee monsters close in without circling, and an attack circle still hits a player standing behind another player.
+5. Attack the same monster with both players. Each contributor in range should receive their own loot and XP. An uninvolved player should receive none. With open PvP off for one of you, stand between your partner and the monster: their bolts and beams pass through you and hit the monster. Melee monsters close in without circling, and an attack circle still hits a player standing behind another player.
 6. Run simultaneous classes: a player must not advance by hitting someone else's lesson targets.
 7. Check Vexweave's three phases with more than one contributor; after defeat no lingering attack should continue to damage players.
 

@@ -1,8 +1,16 @@
 local Shared = game:GetService("ReplicatedStorage").Shared
+local Config = require(Shared.Config)
 local Wands = require(Shared.WandData)
 local Skills = require(Shared.SkillData)
 local F = {}
 function F.XP(level) return math.floor(100 * level ^ 1.5) end
+-- Waystones are sanctuaries: no open PvP within Config.Sanctuary studs of one, where knocked-out students return.
+function F.Sanctuary(position)
+    for _, p in pairs(Config.Waystones) do
+        if (position-Vector3.new(p[1], p[2], p[3])).Magnitude <= Config.Sanctuary then return true end
+    end
+    return false
+end
 -- Sums the equipped wand and learned skills into mods[Stat][Scope]; F.Mod reads them back.
 function F.Mods(data)
     local mods = {}

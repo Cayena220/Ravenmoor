@@ -4,6 +4,7 @@ local Config = require(Shared.Config)
 local F = require(Shared.Formulas)
 local Wands = require(Shared.WandData)
 local Spells = require(Shared.SpellData)
+local Brooms = require(Shared.BroomData)
 local C = {}
 local CC = {Silenced=true,Rooted=true,Airborne=true,Asleep=true,Stunned=true}
 function C:Init(services) self.S = services; self.States = {}; self.Targets = {} end
@@ -37,7 +38,8 @@ function C:Status(target, name, duration, source, dps)
     target.Statuses[name] = {Until = now+duration, Source = source, Dps = dps or 0, Tick = now+1}
     if name == "Airborne" then
         if target.Player then
-            target.Root:ApplyImpulse(Vector3.new(0,target.Root.AssemblyMass*35,0))
+            -- A student's own client moves their character, so it throws them up (EffectsController:Lift).
+            self.S.NetworkService.UI:FireClient(target.Player, "Lift")
         else
             -- Keep the original ground height so overlapping lifts cannot strand a unit in the air.
             if not target.GroundY then
@@ -56,11 +58,27 @@ function C:Status(target, name, duration, source, dps)
     end
     self.S.NetworkService.FX:FireAllClients("Status", target.Root.Position, name, duration)
 end
+-- Open-PvP rivals: both students have open PvP on (Settings.PvP, on unless switched off) and they aren't housemates.
+-- Unsorted students have no house to share. Where they stand doesn't matter here.
+function C:Rivals(a, b)
+    local da, db = self.S.PlayerDataService:Get(a), self.S.PlayerDataService:Get(b)
+    return a ~= b and da ~= nil and db ~= nil and da.Settings.PvP == true and db.Settings.PvP == true
+        and (da.House == "" or da.House ~= db.House)
+end
+-- Whether students `a` and `b` may hurt each other: rivals in a duel, or, while neither is duelling, open-PvP rivals
+-- when neither stands in a Waystone's sanctuary (F.Sanctuary). Spawn protection still holds (Damage).
+function C:Hostile(a, b)
+    if a == b then return false end
+    local duels = self.S.DuelService
+    if duels:IsBusy(a) or duels:IsBusy(b) then return duels:CanDamage(a, b) end
+    local sa, sb = self.States[a], self.States[b]
+    return self:Rivals(a, b) and sa ~= nil and sb ~= nil and not F.Sanctuary(sa.Root.Position) and not F.Sanctuary(sb.Root.Position)
+end
 function C:CanDamage(player, target)
     if not target or not target.Model.Parent or target.Humanoid.Health <= 0 then return false end
     if target.Player then
         if player == target.Player then return false end
-        return player and self.S.DuelService:CanDamage(player, target.Player) or false
+        return player ~= nil and self:Hostile(player, target.Player)
     end
     if player and self.S.DuelService:IsBusy(player) then return false end
     if target.LessonOwner and target.LessonOwner ~= player then return false end
@@ -96,7 +114,13 @@ function C:Damage(player, target, amount, spell, dot)
     target.LastCombat = os.clock()
     if player and self.States[player] then self.States[player].LastCombat = os.clock() end
     if amount > 0 then target.Statuses.Asleep = nil end
-    if amount > 0 and target.Player then target.HurtAt = os.clock() end   -- a hit knocks a rider off their broom
+    if amount > 0 and target.Player then
+        -- Hits adding up to Brooms.KnockOff damage within Brooms.KnockWindow seconds knock a rider off (FlightService).
+        local now = os.clock()
+        if now-(target.HurtSince or -100) > Brooms.KnockWindow then target.HurtSince = now; target.HurtTotal = 0 end
+        target.HurtTotal = target.HurtTotal+amount
+        if target.HurtTotal >= Brooms.KnockOff then target.HurtAt = now end
+    end
     if player and target.MonsterId then
         target.Contributors[player] = (target.Contributors[player] or 0)+amount
         target.Threat[player] = (target.Threat[player] or 0)+amount
@@ -105,8 +129,17 @@ function C:Damage(player, target, amount, spell, dot)
         target.Humanoid.Health = 1; self.S.DuelService:Defeated(target.Player)
     elseif target.MonsterId and target.Humanoid.Health-amount <= 0 then
         target.Humanoid.Health = 0; self.S.MonsterService:Killed(target)
-    else target.Humanoid.Health = math.max(0, target.Humanoid.Health-amount) end
-    if player and spell and not dot then self.S.ProgressionService:Hit(player, spell.Id) end
+    else
+        local health = math.max(0, target.Humanoid.Health-amount)
+        -- Set before the health: Died fires at once, and its Knockout message names who did it (BindPlayer).
+        if target.Player then target.KnockedOutBy = health <= 0 and player or nil end
+        target.Humanoid.Health = health
+        if player and target.Player and health <= 0 then
+            self.S.NetworkService:Notice(player, "You knocked out "..target.Player.DisplayName.."!")
+        end
+    end
+    -- Only monsters teach Mastery, so students can't farm it off each other.
+    if player and spell and not dot and target.MonsterId then self.S.ProgressionService:Hit(player, spell.Id) end
     self.S.NetworkService.FX:FireAllClients("Damage", target.Root.Position+Vector3.new(0,3,0), math.floor(amount+0.5), crit)
     return true
 end
@@ -154,7 +187,8 @@ function C:BindPlayer(player)
         self.S.WorldService:Teleport(player,Vector3.new(pos[1],pos[2],pos[3]))
         hum.Died:Connect(function()
             self.S.DuelService:Defeated(player); self.S.ClassService:Cancel(player)
-            self.S.NetworkService.UI:FireClient(player,"Knockout",Config.RespawnTime)
+            local by=s.KnockedOutBy
+            self.S.NetworkService.UI:FireClient(player,"Knockout",{Seconds=Config.RespawnTime,By=by and by.DisplayName or nil})
             task.delay(Config.RespawnTime,function() if player.Parent and self.S.PlayerDataService:Get(player) then player:LoadCharacterAsync() end end)
         end)
     end

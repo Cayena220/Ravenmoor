@@ -2,8 +2,8 @@ local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local Brooms = require(RS.Shared.BroomData)
 -- Broom flight. The server decides who may fly and welds their broom (ReplicatedStorage.Brooms) under them; the
--- rider's own client flies the character, which it owns (FlightController). A rider is grounded by a hit, a duel,
--- crowd control, Whisperwood's sky or the ceiling.
+-- rider's own client flies the character, which it owns (FlightController). A rider is grounded by hits adding up to
+-- Brooms.KnockOff damage (CombatService:Damage), a duel, crowd control, Whisperwood's sky or the ceiling.
 local F = {}
 function F:Init(services) self.S = services; self.Riders = {}; self.LastToggle = {} end
 -- Whether `player` may take off now, and why not.
@@ -69,7 +69,7 @@ function F:Check()
         local s = combat.States[player]
         if not player.Parent or not s or s.Model ~= rider.Character or not rider.Model.Parent or s.Humanoid.Health <= 0 then
             self:Dismount(player)
-        elseif (s.HurtAt or 0) > rider.Since then self:Dismount(player, "The hit knocks you off your broom!")
+        elseif (s.HurtAt or 0) > rider.Since then self:Dismount(player, "The blows knock you off your broom!")
         elseif self.S.DuelService:IsBusy(player) then self:Dismount(player, "Duels are fought on foot.")
         elseif not combat:CanAct(s) or combat:Has(s, "Rooted") then self:Dismount(player, "You tumble off your broom.")
         elseif not self.S.WorldService:Zone(s.Root.Position).Safe then self:Dismount(player, "Whisperwood's old wards pull you from the sky.")

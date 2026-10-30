@@ -13,6 +13,7 @@ function P:Refresh(player)
     end
     player:SetAttribute("House", d.House)
     player:SetAttribute("Level", d.Level)
+    player:SetAttribute("PvP", d.Settings.PvP)
     self.S.CombatService:HouseTrim(player)
     if d.SealDefeated and d.Level >= 15 then self:Learn(player, "Tonitra", true) end
     if d.BossDefeated and d.Level >= 20 then self:Learn(player, "Murallis", true) end
@@ -116,7 +117,12 @@ function P:Start()
     self.S.NetworkService.Handlers.Talent = function(player, id) self:Talent(player, id) end
     self.S.NetworkService.Handlers.Setting = function(player, key, value)
         local d = self.S.PlayerDataService:Get(player)
-        if not d or (key ~= "SpokenCasting" and key ~= "ReducedEffects") or type(value) ~= "boolean" then return end
+        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true})[key] or type(value) ~= "boolean" then return end
+        -- Open PvP (CombatService:Hostile) can't be switched off to escape a fight.
+        local s = self.S.CombatService.States[player]
+        if key == "PvP" and not value and s and os.clock()-s.LastCombat < Config.PvPLockout then
+            return self.S.NetworkService:Notice(player, "You can't leave PvP within "..Config.PvPLockout.." seconds of combat.")
+        end
         d.Settings[key] = value; self:Refresh(player)
     end
 end

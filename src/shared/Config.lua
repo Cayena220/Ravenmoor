@@ -4,6 +4,8 @@ return {
     StudioSaves = false, DataStoreName = "Wandbound_Alpha_v1",
     SaveInterval = 60, LockLifetime = 180, MaxMonsters = 25,
     ClassInterval = 300, LessonRewardCooldown = 120, DayLength = 1200,
+    PvPLockout = 10,        -- seconds after combat before a student can switch open PvP off (Settings) or start a duel
+    Sanctuary = 30,         -- studs round each Waystone where open PvP is off (Formulas.Sanctuary)
     Houses = {
         Emberclaw = {Trait = "Courage", Color = {187, 71, 63}, Perk = "+5% attack power"},
         Stoneroot = {Trait = "Loyalty", Color = {204, 156, 64}, Perk = "+5% health and shields"},

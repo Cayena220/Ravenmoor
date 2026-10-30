@@ -1,6 +1,11 @@
 local Players=game:GetService("Players")
-local F=require(game:GetService("ReplicatedStorage").Shared.Formulas)
+local Shared=game:GetService("ReplicatedStorage").Shared
+local F=require(Shared.Formulas)
+local Config=require(Shared.Config)
 local D={}
+-- A duel heals both students and shuts everyone else out, so it can't start within PvPLockout seconds of combat:
+-- it is no way out of an open-PvP fight.
+local function calm(s) return os.clock()-s.LastCombat>=Config.PvPLockout end
 function D:Init(services) self.S=services; self.Invites={}; self.Matches={}; self.Rewards={} end
 function D:IsBusy(player) return self.Matches[player]~=nil end
 function D:IsCounting(player) local m=self.Matches[player]; return m and os.clock()<m.Starts end
@@ -12,6 +17,7 @@ function D:Invite(player,userId)
     if not F.Finite(userId) or userId%1~=0 or self:IsBusy(player) then return end
     local other=Players:GetPlayerByUserId(userId); local a=self.S.CombatService.States[player]; local b=other and self.S.CombatService.States[other]
     if not a or not b or a.Humanoid.Health<=0 or b.Humanoid.Health<=0 or other==player or self:IsBusy(other) then return end
+    if not calm(a) or not calm(b) then return self.S.NetworkService:Notice(player,"Duels can't start within "..Config.PvPLockout.." seconds of combat.") end
     if not self.S.WorldService:Near(player,"Duelmaster",35) or not self.S.WorldService:Near(other,"Duelmaster",35) then return self.S.NetworkService:Notice(player,"Both duelists must stand near Duelmaster Vey.") end
     local invite=self.Invites[other]
     if invite and os.clock()<invite.Expires then return self.S.NetworkService:Notice(player,"That student already has an invitation.") end
@@ -28,6 +34,7 @@ function D:Respond(player,accept)
     if not self.S.WorldService:Near(player,"Duelmaster",35) or not self.S.WorldService:Near(other,"Duelmaster",35) then return end
     local a=self.S.CombatService.States[player]; local b=self.S.CombatService.States[other]
     if not a or not b or a.Humanoid.Health<=0 or b.Humanoid.Health<=0 then return end
+    if not calm(a) or not calm(b) then return self.S.NetworkService:Notice(player,"Duels can't start within "..Config.PvPLockout.." seconds of combat.") end
     local m={Players={player,other},Starts=os.clock()+3,Ends=os.clock()+183,Positions={[player]=a.Root.Position,[other]=b.Root.Position}}
     self.Active=m
     self.Matches[player]=m; self.Matches[other]=m

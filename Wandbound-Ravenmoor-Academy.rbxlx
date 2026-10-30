@@ -454200,7 +454200,7 @@ local colors={Arcane=Color3.fromRGB(194,163,255),Fire=Color3.fromRGB(255,153,72)
     Lightning=Color3.fromRGB(255,236,134),Ward=Color3.fromRGB(246,205,118),Restoration=Color3.fromRGB(139,235,163),
     Alteration=Color3.fromRGB(110,210,189),Enemy=Color3.fromRGB(226,95,129)}
 function E:Init(controllers)
-    self.C=controllers; self.Pool={}; self.Flying={}; self.Labels={}; self.Zone=nil; self.Lances={}; self.Clips={}
+    self.C=controllers; self.Pool={}; self.Flying={}; self.Labels={}; self.Zone=nil; self.Lances={}; self.Clips={}; self.PvPTags={}
     self.Shoulders=setmetatable({},{__mode="k"}); self.Marked=setmetatable({},{__mode="k"}); self.Tilt={0,0}
 end
 function E:Color(id)
@@ -454657,6 +454657,38 @@ function E:Label(model)
     hum.HealthChanged:Connect(function(health) fill.Size=UDim2.fromScale(math.clamp(health/hum.MaxHealth,0,1),1) end)
     model.Destroying:Connect(function() self.Labels[model]=nil end)
 end
+-- Whether you and `player` may fight in open PvP (CombatService:Rivals): both have it on and you aren't housemates.
+function E:Rival(player)
+    local me=Players.LocalPlayer; local house=me:GetAttribute("House")
+    return player~=me and me:GetAttribute("PvP")==true and player:GetAttribute("PvP")==true
+        and (house==nil or house=="" or player:GetAttribute("House")~=house)
+end
+-- A red PvP tag over the head of every open-PvP rival, drawn on this client only.
+function E:DrawTags()
+    for _,player in ipairs(Players:GetPlayers()) do
+        local head=self:Rival(player) and player.Character and player.Character:FindFirstChild("Head")
+        local tag=self.PvPTags[player]
+        if head and not tag then
+            tag=Instance.new("BillboardGui"); tag.Name="PvPTag"; tag.Size=UDim2.fromOffset(60,20); tag.StudsOffset=Vector3.new(0,3.4,0)
+            tag.MaxDistance=120; tag.AlwaysOnTop=true
+            local label=Instance.new("TextLabel"); label.Size=UDim2.fromScale(1,1); label.BackgroundTransparency=1; label.Font=Enum.Font.GothamBold
+            label.Text="PvP"; label.TextSize=13; label.TextColor3=colors.Enemy; label.TextStrokeTransparency=0.4; label.Parent=tag
+            tag.Parent=self.Folder; self.PvPTags[player]=tag
+        end
+        if tag then if head then tag.Adornee=head else tag:Destroy(); self.PvPTags[player]=nil end end
+    end
+    for player,tag in pairs(self.PvPTags) do if not player.Parent then tag:Destroy(); self.PvPTags[player]=nil end end
+end
+-- Aerovanta's lift on you (CombatService:Status). You own your character's physics, so this client throws you up,
+-- about six studs: as high as a lifted monster rises. A rider is knocked off their broom instead (FlightService).
+local LIFT=50
+function E:Lift()
+    local character=Players.LocalPlayer.Character
+    local hum=character and character:FindFirstChildOfClass("Humanoid"); local root=character and character:FindFirstChild("HumanoidRootPart")
+    if not (hum and root) or Players.LocalPlayer:GetAttribute("Broom") then return end
+    hum:ChangeState(Enum.HumanoidStateType.Freefall)
+    local v=root.AssemblyLinearVelocity; root.AssemblyLinearVelocity=Vector3.new(v.X,math.max(v.Y,0)+LIFT,v.Z)
+end
 function E:UpdateZone()
     local zone=Players.LocalPlayer:GetAttribute("Zone")
     if zone==self.Zone then return end; self.Zone=zone
@@ -454712,7 +454744,7 @@ function E:Start()
         self:DrawLances(dt)
         elapsed=elapsed+dt
         if elapsed>0.4 then
-            elapsed=0; self:UpdateZone()
+            elapsed=0; self:UpdateZone(); self:DrawTags()
             local data=self.C.UIController.Data; local q=data and Quests[data.Quest]; local p=q and Points[q.Anchor]
             if p then
                 self.Waypoint.Position=Vector3.new(p[1],p[2]+8,p[3])
@@ -454793,9 +454825,14 @@ function I:Aim()
     local result=workspace:Raycast(ray.Origin,ray.Direction*220,params)
     local point=result and result.Position or ray.Origin+ray.Direction*170
     if UIS:GetLastInputType()==Enum.UserInputType.Touch or tostring(UIS:GetLastInputType()):find("Gamepad") then
+        -- Aim assist: monsters, and your open-PvP rivals (EffectsController:Rival).
         local runtime=workspace:FindFirstChild("Runtime"); local monsters=runtime and runtime:FindFirstChild("Monsters")
+        local candidates=monsters and monsters:GetChildren() or {}
+        for _,other in ipairs(Players:GetPlayers()) do
+            if other.Character and self.C.EffectsController:Rival(other) then candidates[#candidates+1]=other.Character end
+        end
         local best=math.cos(math.rad(10))
-        if monsters then for _,model in ipairs(monsters:GetChildren()) do
+        for _,model in ipairs(candidates) do
             local target=model.PrimaryPart; local hum=model:FindFirstChildOfClass("Humanoid")
             if target and hum and hum.Health>0 then
                 local delta=target.Position-ray.Origin
@@ -454807,7 +454844,7 @@ function I:Aim()
                     end
                 end
             end
-        end end
+        end
     end
     local delta=point-root.Position
     if delta.Magnitude>180 then point=root.Position+delta.Unit*180 end
@@ -454817,8 +454854,12 @@ function I:UseSlot(slot,direction)
     local ui=self.C.UIController
     if ui:IsOpen() or UIS:GetFocusedTextBox() then return end
     local d=ui.Data; if not d then return end
-    -- A dodge or the broom ends the spark lance (as the server does); no other spell is cast while it pours.
-    if self.Lancing then if slot=="Dodge" or slot=="Broom" then self:Lance(false) else return end end
+    -- A dodge ends the spark lance (as the server does); no other spell is cast while it pours. You may take off or
+    -- land without letting go, and a rider, who can't dodge, keeps pouring.
+    if self.Lancing and slot~="Broom" then
+        if slot~="Dodge" or self.Player:GetAttribute("Broom") then return end
+        self:Lance(false)
+    end
     if slot=="Dodge" then
         local hum=self.Player.Character and self.Player.Character:FindFirstChildOfClass("Humanoid")
         if hum then ui:Action("Dodge",direction or hum.MoveDirection) end
@@ -454837,9 +454878,9 @@ function I:UseSlot(slot,direction)
         if slot=="Basic" then self.C.EffectsController:CastBolt(aim) end
     end
 end
--- Scintara's spark lance pours while the right mouse button (LT, or the touch Lance button) is held, and stops when
--- it is let go (SpellService:Channel). The server ends it too when the mana runs out, and EffectsController stops
--- the hold when the lance's ScintaraLance attribute goes.
+-- Scintara's spark lance pours while the right mouse button (LT, or the touch Lance button) is held, on foot or on a
+-- broom, and stops when it is let go (SpellService:Channel). The server ends it too when the mana runs out, and
+-- EffectsController stops the hold when the lance's ScintaraLance attribute goes.
 function I:Lance(on)
     local ui=self.C.UIController
     if not on then
@@ -454849,7 +454890,7 @@ function I:Lance(on)
     if self.Lancing or ui:IsOpen() or UIS:GetFocusedTextBox() then return end
     local d=ui.Data; if not d then return end
     if not d.HasWand then return ui:Toast("Visit Oakhart in Hollowmere to receive your wand.") end
-    if self.Player:GetAttribute("Broom") or (ui.Cooldowns.ScintaraLance or 0)>os.clock() then return end
+    if (ui.Cooldowns.ScintaraLance or 0)>os.clock() then return end
     local aim=self:Aim(); if aim then RS.Remotes.Aim:FireServer(aim) end
     self.Lancing=true; RS.Remotes.Channel:FireServer(true); self.C.EffectsController:LanceStart()
 end
@@ -455005,8 +455046,10 @@ function U:Open(title,menu)
     if self.C.InputController then self.C.InputController:CameraMode() end
     if UIS.GamepadEnabled then GuiService.SelectedObject=self.CloseButton end
 end
+-- `height` is the least the paragraph takes; it grows to fit its text on a narrow screen.
 function U:Paragraph(content,height)
-    return text(self.Body,content,16,palette.Ink,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
+    return text(self.Body,content,16,palette.Ink,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top,
+        AutomaticSize=Enum.AutomaticSize.Y})
 end
 function U:Row(height)
     return make("Frame",self.Body,{BackgroundTransparency=1,Size=UDim2.new(1,-12,0,height or 50)})
@@ -455130,7 +455173,10 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
-        self:Paragraph("PC: LMB cast · RMB ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT cast · LT ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
+        button(self.Body,"Open PvP: "..(d.Settings.PvP and "ON" or "OFF"),function() self:Action("Setting","PvP",not self.Data.Settings.PvP) end)
+        self:Paragraph("With open PvP on, you can fight every student outside your house who has it on too, on foot or on a broom, anywhere but within "
+            ..Config.Sanctuary.." studs of a Waystone. Within "..Config.PvPLockout.." seconds of combat you can't switch it off or start a duel.",62)
+        self:Paragraph("PC: LMB bolt · hold RMB lance · R ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT bolt · hold LT lance · R3 ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -455255,7 +455301,7 @@ function U:Build()
     self.Root=make("Frame",self.Gui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
     self.Brand=text(self.Root,"WANDBOUND",23,palette.White,{Position=UDim2.fromOffset(22,8),Font=Enum.Font.Garamond,Size=UDim2.fromOffset(280,32)})
     self.Subtitle=text(self.Root,"R A V E N M O O R   A C A D E M Y",10,palette.Gold,{Position=UDim2.fromOffset(23,38),Size=UDim2.fromOffset(300,20)})
-    self.Location=text(self.Root,"Hollowmere Village",15,palette.White,{Position=UDim2.fromOffset(23,63),Size=UDim2.fromOffset(310,28)})
+    self.Location=text(self.Root,"Hollowmere Village",15,palette.White,{Position=UDim2.fromOffset(23,63),Size=UDim2.fromOffset(400,28)})
     self.ClassLabel=text(self.Root,"Next class",14,palette.White,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,9),Size=UDim2.fromOffset(240,40),TextXAlignment=Enum.TextXAlignment.Right,TextWrapped=true})
     self.MenuButton=button(self.Root,"K  SPELLBOOK",function() self:Show("Spells") end,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,57),Size=UDim2.fromOffset(155,42),TextSize=13,BackgroundColor3=palette.Ink,TextColor3=palette.White})
     stroke(self.MenuButton,palette.Gold)
@@ -455323,7 +455369,9 @@ function U:UpdateHUD()
     if d then
         local q=Quests[d.Quest]
         self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
-        self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
+        local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
+        local sanctuary=d.Settings.PvP and root and F.Sanctuary(root.Position)
+        self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere")..(sanctuary and "  ·  Sanctuary" or "").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
         local keys={Basic="LMB",Lance="RMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="R",Dodge="SHIFT",Broom="F"}
         if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Lance="LT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="R3",Dodge="LB",Broom="DOWN"} end
         local flying=self.Player:GetAttribute("Broom")~=nil
@@ -455362,7 +455410,7 @@ function U:Welcome()
     self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",80)
     self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",95)
     self:Paragraph("Approach a named character and use the interaction prompt. Follow the quest card. Red ground circles warn you where enemies will strike.",90)
-    self:Paragraph("LMB casts Spark Bolt · RMB raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
+    self:Paragraph("LMB casts Spark Bolt · hold RMB for its lance · R raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
     button(self.Body,"BEGIN YOUR FIRST YEAR",function() self:Close() end,{BackgroundColor3=palette.Gold,Size=UDim2.new(1,-12,0,56)})
 end
 function U:Start()
@@ -455398,7 +455446,9 @@ function U:Start()
             button(self.Body,"Accept duel",function() self:Action("DuelRespond",true); self:Close() end)
             button(self.Body,"Decline",function() self:Action("DuelRespond",false); self:Close() end)
         elseif kind=="DuelStart" then self:Close(); self:Toast("Bow. Ready in "..info.." seconds…")
-        elseif kind=="Knockout" then self:Close(); self:Toast("Knocked out · returning to your Waystone in "..info.." seconds. Nothing lost.")
+        elseif kind=="Knockout" then
+            self:Close(); self:Toast((info.By and "Knocked out by "..info.By or "Knocked out").." · returning to your Waystone in "..info.Seconds.." seconds. Nothing lost.")
+        elseif kind=="Lift" then self.C.EffectsController:Lift()
         else self:Show(kind) end
     end)
     self:Welcome()
@@ -455577,12 +455627,14 @@ local Tween=game:GetService("TweenService")
 local Debris=game:GetService("Debris")
 local Brooms=require(RS.Shared.BroomData)
 local Config=require(RS.Shared.Config)
+local Spells=require(RS.Shared.SpellData)
 -- Flies your character while the server has you on a broom (FlightService sets your Broom attribute). The stick
 -- steers where the camera looks, so pushing forward climbs or dives with the camera; Space or A climbs straight up
 -- and Q or L3 dives. The broom eases toward the wanted speed, banks into turns, pitches with the climb and bobs
 -- gently in a hover. You own your character's physics, so the flight is smooth here and replicates to everyone.
 -- Flown flat out, a rider dashes through the air: they tuck into the wind in their house's own way, and every
--- client draws the wind streaming round them in their house colour.
+-- client draws the wind streaming round them in their house colour. Holding the right mouse button pours the spark
+-- lance from the saddle: the broom slows as your walk would, and turns to face where you aim.
 local Fl={}
 local DASH_IN,DASH_OUT=0.8,0.6   -- of the broom's top speed: start dashing above the first, stop below the second
 local WIND=Color3.fromRGB(194,163,255)   -- for riders not yet in a house: the arcane violet
@@ -455631,7 +455683,8 @@ function Fl:End()
     if f.Track then f.Track:Stop(0.25) end
     if f.Dash then f.Dash:Stop(0.25) end
     f.Push:Destroy(); f.Turn:Destroy(); f.Attach:Destroy()
-    if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=true; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
+    -- Landing mid-lance, the lance keeps turning you to your aim (EffectsController:DrawLances).
+    if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=not self.C.EffectsController.Pouring; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
     if f.Root.Parent then
         -- Stand upright, facing the way you flew, and drop straight down rather than skid on.
         local look=f.Root.CFrame.LookVector*Vector3.new(1,0,1)
@@ -455651,7 +455704,8 @@ function Fl:Step(dt)
         move=camera.CFrame.RightVector*stick.X-camera.CFrame.LookVector*stick.Z
         if move.Magnitude>1 then move=move.Unit end
     end
-    local want=move*b.Speed+Vector3.new(0,(busy and 0 or self:Climb())*b.Climb,0)
+    local pouring=self.C.InputController.Lancing
+    local want=move*b.Speed*(pouring and Spells.Scintara.Lance.Slow or 1)+Vector3.new(0,(busy and 0 or self:Climb())*b.Climb,0)
     if want.Y>0 and f.Root.Position.Y>=Brooms.Ceiling then want=Vector3.new(want.X,0,want.Z) end
     f.Velocity=f.Velocity:Lerp(want,1-math.exp(-b.Handling*0.45*dt))
     -- A hover bobs gently; full speed flies level.
@@ -455669,7 +455723,7 @@ function Fl:Step(dt)
     local playing=f.Dashing and f.Dash or f.Track
     if playing then playing:AdjustSpeed(0.75+0.5*math.min(1,pace)) end
     local flat=Vector3.new(f.Velocity.X,0,f.Velocity.Z)
-    local facing=flat.Magnitude>3 and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
+    local facing=flat.Magnitude>3 and not pouring and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
     if facing.Magnitude<0.1 then return end
     facing=facing.Unit
     -- Bank into turns, by how fast the heading swings, and pitch the nose with the climb.
@@ -456093,21 +456147,6 @@ for _,name in ipairs(order) do controllers[name]:Start() end
 			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003ad</UniqueId>
 		</Properties>
 	</Item>
-	<Item class="ServiceVisibilityService" referent="RBX7FF920C21E0A47E298F055B1B9CFA732">
-		<Properties>
-			<BinaryString name="HiddenServices">AAAAAA==</BinaryString>
-			<BinaryString name="VisibleServices">AAAAAA==</BinaryString>
-			<BinaryString name="AttributesSerialize"></BinaryString>
-			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-			<bool name="DefinesCapabilities">false</bool>
-			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-			<string name="Name">ServiceVisibilityService</string>
-			<BinaryString name="SerializedOverrides"></BinaryString>
-			<int64 name="SourceAssetId">-1</int64>
-			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003cc</UniqueId>
-		</Properties>
-	</Item>
 	<Item class="LuaWebService" referent="RBX6BE130A5108041578BE4BA4CD2282219">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
@@ -456172,6 +456211,8 @@ return {
     StudioSaves = false, DataStoreName = "Wandbound_Alpha_v1",
     SaveInterval = 60, LockLifetime = 180, MaxMonsters = 25,
     ClassInterval = 300, LessonRewardCooldown = 120, DayLength = 1200,
+    PvPLockout = 10,        -- seconds after combat before a student can switch open PvP off (Settings) or start a duel
+    Sanctuary = 30,         -- studs round each Waystone where open PvP is off (Formulas.Sanctuary)
     Houses = {
         Emberclaw = {Trait = "Courage", Color = {187, 71, 63}, Perk = "+5% attack power"},
         Stoneroot = {Trait = "Loyalty", Color = {204, 156, 64}, Perk = "+5% health and shields"},
@@ -456227,10 +456268,18 @@ return {
 				<Properties>
 					<Content name="LinkedSource"><null></null></Content>
 					<ProtectedString name="Source"><![CDATA[local Shared = game:GetService("ReplicatedStorage").Shared
+local Config = require(Shared.Config)
 local Wands = require(Shared.WandData)
 local Skills = require(Shared.SkillData)
 local F = {}
 function F.XP(level) return math.floor(100 * level ^ 1.5) end
+-- Waystones are sanctuaries: no open PvP within Config.Sanctuary studs of one, where knocked-out students return.
+function F.Sanctuary(position)
+    for _, p in pairs(Config.Waystones) do
+        if (position-Vector3.new(p[1], p[2], p[3])).Magnitude <= Config.Sanctuary then return true end
+    end
+    return false
+end
 -- Sums the equipped wand and learned skills into mods[Stat][Scope]; F.Mod reads them back.
 function F.Mods(data)
     local mods = {}
@@ -456844,6 +456893,8 @@ local B = {Default = "Ashwind",
     Ceiling = 180,          -- no climbing above this height; FlightService grounds riders 25 studs over it
     CombatLockout = 6,      -- seconds after dealing or taking damage before you can take off
     ToggleCooldown = 1.5,   -- seconds between taking off and landing
+    KnockOff = 15,          -- damage within KnockWindow seconds that knocks a rider off (CombatService:Damage)
+    KnockWindow = 2,
     SeatDrop = 1.35}        -- the broom's seat sits this far under the rider's HumanoidRootPart
 B.Brooms = {
     Ashwind = {Title = "Ashwind", Level = 1, Speed = 40, Climb = 20, Handling = 6,
@@ -720661,6 +720712,7 @@ local Config = require(Shared.Config)
 local F = require(Shared.Formulas)
 local Wands = require(Shared.WandData)
 local Spells = require(Shared.SpellData)
+local Brooms = require(Shared.BroomData)
 local C = {}
 local CC = {Silenced=true,Rooted=true,Airborne=true,Asleep=true,Stunned=true}
 function C:Init(services) self.S = services; self.States = {}; self.Targets = {} end
@@ -720694,7 +720746,8 @@ function C:Status(target, name, duration, source, dps)
     target.Statuses[name] = {Until = now+duration, Source = source, Dps = dps or 0, Tick = now+1}
     if name == "Airborne" then
         if target.Player then
-            target.Root:ApplyImpulse(Vector3.new(0,target.Root.AssemblyMass*35,0))
+            -- A student's own client moves their character, so it throws them up (EffectsController:Lift).
+            self.S.NetworkService.UI:FireClient(target.Player, "Lift")
         else
             -- Keep the original ground height so overlapping lifts cannot strand a unit in the air.
             if not target.GroundY then
@@ -720713,11 +720766,27 @@ function C:Status(target, name, duration, source, dps)
     end
     self.S.NetworkService.FX:FireAllClients("Status", target.Root.Position, name, duration)
 end
+-- Open-PvP rivals: both students have open PvP on (Settings.PvP, on unless switched off) and they aren't housemates.
+-- Unsorted students have no house to share. Where they stand doesn't matter here.
+function C:Rivals(a, b)
+    local da, db = self.S.PlayerDataService:Get(a), self.S.PlayerDataService:Get(b)
+    return a ~= b and da ~= nil and db ~= nil and da.Settings.PvP == true and db.Settings.PvP == true
+        and (da.House == "" or da.House ~= db.House)
+end
+-- Whether students `a` and `b` may hurt each other: rivals in a duel, or, while neither is duelling, open-PvP rivals
+-- when neither stands in a Waystone's sanctuary (F.Sanctuary). Spawn protection still holds (Damage).
+function C:Hostile(a, b)
+    if a == b then return false end
+    local duels = self.S.DuelService
+    if duels:IsBusy(a) or duels:IsBusy(b) then return duels:CanDamage(a, b) end
+    local sa, sb = self.States[a], self.States[b]
+    return self:Rivals(a, b) and sa ~= nil and sb ~= nil and not F.Sanctuary(sa.Root.Position) and not F.Sanctuary(sb.Root.Position)
+end
 function C:CanDamage(player, target)
     if not target or not target.Model.Parent or target.Humanoid.Health <= 0 then return false end
     if target.Player then
         if player == target.Player then return false end
-        return player and self.S.DuelService:CanDamage(player, target.Player) or false
+        return player ~= nil and self:Hostile(player, target.Player)
     end
     if player and self.S.DuelService:IsBusy(player) then return false end
     if target.LessonOwner and target.LessonOwner ~= player then return false end
@@ -720753,7 +720822,13 @@ function C:Damage(player, target, amount, spell, dot)
     target.LastCombat = os.clock()
     if player and self.States[player] then self.States[player].LastCombat = os.clock() end
     if amount > 0 then target.Statuses.Asleep = nil end
-    if amount > 0 and target.Player then target.HurtAt = os.clock() end   -- a hit knocks a rider off their broom
+    if amount > 0 and target.Player then
+        -- Hits adding up to Brooms.KnockOff damage within Brooms.KnockWindow seconds knock a rider off (FlightService).
+        local now = os.clock()
+        if now-(target.HurtSince or -100) > Brooms.KnockWindow then target.HurtSince = now; target.HurtTotal = 0 end
+        target.HurtTotal = target.HurtTotal+amount
+        if target.HurtTotal >= Brooms.KnockOff then target.HurtAt = now end
+    end
     if player and target.MonsterId then
         target.Contributors[player] = (target.Contributors[player] or 0)+amount
         target.Threat[player] = (target.Threat[player] or 0)+amount
@@ -720762,8 +720837,17 @@ function C:Damage(player, target, amount, spell, dot)
         target.Humanoid.Health = 1; self.S.DuelService:Defeated(target.Player)
     elseif target.MonsterId and target.Humanoid.Health-amount <= 0 then
         target.Humanoid.Health = 0; self.S.MonsterService:Killed(target)
-    else target.Humanoid.Health = math.max(0, target.Humanoid.Health-amount) end
-    if player and spell and not dot then self.S.ProgressionService:Hit(player, spell.Id) end
+    else
+        local health = math.max(0, target.Humanoid.Health-amount)
+        -- Set before the health: Died fires at once, and its Knockout message names who did it (BindPlayer).
+        if target.Player then target.KnockedOutBy = health <= 0 and player or nil end
+        target.Humanoid.Health = health
+        if player and target.Player and health <= 0 then
+            self.S.NetworkService:Notice(player, "You knocked out "..target.Player.DisplayName.."!")
+        end
+    end
+    -- Only monsters teach Mastery, so students can't farm it off each other.
+    if player and spell and not dot and target.MonsterId then self.S.ProgressionService:Hit(player, spell.Id) end
     self.S.NetworkService.FX:FireAllClients("Damage", target.Root.Position+Vector3.new(0,3,0), math.floor(amount+0.5), crit)
     return true
 end
@@ -720811,7 +720895,8 @@ function C:BindPlayer(player)
         self.S.WorldService:Teleport(player,Vector3.new(pos[1],pos[2],pos[3]))
         hum.Died:Connect(function()
             self.S.DuelService:Defeated(player); self.S.ClassService:Cancel(player)
-            self.S.NetworkService.UI:FireClient(player,"Knockout",Config.RespawnTime)
+            local by=s.KnockedOutBy
+            self.S.NetworkService.UI:FireClient(player,"Knockout",{Seconds=Config.RespawnTime,By=by and by.DisplayName or nil})
             task.delay(Config.RespawnTime,function() if player.Parent and self.S.PlayerDataService:Get(player) then player:LoadCharacterAsync() end end)
         end)
     end
@@ -720912,8 +720997,13 @@ return C
 				<Properties>
 					<Content name="LinkedSource"><null></null></Content>
 					<ProtectedString name="Source"><![CDATA[local Players=game:GetService("Players")
-local F=require(game:GetService("ReplicatedStorage").Shared.Formulas)
+local Shared=game:GetService("ReplicatedStorage").Shared
+local F=require(Shared.Formulas)
+local Config=require(Shared.Config)
 local D={}
+-- A duel heals both students and shuts everyone else out, so it can't start within PvPLockout seconds of combat:
+-- it is no way out of an open-PvP fight.
+local function calm(s) return os.clock()-s.LastCombat>=Config.PvPLockout end
 function D:Init(services) self.S=services; self.Invites={}; self.Matches={}; self.Rewards={} end
 function D:IsBusy(player) return self.Matches[player]~=nil end
 function D:IsCounting(player) local m=self.Matches[player]; return m and os.clock()<m.Starts end
@@ -720925,6 +721015,7 @@ function D:Invite(player,userId)
     if not F.Finite(userId) or userId%1~=0 or self:IsBusy(player) then return end
     local other=Players:GetPlayerByUserId(userId); local a=self.S.CombatService.States[player]; local b=other and self.S.CombatService.States[other]
     if not a or not b or a.Humanoid.Health<=0 or b.Humanoid.Health<=0 or other==player or self:IsBusy(other) then return end
+    if not calm(a) or not calm(b) then return self.S.NetworkService:Notice(player,"Duels can't start within "..Config.PvPLockout.." seconds of combat.") end
     if not self.S.WorldService:Near(player,"Duelmaster",35) or not self.S.WorldService:Near(other,"Duelmaster",35) then return self.S.NetworkService:Notice(player,"Both duelists must stand near Duelmaster Vey.") end
     local invite=self.Invites[other]
     if invite and os.clock()<invite.Expires then return self.S.NetworkService:Notice(player,"That student already has an invitation.") end
@@ -720941,6 +721032,7 @@ function D:Respond(player,accept)
     if not self.S.WorldService:Near(player,"Duelmaster",35) or not self.S.WorldService:Near(other,"Duelmaster",35) then return end
     local a=self.S.CombatService.States[player]; local b=self.S.CombatService.States[other]
     if not a or not b or a.Humanoid.Health<=0 or b.Humanoid.Health<=0 then return end
+    if not calm(a) or not calm(b) then return self.S.NetworkService:Notice(player,"Duels can't start within "..Config.PvPLockout.." seconds of combat.") end
     local m={Players={player,other},Starts=os.clock()+3,Ends=os.clock()+183,Positions={[player]=a.Root.Position,[other]=b.Root.Position}}
     self.Active=m
     self.Matches[player]=m; self.Matches[other]=m
@@ -721025,7 +721117,7 @@ local Quests=require(RS.Shared.QuestData)
 local I={}
 function I:Init(services) self.S=services; self.PotionCooldowns={}; self.Interactions={} end
 local advice={
-    Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Right mouse raises your ward; left mouse casts Scintara.",
+    Oakhart="Open your bag with B to equip a wand. Use K to assign learned spells to 1–4. Left mouse casts Scintara's bolt, hold the right for its lance, and R raises your ward.",
     Tobb="Watch for red attack circles in Whisperwood. Shift dodges, or tap a movement key twice. Bring Thorn Barbs and Spider Silk to the apothecary to brew Health Draughts.",
     Bank="Your vault keeps Gilders separate from your spending money. Deposits and withdrawals are available here.",
     Apothecary="A Thorn Barb and Spider Silk make one Health Draught. Use it from your bag to recover health over four seconds.",
@@ -721514,7 +721606,7 @@ local function template()
         HasWand = false, Wand = "", Quest = 1, QuestProgress = 0, QuestDone = {},
         Inventory = {}, Combos = {}, LastWaystone = "Hollowmere", Waystones = {Hollowmere = true},
         Daily = {Day = 0, Kills = 0, Claimed = false}, DuelWins = 0,
-        Settings = {SpokenCasting = true, ReducedEffects = false},
+        Settings = {SpokenCasting = true, ReducedEffects = false, PvP = true},
         BossDefeated = false, SealDefeated = false, LessonRewards = {}, LastRespec = 0,
         Wands = {}, EquippedWand = 0, WandsHeld = {}, WandRewards = {}, Talents = {}, LastTalentReset = 0,
         Broom = BroomData.Default}
@@ -721675,6 +721767,7 @@ function P:Refresh(player)
     end
     player:SetAttribute("House", d.House)
     player:SetAttribute("Level", d.Level)
+    player:SetAttribute("PvP", d.Settings.PvP)
     self.S.CombatService:HouseTrim(player)
     if d.SealDefeated and d.Level >= 15 then self:Learn(player, "Tonitra", true) end
     if d.BossDefeated and d.Level >= 20 then self:Learn(player, "Murallis", true) end
@@ -721778,7 +721871,12 @@ function P:Start()
     self.S.NetworkService.Handlers.Talent = function(player, id) self:Talent(player, id) end
     self.S.NetworkService.Handlers.Setting = function(player, key, value)
         local d = self.S.PlayerDataService:Get(player)
-        if not d or (key ~= "SpokenCasting" and key ~= "ReducedEffects") or type(value) ~= "boolean" then return end
+        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true})[key] or type(value) ~= "boolean" then return end
+        -- Open PvP (CombatService:Hostile) can't be switched off to escape a fight.
+        local s = self.S.CombatService.States[player]
+        if key == "PvP" and not value and s and os.clock()-s.LastCombat < Config.PvPLockout then
+            return self.S.NetworkService:Notice(player, "You can't leave PvP within "..Config.PvPLockout.." seconds of combat.")
+        end
         d.Settings[key] = value; self:Refresh(player)
     end
 end
@@ -721829,7 +721927,7 @@ function S:Visible(from, target, ignore)
     local hit=workspace:Raycast(from,delta,self:Params(ignore or {}))
     return not hit or hit.Instance:IsDescendantOf(target.Model)
 end
--- Bolts and beams pass through units the caster cannot affect: allies outside a duel,
+-- Bolts and beams pass through units the caster cannot affect: students they may not fight (CombatService:Hostile),
 -- other students' lesson targets and defeated monsters.
 function S:Trace(player,origin,direction,radius,params)
     local limit=1; for _ in pairs(self.S.CombatService.Targets) do limit=limit+1 end
@@ -721930,7 +722028,7 @@ function S:HitProjectile(p,part,position)
     end
     self.S.NetworkService.FX:FireAllClients("Impact",position,p.Spell.Id)
 end
--- Spark lance: Scintara held on the right mouse button (InputController). Lighting it costs Lance.Ignite mana and
+-- Spark lance: Scintara held on the right mouse button (InputController), on foot or on a broom. Lighting it costs Lance.Ignite mana and
 -- holding it drains Lance.Drain a second, both lowered by mana-cost bonuses as the bolt's cost is. Every Lance.Tick
 -- it strikes the first thing along the caster's aim (the Aim updates), up to Lance.Range studs, for Lance.Damage at
 -- the bolt's power. The player's ScintaraLance attribute is where the lance ends, so every client can draw it
@@ -721942,7 +722040,7 @@ function S:Channel(player,on)
     if s.Lance then return end
     local spell=Spells.Scintara; local data=self.S.PlayerDataService:Get(player)
     if not data or not data.HasWand or not data.Spells.Scintara then return self:Reject(player,"ScintaraLance","Learn this spell first.") end
-    if not C:CanAct(s) or C:Has(s,"Silenced") or s.FlySpeed or self.S.DuelService:IsCounting(player) then
+    if not C:CanAct(s) or C:Has(s,"Silenced") or self.S.DuelService:IsCounting(player) then
         return self:Reject(player,"ScintaraLance","You cannot cast right now.")
     end
     local now=os.clock()
@@ -721968,7 +722066,7 @@ end
 function S:Pour(player,s,dt,now)
     local C=self.S.CombatService; local spell=Spells.Scintara; local lance=spell.Lance
     if C.States[player]~=s or not player.Parent or not self.S.PlayerDataService:Get(player) or not C:CanAct(s)
-        or C:Has(s,"Silenced") or s.FlySpeed or s.DodgeAt>s.Lance.Since or self.S.DuelService:IsCounting(player) then
+        or C:Has(s,"Silenced") or s.DodgeAt>s.Lance.Since or self.S.DuelService:IsCounting(player) then
         return self:EndLance(player,s)
     end
     local cost=lance.Drain*dt*s.Lance.Scale
@@ -721982,10 +722080,10 @@ function S:Pour(player,s,dt,now)
     local dir=delta.Magnitude>0.01 and delta.Unit or s.Root.CFrame.LookVector
     local hit=self:Trace(player,origin,dir*lance.Range,lance.Radius,self:Params({s.Model,workspace.Markers}))
     local reach=hit and (hit.Position-origin).Magnitude or lance.Range
-    -- A rival duellist's Bastion Dome stops the lance at its edge, as it stops bolts.
+    -- A rival's Bastion Dome stops the lance at its edge, as it stops bolts.
     local blocked=false
     for _,d in ipairs(self.Domes) do
-        if d.Player~=player and self.S.DuelService:CanDamage(player,d.Player) then
+        if d.Player~=player and C:Hostile(player,d.Player) then
             local along=(d.Pos-origin):Dot(dir); local miss=(origin+dir*along-d.Pos).Magnitude
             local half=miss<10 and math.sqrt(100-miss*miss)
             -- Where the lance enters the dome; a dome wholly behind the caster does not count.
@@ -722010,7 +722108,7 @@ function S:Step(dt)
             local step=math.min(p.Spell.Speed*dt,p.Spell.Range-p.Distance)
             local nextPos=p.Pos+p.Dir*step; local blocked=false
             for _,d in ipairs(self.Domes) do
-                if d.Player~=p.Player and self.S.DuelService:CanDamage(p.Player,d.Player) then
+                if d.Player~=p.Player and self.S.CombatService:Hostile(p.Player,d.Player) then
                     local segment=nextPos-p.Pos
                     local t=math.clamp((d.Pos-p.Pos):Dot(segment)/math.max(0.001,segment:Dot(segment)),0,1)
                     if (p.Pos+segment*t-d.Pos).Magnitude<10 then blocked=true; break end
@@ -722052,7 +722150,9 @@ function S:Execute(player,spell,aim,spoken)
     elseif spell.Id=="Vitara" or spell.Id=="Purgo" then
         local hit=workspace:Raycast(origin,dir*spell.Range,self:Params({s.Model,workspace.Markers}))
         local target=hit and C:Resolve(hit.Instance) or s
-        if not target or not target.Player or (target.Player~=player and (self.S.DuelService:IsBusy(player) or self.S.DuelService:IsBusy(target.Player))) then target=s end
+        -- Only allies: never a duellist or an open-PvP rival (CombatService:Rivals); otherwise yourself.
+        if not target or not target.Player or (target.Player~=player and (C:Rivals(player,target.Player)
+            or self.S.DuelService:IsBusy(player) or self.S.DuelService:IsBusy(target.Player))) then target=s end
         if spell.Id=="Vitara" then
             -- Hearthroot's Sapflow: a Mend that restores health refunds 6 mana.
             if C:Heal(player,target,F.Power(25,data,spell,spoken))>0 and Wands.Signature(data)=="Sapflow" then
@@ -722575,8 +722675,8 @@ return A
 local RS = game:GetService("ReplicatedStorage")
 local Brooms = require(RS.Shared.BroomData)
 -- Broom flight. The server decides who may fly and welds their broom (ReplicatedStorage.Brooms) under them; the
--- rider's own client flies the character, which it owns (FlightController). A rider is grounded by a hit, a duel,
--- crowd control, Whisperwood's sky or the ceiling.
+-- rider's own client flies the character, which it owns (FlightController). A rider is grounded by hits adding up to
+-- Brooms.KnockOff damage (CombatService:Damage), a duel, crowd control, Whisperwood's sky or the ceiling.
 local F = {}
 function F:Init(services) self.S = services; self.Riders = {}; self.LastToggle = {} end
 -- Whether `player` may take off now, and why not.
@@ -722642,7 +722742,7 @@ function F:Check()
         local s = combat.States[player]
         if not player.Parent or not s or s.Model ~= rider.Character or not rider.Model.Parent or s.Humanoid.Health <= 0 then
             self:Dismount(player)
-        elseif (s.HurtAt or 0) > rider.Since then self:Dismount(player, "The hit knocks you off your broom!")
+        elseif (s.HurtAt or 0) > rider.Since then self:Dismount(player, "The blows knock you off your broom!")
         elseif self.S.DuelService:IsBusy(player) then self:Dismount(player, "Duels are fought on foot.")
         elseif not combat:CanAct(s) or combat:Has(s, "Rooted") then self:Dismount(player, "You tumble off your broom.")
         elseif not self.S.WorldService:Zone(s.Root.Position).Safe then self:Dismount(player, "Whisperwood's old wards pull you from the sky.")
@@ -729128,6 +729228,21 @@ return {
 			</Item>
 		</Item>
 	</Item>
+	<Item class="ServiceVisibilityService" referent="RBX7FF920C21E0A47E298F055B1B9CFA732">
+		<Properties>
+			<BinaryString name="HiddenServices">AAAAAA==</BinaryString>
+			<BinaryString name="VisibleServices">AAAAAA==</BinaryString>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+			<string name="Name">ServiceVisibilityService</string>
+			<BinaryString name="SerializedOverrides"></BinaryString>
+			<int64 name="SourceAssetId">-1</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003cc</UniqueId>
+		</Properties>
+	</Item>
 	<Item class="VideoService" referent="RBXA66C3CC7B1884B4598AE06146880A3DC">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
@@ -729342,6 +729457,22 @@ X09yaWdpbmFsVGVjaG5vbG9neU9uRmlsZUxvYWQEAQAAAA==]]></BinaryString>
 			<int64 name="SourceAssetId">-1</int64>
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			<UniqueId name="UniqueId">03d2e6901b9fab800aeb639000000cf9</UniqueId>
+		</Properties>
+	</Item>
+	<Item class="ProximityPromptService" referent="RBX462C405BCE334E3F955547934900D5EA">
+		<Properties>
+			<bool name="Enabled">true</bool>
+			<int name="MaxIndicatorsVisible">16</int>
+			<int name="MaxPromptsVisible">16</int>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+			<string name="Name">ProximityPromptService</string>
+			<BinaryString name="SerializedOverrides"></BinaryString>
+			<int64 name="SourceAssetId">-1</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<UniqueId name="UniqueId">247f57dde138e0fb0af5da52000024f7</UniqueId>
 		</Properties>
 	</Item>
 	<SharedStrings>

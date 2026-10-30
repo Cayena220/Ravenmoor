@@ -52,9 +52,14 @@ function I:Aim()
     local result=workspace:Raycast(ray.Origin,ray.Direction*220,params)
     local point=result and result.Position or ray.Origin+ray.Direction*170
     if UIS:GetLastInputType()==Enum.UserInputType.Touch or tostring(UIS:GetLastInputType()):find("Gamepad") then
+        -- Aim assist: monsters, and your open-PvP rivals (EffectsController:Rival).
         local runtime=workspace:FindFirstChild("Runtime"); local monsters=runtime and runtime:FindFirstChild("Monsters")
+        local candidates=monsters and monsters:GetChildren() or {}
+        for _,other in ipairs(Players:GetPlayers()) do
+            if other.Character and self.C.EffectsController:Rival(other) then candidates[#candidates+1]=other.Character end
+        end
         local best=math.cos(math.rad(10))
-        if monsters then for _,model in ipairs(monsters:GetChildren()) do
+        for _,model in ipairs(candidates) do
             local target=model.PrimaryPart; local hum=model:FindFirstChildOfClass("Humanoid")
             if target and hum and hum.Health>0 then
                 local delta=target.Position-ray.Origin
@@ -66,7 +71,7 @@ function I:Aim()
                     end
                 end
             end
-        end end
+        end
     end
     local delta=point-root.Position
     if delta.Magnitude>180 then point=root.Position+delta.Unit*180 end
@@ -76,8 +81,12 @@ function I:UseSlot(slot,direction)
     local ui=self.C.UIController
     if ui:IsOpen() or UIS:GetFocusedTextBox() then return end
     local d=ui.Data; if not d then return end
-    -- A dodge or the broom ends the spark lance (as the server does); no other spell is cast while it pours.
-    if self.Lancing then if slot=="Dodge" or slot=="Broom" then self:Lance(false) else return end end
+    -- A dodge ends the spark lance (as the server does); no other spell is cast while it pours. You may take off or
+    -- land without letting go, and a rider, who can't dodge, keeps pouring.
+    if self.Lancing and slot~="Broom" then
+        if slot~="Dodge" or self.Player:GetAttribute("Broom") then return end
+        self:Lance(false)
+    end
     if slot=="Dodge" then
         local hum=self.Player.Character and self.Player.Character:FindFirstChildOfClass("Humanoid")
         if hum then ui:Action("Dodge",direction or hum.MoveDirection) end
@@ -96,9 +105,9 @@ function I:UseSlot(slot,direction)
         if slot=="Basic" then self.C.EffectsController:CastBolt(aim) end
     end
 end
--- Scintara's spark lance pours while the right mouse button (LT, or the touch Lance button) is held, and stops when
--- it is let go (SpellService:Channel). The server ends it too when the mana runs out, and EffectsController stops
--- the hold when the lance's ScintaraLance attribute goes.
+-- Scintara's spark lance pours while the right mouse button (LT, or the touch Lance button) is held, on foot or on a
+-- broom, and stops when it is let go (SpellService:Channel). The server ends it too when the mana runs out, and
+-- EffectsController stops the hold when the lance's ScintaraLance attribute goes.
 function I:Lance(on)
     local ui=self.C.UIController
     if not on then
@@ -108,7 +117,7 @@ function I:Lance(on)
     if self.Lancing or ui:IsOpen() or UIS:GetFocusedTextBox() then return end
     local d=ui.Data; if not d then return end
     if not d.HasWand then return ui:Toast("Visit Oakhart in Hollowmere to receive your wand.") end
-    if self.Player:GetAttribute("Broom") or (ui.Cooldowns.ScintaraLance or 0)>os.clock() then return end
+    if (ui.Cooldowns.ScintaraLance or 0)>os.clock() then return end
     local aim=self:Aim(); if aim then RS.Remotes.Aim:FireServer(aim) end
     self.Lancing=true; RS.Remotes.Channel:FireServer(true); self.C.EffectsController:LanceStart()
 end

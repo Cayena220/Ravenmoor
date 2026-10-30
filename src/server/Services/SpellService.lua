@@ -28,7 +28,7 @@ function S:Visible(from, target, ignore)
     local hit=workspace:Raycast(from,delta,self:Params(ignore or {}))
     return not hit or hit.Instance:IsDescendantOf(target.Model)
 end
--- Bolts and beams pass through units the caster cannot affect: allies outside a duel,
+-- Bolts and beams pass through units the caster cannot affect: students they may not fight (CombatService:Hostile),
 -- other students' lesson targets and defeated monsters.
 function S:Trace(player,origin,direction,radius,params)
     local limit=1; for _ in pairs(self.S.CombatService.Targets) do limit=limit+1 end
@@ -129,7 +129,7 @@ function S:HitProjectile(p,part,position)
     end
     self.S.NetworkService.FX:FireAllClients("Impact",position,p.Spell.Id)
 end
--- Spark lance: Scintara held on the right mouse button (InputController). Lighting it costs Lance.Ignite mana and
+-- Spark lance: Scintara held on the right mouse button (InputController), on foot or on a broom. Lighting it costs Lance.Ignite mana and
 -- holding it drains Lance.Drain a second, both lowered by mana-cost bonuses as the bolt's cost is. Every Lance.Tick
 -- it strikes the first thing along the caster's aim (the Aim updates), up to Lance.Range studs, for Lance.Damage at
 -- the bolt's power. The player's ScintaraLance attribute is where the lance ends, so every client can draw it
@@ -141,7 +141,7 @@ function S:Channel(player,on)
     if s.Lance then return end
     local spell=Spells.Scintara; local data=self.S.PlayerDataService:Get(player)
     if not data or not data.HasWand or not data.Spells.Scintara then return self:Reject(player,"ScintaraLance","Learn this spell first.") end
-    if not C:CanAct(s) or C:Has(s,"Silenced") or s.FlySpeed or self.S.DuelService:IsCounting(player) then
+    if not C:CanAct(s) or C:Has(s,"Silenced") or self.S.DuelService:IsCounting(player) then
         return self:Reject(player,"ScintaraLance","You cannot cast right now.")
     end
     local now=os.clock()
@@ -167,7 +167,7 @@ end
 function S:Pour(player,s,dt,now)
     local C=self.S.CombatService; local spell=Spells.Scintara; local lance=spell.Lance
     if C.States[player]~=s or not player.Parent or not self.S.PlayerDataService:Get(player) or not C:CanAct(s)
-        or C:Has(s,"Silenced") or s.FlySpeed or s.DodgeAt>s.Lance.Since or self.S.DuelService:IsCounting(player) then
+        or C:Has(s,"Silenced") or s.DodgeAt>s.Lance.Since or self.S.DuelService:IsCounting(player) then
         return self:EndLance(player,s)
     end
     local cost=lance.Drain*dt*s.Lance.Scale
@@ -181,10 +181,10 @@ function S:Pour(player,s,dt,now)
     local dir=delta.Magnitude>0.01 and delta.Unit or s.Root.CFrame.LookVector
     local hit=self:Trace(player,origin,dir*lance.Range,lance.Radius,self:Params({s.Model,workspace.Markers}))
     local reach=hit and (hit.Position-origin).Magnitude or lance.Range
-    -- A rival duellist's Bastion Dome stops the lance at its edge, as it stops bolts.
+    -- A rival's Bastion Dome stops the lance at its edge, as it stops bolts.
     local blocked=false
     for _,d in ipairs(self.Domes) do
-        if d.Player~=player and self.S.DuelService:CanDamage(player,d.Player) then
+        if d.Player~=player and C:Hostile(player,d.Player) then
             local along=(d.Pos-origin):Dot(dir); local miss=(origin+dir*along-d.Pos).Magnitude
             local half=miss<10 and math.sqrt(100-miss*miss)
             -- Where the lance enters the dome; a dome wholly behind the caster does not count.
@@ -209,7 +209,7 @@ function S:Step(dt)
             local step=math.min(p.Spell.Speed*dt,p.Spell.Range-p.Distance)
             local nextPos=p.Pos+p.Dir*step; local blocked=false
             for _,d in ipairs(self.Domes) do
-                if d.Player~=p.Player and self.S.DuelService:CanDamage(p.Player,d.Player) then
+                if d.Player~=p.Player and self.S.CombatService:Hostile(p.Player,d.Player) then
                     local segment=nextPos-p.Pos
                     local t=math.clamp((d.Pos-p.Pos):Dot(segment)/math.max(0.001,segment:Dot(segment)),0,1)
                     if (p.Pos+segment*t-d.Pos).Magnitude<10 then blocked=true; break end
@@ -251,7 +251,9 @@ function S:Execute(player,spell,aim,spoken)
     elseif spell.Id=="Vitara" or spell.Id=="Purgo" then
         local hit=workspace:Raycast(origin,dir*spell.Range,self:Params({s.Model,workspace.Markers}))
         local target=hit and C:Resolve(hit.Instance) or s
-        if not target or not target.Player or (target.Player~=player and (self.S.DuelService:IsBusy(player) or self.S.DuelService:IsBusy(target.Player))) then target=s end
+        -- Only allies: never a duellist or an open-PvP rival (CombatService:Rivals); otherwise yourself.
+        if not target or not target.Player or (target.Player~=player and (C:Rivals(player,target.Player)
+            or self.S.DuelService:IsBusy(player) or self.S.DuelService:IsBusy(target.Player))) then target=s end
         if spell.Id=="Vitara" then
             -- Hearthroot's Sapflow: a Mend that restores health refunds 6 mana.
             if C:Heal(player,target,F.Power(25,data,spell,spoken))>0 and Wands.Signature(data)=="Sapflow" then
