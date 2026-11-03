@@ -20,8 +20,7 @@ blender/place_ranges.lua  Studio script that sets up the imported mountain range
 blender/place_hollowmere.lua  Studio script that sets up the imported village over the part one
 blender/place_dash.lua    Studio script that puts the imported dash effect in ReplicatedStorage.VFX
 blender/place_scintara.lua  Studio script that puts the imported Scintara effect in ReplicatedStorage.VFX
-blender/place_ward.lua    Studio script that puts the imported glass ward in ReplicatedStorage.VFX and its sounds in
-                          ReplicatedStorage.SFX
+blender/place_ward.lua    Studio script that puts the imported glass ward in ReplicatedStorage.VFX
 blender/place_brooms.lua  Studio script that puts the imported brooms in ReplicatedStorage.Brooms
 tools/blender.py          Finds Blender and runs scripts
 tools/place_animations.py Writes character clips from CharacterAnimations.json and CastAnimations.json into the place
@@ -165,6 +164,17 @@ Import it like any model (step 3), then paste [place_dash.lua](place_dash.lua) i
 
 The bolt leaves the wand tip and closes onto the server's path, which starts at the chest, over its first 12 studs. Every client draws each lance from the caster's wand to the end the server sets in the caster's `ScintaraLance` attribute ten times a second. Your own lance follows your aim each frame. With Reduced effects on, a lance keeps only its core, glow and splash. Until the meshes are imported, the bolt is the old ball and the lance a plain neon rod.
 
+Scintara's sounds come from Roblox's licensed ProSoundEffects library, listed in `src/shared/SoundData.lua` (see the top-level README, "Sound and music"). Each plays from where it happens:
+
+| Sound | When | From |
+|---|---|---|
+| `ScintaraCast` | A bolt leaves the wand | Lightning Flashes Quick Electrical Bursts 10, played fast for a short zap |
+| `ScintaraHit` | A bolt lands | Lightning Flashes Quick Electrical Bursts 4, a crackle |
+| `ScintaraLanceIgnite` | A lance lights | Lightning Flashes Quick Electrical Bursts 6, a searing burst |
+| `ScintaraLanceHum` | Looped from the wand while the lance pours, swelling and fading with it | Magic Glow Constant Arcing Zaps Electrical Hum 1 |
+| `ScintaraLanceFade` | The lance dies away | Magic Tone Falling Shimmer Flanged 1, played fast |
+
+
 ```bash
 python tools/blender.py blender/vfx/scintara.py --preview
 ```
@@ -189,7 +199,7 @@ Import it like any model (step 3), then paste [place_scintara.lua](place_scintar
 
 The ward's middle is 0.5 studs above the HumanoidRootPart. The server tells every client about each hit on a ward (`WardHit`, from `CombatService:Damage`): where it came from and whether it broke the ward. A spell's hit comes from where it landed, a monster's from the monster, and any other hit from the attacker. When it shatters, a gold light flashes and fades, and the caster's camera shakes for 0.3 s. With Reduced effects on, the shatter throws 16 shards instead of 48. Until the meshes are imported, the ward is the old force-field ball.
 
-The sounds are in `ReplicatedStorage.SFX`: `WardRaise` as the ward rises, `WardCrack` on each hit and `WardShatter` when it breaks. Each plays from the ward. They are sounds from Roblox's own library, listed in `place_ward.lua`'s `SOUNDS`. Without them, the ward is silent.
+Its sounds are `WardRaise` as the ward rises, `WardCrack` on each hit and `WardShatter` when it breaks. Each plays from the ward. They come from Roblox's licensed ProSoundEffects library, listed in `src/shared/SoundData.lua`.
 
 ```bash
 python tools/blender.py blender/vfx/ward.py --preview
@@ -197,7 +207,7 @@ python tools/blender.py blender/vfx/ward.py --preview
 
 `--preview` renders `WardVFX.png`, the pieces laid out. It also renders three EEVEE pictures of a student casting the ward, the CastWard gesture from `exports/Casting.blend`: `WardVFX_raised.png`, `WardVFX_cracked.png` after three hits, and `WardVFX_shatter.png` 0.12 s into the shatter. The pictures' glass, glow and ground are preview materials only. The file has 14,970 triangles; the largest mesh, `Frame`, has 7,680.
 
-Import it like any model (step 3), then paste [place_ward.lua](place_ward.lua) into **View → Command Bar** and press Enter. It moves the WardVFX model into `ReplicatedStorage.VFX` and puts the sounds in `ReplicatedStorage.SFX`. It also drops Blender's `.001` name suffixes and turns the meshes white. Running it again changes nothing.
+Import it like any model (step 3), then paste [place_ward.lua](place_ward.lua) into **View → Command Bar** and press Enter. It moves the WardVFX model into `ReplicatedStorage.VFX`, drops Blender's `.001` name suffixes and turns the meshes white. Running it again changes nothing.
 
 ## Character animations
 

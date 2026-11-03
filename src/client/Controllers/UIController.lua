@@ -318,6 +318,7 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
+        button(self.Body,"Music: "..(d.Settings.Music~=false and "ON" or "OFF"),function() self:Action("Setting","Music",self.Data.Settings.Music==false) end)
         button(self.Body,"Open PvP: "..(d.Settings.PvP and "ON" or "OFF"),function() self:Action("Setting","PvP",not self.Data.Settings.PvP) end)
         self:Paragraph("With open PvP on, you can fight every student outside your house who has it on too, on foot or on a broom, anywhere but within "
             ..Config.Sanctuary.." studs of a Waystone. Within "..Config.PvPLockout.." seconds of combat you can't switch it off or start a duel.",62)

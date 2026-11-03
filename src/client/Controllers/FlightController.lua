@@ -53,14 +53,19 @@ function Fl:Begin(id)
     local dash=type(house)=="string" and house~="" and load("BroomDash"..house..id) or nil
     if track then track:Play(0.25) end
     local v=root.AssemblyLinearVelocity
+    -- A whoosh as you lift off, and the wind round you while you fly, louder and higher the faster you go (Step).
+    effects:Sound("BroomTakeOff",root.Position)
+    local wind,windVolume=effects:Loop("BroomWind",root)
     self.Flight={Broom=broom,Hum=hum,Root=root,Attach=attach,Push=push,Turn=turn,Track=track,Dash=dash,Dashing=false,
-        Velocity=Vector3.new(v.X,math.max(v.Y,0),v.Z)*0.5,Yaw=nil,Bank=0}
+        Velocity=Vector3.new(v.X,math.max(v.Y,0),v.Z)*0.5,Yaw=nil,Bank=0,Wind=wind,WindVolume=windVolume}
 end
 function Fl:End()
     local f=self.Flight; self.Flight=nil
     if not f then return end
     if f.Track then f.Track:Stop(0.25) end
     if f.Dash then f.Dash:Stop(0.25) end
+    if f.Wind then f.Wind:Destroy() end
+    if f.Root.Parent then self.C.EffectsController:Sound("BroomLand",f.Root.Position) end
     f.Push:Destroy(); f.Turn:Destroy(); f.Attach:Destroy()
     -- Landing mid-lance, the lance keeps turning you to your aim (EffectsController:DrawLances).
     if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=not self.C.EffectsController.Pouring; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
@@ -101,6 +106,10 @@ function Fl:Step(dt)
     f.Dashing=dashing
     local playing=f.Dashing and f.Dash or f.Track
     if playing then playing:AdjustSpeed(0.75+0.5*math.min(1,pace)) end
+    if f.Wind then
+        local rush=math.min(1,pace)
+        f.Wind.Volume=f.WindVolume*(0.25+0.75*rush); f.Wind.PlaybackSpeed=0.85+0.35*rush
+    end
     local flat=Vector3.new(f.Velocity.X,0,f.Velocity.Z)
     local facing=flat.Magnitude>3 and not pouring and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
     if facing.Magnitude<0.1 then return end
@@ -163,6 +172,8 @@ function Fl:Wind(player,dt,kit,reduced)
         lines.CFrame=CFrame.lookAt(centre-dir*(1+slide),centre-dir*slide)*CFrame.Angles(0,0,w.Spin*0.3)
         lines.Transparency=reduced and 1 or 1-w.Level*0.55*(1-slide/3)
     end
+    -- A rush of air as the dash begins, for every rider.
+    if was<0.3 and w.Level>=0.3 then self.C.EffectsController:Sound("BroomDash",centre) end
     local ring=kit:FindFirstChild("Ring")
     if ring and not reduced and was<0.3 and w.Level>=0.3 then
         local p=ring:Clone(); p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false

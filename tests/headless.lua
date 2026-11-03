@@ -21,7 +21,7 @@ warn=function() end
 local function fire() end
 local event={FireClient=fire,FireAllClients=fire}
 local shared={}
-for _,name in ipairs({"Config","Formulas","Gesture","SpellData","QuestData","MonsterData","WorldPoints","WandData","WandModel","SkillData","BroomData"}) do shared[name]=ROOT.."/src/shared/"..name..".lua" end
+for _,name in ipairs({"Config","Formulas","Gesture","SpellData","QuestData","MonsterData","WorldPoints","WandData","WandModel","SkillData","BroomData","SoundData"}) do shared[name]=ROOT.."/src/shared/"..name..".lua" end
 local services={ReplicatedStorage={Shared=shared},Players={GetPlayers=function() return {} end},RunService={IsStudio=function() return true end},
     HttpService={GenerateGUID=function() return "session-test" end},TextChatService={},ServerStorage={LootTables=ROOT.."/src/serverstorage/LootTables.lua"}}
 game={JobId="test-server",GetService=function(_,name) return services[name] or {} end}
@@ -474,7 +474,7 @@ do
     local rs=folder("RS")
     game={GetService=function(_,name) assert(name=="ReplicatedStorage"); return rs end}
     script={Parent=folder("PlayerScripts")}
-    local order={"UIController","EffectsController","InputController","AdminController","FlightController"}
+    local order={"UIController","EffectsController","InputController","AdminController","FlightController","MusicController"}
     local initialized,started,loaded={},{},{}
     local calls={}
     local modules={}
@@ -497,14 +497,14 @@ do
     check(ok and waiting=="RS/Remotes","client waits for remotes")
     while coroutine.status(client)~="dead" do
         if waiting=="PlayerScripts/Controllers" then check(not next(loaded),"controllers do not load before their folder arrives") end
-        if waiting=="PlayerScripts/Controllers/FlightController" then check(not next(loaded),"all controller modules arrive before require") end
+        if waiting=="PlayerScripts/Controllers/MusicController" then check(not next(loaded),"all controller modules arrive before require") end
         local name=waiting:match("([^/]+)$")
         available[waiting]=modules[name] and name or folder(waiting)
         ok,waiting=coroutine.resume(client)
         check(ok,"delayed client startup failed: "..tostring(waiting))
     end
-    check(started.UIController and started.InputController and started.EffectsController and started.AdminController and started.FlightController,
-        "UI, inventory inputs, effects, the admin panel and broom flight all start")
+    check(started.UIController and started.InputController and started.EffectsController and started.AdminController and started.FlightController
+        and started.MusicController,"UI, inventory inputs, effects, the admin panel, broom flight and music all start")
     check(table.concat(calls,",")==table.concat(order,","),"UI starts before input and effects")
     game,script,require=oldGame,oldScript,oldRequire
 end
@@ -757,4 +757,17 @@ do
     prompt.Enabled=true; prompt.Parent=nil
     slot(nil,"Begin",interact); check(casts==before+4,"removed prompts do not block spells")
 end
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing).")
+-- Every sound the client plays is in SoundData, every zone has its music, and the Music setting can be switched.
+do
+    local Sounds=require(shared.SoundData); local Config=require(shared.Config)
+    for _,file in ipairs({"EffectsController","FlightController"}) do
+        local f=assert(io.open(ROOT.."/src/client/Controllers/"..file..".lua")); local text=f:read("a"); f:close()
+        for name in text:gmatch(':Sound%("(%w+)"') do check(Sounds.Effects[name],file.." plays "..name..", which SoundData lacks") end
+        for name in text:gmatch(':Loop%("(%w+)"') do check(Sounds.Effects[name],file.." loops "..name..", which SoundData lacks") end
+    end
+    for _,zone in ipairs(Config.Zones) do check(Sounds.Music[zone.Id],"music for "..zone.Id) end
+    check(Sounds.Music.Flying,"music for flying a broom")
+    local f=assert(io.open(ROOT.."/src/server/Services/ProgressionService.lua")); local text=f:read("a"); f:close()
+    check(text:find("Music = true",1,true),"players can switch the music off")
+end
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing, sounds and music).")

@@ -20,7 +20,7 @@ local function template()
         HasWand = false, Wand = "", Quest = 1, QuestProgress = 0, QuestDone = {},
         Inventory = {}, Combos = {}, LastWaystone = "Hollowmere", Waystones = {Hollowmere = true},
         Daily = {Day = 0, Kills = 0, Claimed = false}, DuelWins = 0,
-        Settings = {SpokenCasting = true, ReducedEffects = false, PvP = true},
+        Settings = {SpokenCasting = true, ReducedEffects = false, PvP = true, Music = true},
         BossDefeated = false, SealDefeated = false, LessonRewards = {}, LastRespec = 0,
         Wands = {}, EquippedWand = 0, WandsHeld = {}, WandRewards = {}, Talents = {}, LastTalentReset = 0,
         Broom = BroomData.Default}

@@ -82,6 +82,32 @@ Spoken casting recognizes an exact learned incantation in general chat, such as
 0.3 seconds of cast time, and can be disabled in Settings. It requires access to
 Roblox chat. There is no voice input or microphone feature.
 
+## Sound and music
+
+Every sound comes from the licensed libraries in Roblox's Creator Store, which are free to use in any experience:
+sound effects from ProSoundEffects and music from APM Music. They are all listed, with their volumes and speeds, in
+`src/shared/SoundData.lua`. To swap one, change its id there and sync the scripts.
+
+| Sounds | When |
+|---|---|
+| Spark bolt | A zap as it leaves the wand, a crackle where it lands |
+| Spark lance | A searing burst as it lights, a hum of arcing zaps while it pours, a falling shimmer as it dies |
+| Ward | A chime as it rises, a glassy tinkle on each hit, glass breaking and scattering when it shatters |
+| Broom | A whoosh as you take off, wind that grows louder and higher the faster you fly, a rush of air as a dash begins, and a soft whomp as you land |
+
+Background music follows where you are, and crossfades over 2.5 seconds when that changes. Each track loops. A track
+you leave pauses, and picks up where it stopped when you come back.
+
+| Where | Track |
+|---|---|
+| Hollowmere | Village Fun |
+| Ravenmoor Academy (Castle) | The Magic Waltz B |
+| Castle Grounds | Gifts Of Nature |
+| Whisperwood | Behind The Mirror |
+| On a broom, anywhere | Magic Carpet Ride |
+
+**Music: ON / OFF** in Settings turns the music off; sound effects keep playing.
+
 ## Important differences from the full plan
 
 - The map is a compact, stylized prototype with part-based scenery, not the final 2048-stud sculpted world. Mirrorlake is decorative geometry in this build.

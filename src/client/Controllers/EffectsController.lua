@@ -7,6 +7,7 @@ local Lighting=game:GetService("Lighting")
 local Spells=require(RS.Shared.SpellData)
 local Quests=require(RS.Shared.QuestData)
 local Points=require(RS.Shared.WorldPoints)
+local Sounds=require(RS.Shared.SoundData)
 local E={}
 local colors={Arcane=Color3.fromRGB(194,163,255),Fire=Color3.fromRGB(255,153,72),Frost=Color3.fromRGB(139,222,255),
     Lightning=Color3.fromRGB(255,236,134),Ward=Color3.fromRGB(246,205,118),Restoration=Color3.fromRGB(139,235,163),
@@ -54,7 +55,8 @@ end
 -- Scintara (blender/vfx/scintara.py): the meshes in ReplicatedStorage.VFX.ScintaraVFX, made Neon and tinted here.
 -- Each runs along its part's Z axis with its front (-Z, the LookVector) the way the spell goes. Returns a copy and
 -- the mesh's own size, or nil before the meshes are imported (blender/place_scintara.lua): then a bolt is the plain
--- ball, and a lance a plain neon rod.
+-- ball, and a lance a plain neon rod. Its sounds (SoundData): ScintaraCast as a bolt leaves the wand and ScintaraHit
+-- where it lands; the lance's are with the lance below.
 local SPARK=Color3.fromRGB(240,232,255)
 function E:Scintara(name)
     local kit=RS:FindFirstChild("VFX") and RS.VFX:FindFirstChild("ScintaraVFX")
@@ -81,13 +83,15 @@ function E:Projectile(origin,direction,id,speed,range,caster)
     if #self.Flying>=120 then return end
     local entry={Pos=origin,Dir=direction,Speed=speed,Range=range,Travel=0,Id=id}
     if id=="Scintara" then
+        -- The server's bolt leaves the caster's chest; this one leaves the wand and closes onto that path.
+        local tip=typeof(caster)=="Instance" and caster:IsA("Player") and self:WandTip(caster.Character)
+        if not (tip and (tip-origin).Magnitude<6) then tip=nil end
+        self:Sound("ScintaraCast",tip or origin)
         local spark,sparkSize=self:Scintara("Spark"); local tail,tailSize=self:Scintara("Tail")
         if spark and tail then
             spark.Color=SPARK; spark.Size=sparkSize*1.1; tail.Transparency=0.2
             entry.Spark,entry.Tail,entry.TailSize=spark,tail,tailSize
-            -- The server's bolt leaves the caster's chest; this one leaves the wand and closes onto that path.
-            local tip=typeof(caster)=="Instance" and caster:IsA("Player") and self:WandTip(caster.Character)
-            if tip and (tip-origin).Magnitude<6 then
+            if tip then
                 entry.Offset=tip-origin
                 self:Bloom("Flash",CFrame.lookAt(tip,tip+direction),1,0.15)
             end
@@ -134,6 +138,7 @@ end
 function E:Impact(position,id)
     local dir=self:Land(position,id)
     if id=="Scintara" then
+        self:Sound("ScintaraHit",position)
         local camera=workspace.CurrentCamera
         dir=dir or (camera and (position-camera.CFrame.Position).Unit) or Vector3.new(0,0,-1)
         if self:Bloom("Splash",CFrame.lookAt(position,position+dir),0.8,0.3) then self:Burst(position,id,2); return end
@@ -314,7 +319,9 @@ end
 -- (SpellService:Pour), or for your own, to where you aim now. It opens in 0.08 s and closes in 0.15 s. The core
 -- and its glow stretch to the length, the Coils tile along it and spin so the twist seems to pour out, three Rings
 -- run out along it, the Flash spins at the wand and the Splash pulses where it strikes. Reduced effects keeps the
--- core, the glow and the splash.
+-- core, the glow and the splash. It sounds from the wand: a searing burst as it lights (ScintaraLanceIgnite), a hum
+-- of arcing zaps while it pours that swells and fades with it (ScintaraLanceHum), and a falling shimmer as it dies
+-- (ScintaraLanceFade).
 local LANCE=Spells.Scintara.Lance
 function E:NewLance()
     local lance={Open=0,Coils={},Rings={}}
@@ -362,7 +369,12 @@ function E:PlaceLance(player,lance,endpoint)
         struck=(endpoint-root.Position).Magnitude<LANCE.Range-1
     end
     to=to or lance.Shown; if not to then return end
-    lance.Shown=to
+    lance.Shown=to; lance.From=from
+    if not lance.Lit then
+        lance.Lit=true; self:Sound("ScintaraLanceIgnite",from)
+        lance.Hum,lance.HumVolume=self:Loop("ScintaraLanceHum",lance.Flash or lance.Core)
+    end
+    if lance.Hum then lance.Hum.Volume=lance.HumVolume*lance.Open end
     local length=(to-from).Magnitude; if length<0.05 then return end
     local k=lance.Open; local now=os.clock(); local spin=now*9
     local d=self.C.UIController.Data; local reduced=d and d.Settings.ReducedEffects
@@ -407,6 +419,8 @@ function E:DrawLances(dt)
         local lance=self.Lances[player]
         if active and not lance then lance=self:NewLance(); self.Lances[player]=lance end
         if lance then
+            if lance.Active and not active and lance.From then self:Sound("ScintaraLanceFade",lance.From) end
+            lance.Active=active
             lance.Open=math.clamp(lance.Open+(active and dt/0.08 or -dt/0.15),0,1)
             if lance.Open<=0 and not active then self:DropLance(player) else self:PlaceLance(player,lance,endpoint) end
         end
@@ -456,7 +470,7 @@ end
 -- glass. The hit that breaks it shatters it: the shell and frame vanish, Shard copies burst off the sphere, fly,
 -- tumble, bounce on the ground and fade, with a shock ring, a flash and a light, and the caster's camera shakes.
 -- Mirror Ward (Speculo) raises the same glass in silver. Without the meshes, the old force-field ball. Sounds play
--- from ReplicatedStorage.SFX (WardRaise, WardCrack, WardShatter; blender/place_ward.lua) once they are there.
+-- from SoundData: WardRaise as it rises, WardCrack on each hit and WardShatter when it breaks.
 local WARD_LIFT,WARD_RADIUS=0.5,3.5
 local WARD_TINT={Aegara={Glass=Color3.fromRGB(255,226,160),Lead=Color3.fromRGB(246,190,90)},
     Speculo={Glass=Color3.fromRGB(214,232,255),Lead=Color3.fromRGB(186,212,255)}}
@@ -470,12 +484,29 @@ function E:Kit(kit,name)
     p.Parent=self.Folder
     return p,template.Size
 end
+-- A new Sound for one of SoundData's effects, heard from 10 studs and fading out by 120, or nil without it.
+function E:NewSound(name)
+    local entry=Sounds.Effects[name]; if not entry then return nil end
+    local sound=Instance.new("Sound"); sound.Name=name; sound.SoundId="rbxassetid://"..entry.Id
+    sound.Volume=entry.Volume; sound.PlaybackSpeed=entry.Speed or 1
+    sound.RollOffMinDistance,sound.RollOffMaxDistance=10,120
+    return sound
+end
+-- Play an effect once from `at`, `volume` times its own volume.
 function E:Sound(name,at,volume)
-    local folder=RS:FindFirstChild("SFX"); local template=folder and folder:FindFirstChild(name)
-    if not template or typeof(at)~="Vector3" then return end
+    if typeof(at)~="Vector3" then return end
+    local sound=self:NewSound(name); if not sound then return end
     local holder=self:Part(Vector3.one*0.1,CFrame.new(at),colors.Ward); holder.Transparency=1
-    local sound=template:Clone(); sound.Volume=sound.Volume*(volume or 1); sound.Parent=holder; sound:Play()
+    sound.Volume=sound.Volume*(volume or 1); sound.Parent=holder; sound:Play()
     Debris:AddItem(holder,6)
+end
+-- An effect looping from `parent`, silent until the caller sets its volume, and its own volume; nil without it. It
+-- stops when `parent` is destroyed.
+function E:Loop(name,parent)
+    if not parent then return nil end
+    local sound=self:NewSound(name); if not sound then return nil end
+    local volume=sound.Volume; sound.Looped=true; sound.Volume=0; sound.Parent=parent; sound:Play()
+    return sound,volume
 end
 -- A WardVFX piece that blooms from `from` to `to` times its size and fades over `duration`.
 function E:WardBloom(name,cf,color,from,to,duration)
@@ -702,6 +733,11 @@ function E:UpdateZone()
 end
 function E:Start()
     self.Folder=Instance.new("Folder"); self.Folder.Name="LocalWandboundVFX"; self.Folder.Parent=workspace
+    -- Load every effect now, so the first bolt or ward isn't silent while its sound downloads.
+    task.spawn(function()
+        local all={}; for name in pairs(Sounds.Effects) do all[#all+1]=self:NewSound(name) end
+        pcall(function() game:GetService("ContentProvider"):PreloadAsync(all) end)
+    end)
     self.Correction=Instance.new("ColorCorrectionEffect"); self.Correction.Name="WandboundZoneColor"; self.Correction.Parent=Lighting
     self.Atmosphere=Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere",Lighting)
     self.Waypoint=self:Part(Vector3.one*0.1,CFrame.new(0,-1000,0),colors.Ward); self.Waypoint.Transparency=1

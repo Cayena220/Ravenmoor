@@ -3450,18 +3450,18 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 		<Item class="Camera" referent="RBXEBE0EF9361644D0AB3B16C1CC8472293">
 			<Properties>
 				<CoordinateFrame name="CFrame">
-					<X>71.7143784</X>
-					<Y>37.0741196</Y>
-					<Z>192.483719</Z>
-					<R00>0.914782643</R00>
-					<R01>0.256474972</R01>
-					<R02>-0.312079072</R02>
-					<R10>2.98023188e-08</R10>
-					<R11>0.772575319</R11>
-					<R12>0.634923279</R12>
-					<R20>0.403946459</R20>
-					<R21>-0.580816805</R21>
-					<R22>0.706738472</R22>
+					<X>72.1041565</X>
+					<Y>38.3147736</Y>
+					<Z>191.349289</Z>
+					<R00>0.909055054</R00>
+					<R01>0.311657965</R01>
+					<R02>-0.276565313</R02>
+					<R10>-0</R10>
+					<R11>0.663741648</R11>
+					<R12>0.747961938</R12>
+					<R20>0.416676223</R20>
+					<R21>-0.679938555</R21>
+					<R22>0.603377581</R22>
 				</CoordinateFrame>
 				<Ref name="CameraSubject">null</Ref>
 				<token name="CameraType">0</token>
@@ -454195,6 +454195,7 @@ local Lighting=game:GetService("Lighting")
 local Spells=require(RS.Shared.SpellData)
 local Quests=require(RS.Shared.QuestData)
 local Points=require(RS.Shared.WorldPoints)
+local Sounds=require(RS.Shared.SoundData)
 local E={}
 local colors={Arcane=Color3.fromRGB(194,163,255),Fire=Color3.fromRGB(255,153,72),Frost=Color3.fromRGB(139,222,255),
     Lightning=Color3.fromRGB(255,236,134),Ward=Color3.fromRGB(246,205,118),Restoration=Color3.fromRGB(139,235,163),
@@ -454242,7 +454243,8 @@ end
 -- Scintara (blender/vfx/scintara.py): the meshes in ReplicatedStorage.VFX.ScintaraVFX, made Neon and tinted here.
 -- Each runs along its part's Z axis with its front (-Z, the LookVector) the way the spell goes. Returns a copy and
 -- the mesh's own size, or nil before the meshes are imported (blender/place_scintara.lua): then a bolt is the plain
--- ball, and a lance a plain neon rod.
+-- ball, and a lance a plain neon rod. Its sounds (SoundData): ScintaraCast as a bolt leaves the wand and ScintaraHit
+-- where it lands; the lance's are with the lance below.
 local SPARK=Color3.fromRGB(240,232,255)
 function E:Scintara(name)
     local kit=RS:FindFirstChild("VFX") and RS.VFX:FindFirstChild("ScintaraVFX")
@@ -454269,13 +454271,15 @@ function E:Projectile(origin,direction,id,speed,range,caster)
     if #self.Flying>=120 then return end
     local entry={Pos=origin,Dir=direction,Speed=speed,Range=range,Travel=0,Id=id}
     if id=="Scintara" then
+        -- The server's bolt leaves the caster's chest; this one leaves the wand and closes onto that path.
+        local tip=typeof(caster)=="Instance" and caster:IsA("Player") and self:WandTip(caster.Character)
+        if not (tip and (tip-origin).Magnitude<6) then tip=nil end
+        self:Sound("ScintaraCast",tip or origin)
         local spark,sparkSize=self:Scintara("Spark"); local tail,tailSize=self:Scintara("Tail")
         if spark and tail then
             spark.Color=SPARK; spark.Size=sparkSize*1.1; tail.Transparency=0.2
             entry.Spark,entry.Tail,entry.TailSize=spark,tail,tailSize
-            -- The server's bolt leaves the caster's chest; this one leaves the wand and closes onto that path.
-            local tip=typeof(caster)=="Instance" and caster:IsA("Player") and self:WandTip(caster.Character)
-            if tip and (tip-origin).Magnitude<6 then
+            if tip then
                 entry.Offset=tip-origin
                 self:Bloom("Flash",CFrame.lookAt(tip,tip+direction),1,0.15)
             end
@@ -454322,6 +454326,7 @@ end
 function E:Impact(position,id)
     local dir=self:Land(position,id)
     if id=="Scintara" then
+        self:Sound("ScintaraHit",position)
         local camera=workspace.CurrentCamera
         dir=dir or (camera and (position-camera.CFrame.Position).Unit) or Vector3.new(0,0,-1)
         if self:Bloom("Splash",CFrame.lookAt(position,position+dir),0.8,0.3) then self:Burst(position,id,2); return end
@@ -454502,7 +454507,9 @@ end
 -- (SpellService:Pour), or for your own, to where you aim now. It opens in 0.08 s and closes in 0.15 s. The core
 -- and its glow stretch to the length, the Coils tile along it and spin so the twist seems to pour out, three Rings
 -- run out along it, the Flash spins at the wand and the Splash pulses where it strikes. Reduced effects keeps the
--- core, the glow and the splash.
+-- core, the glow and the splash. It sounds from the wand: a searing burst as it lights (ScintaraLanceIgnite), a hum
+-- of arcing zaps while it pours that swells and fades with it (ScintaraLanceHum), and a falling shimmer as it dies
+-- (ScintaraLanceFade).
 local LANCE=Spells.Scintara.Lance
 function E:NewLance()
     local lance={Open=0,Coils={},Rings={}}
@@ -454550,7 +454557,12 @@ function E:PlaceLance(player,lance,endpoint)
         struck=(endpoint-root.Position).Magnitude<LANCE.Range-1
     end
     to=to or lance.Shown; if not to then return end
-    lance.Shown=to
+    lance.Shown=to; lance.From=from
+    if not lance.Lit then
+        lance.Lit=true; self:Sound("ScintaraLanceIgnite",from)
+        lance.Hum,lance.HumVolume=self:Loop("ScintaraLanceHum",lance.Flash or lance.Core)
+    end
+    if lance.Hum then lance.Hum.Volume=lance.HumVolume*lance.Open end
     local length=(to-from).Magnitude; if length<0.05 then return end
     local k=lance.Open; local now=os.clock(); local spin=now*9
     local d=self.C.UIController.Data; local reduced=d and d.Settings.ReducedEffects
@@ -454595,6 +454607,8 @@ function E:DrawLances(dt)
         local lance=self.Lances[player]
         if active and not lance then lance=self:NewLance(); self.Lances[player]=lance end
         if lance then
+            if lance.Active and not active and lance.From then self:Sound("ScintaraLanceFade",lance.From) end
+            lance.Active=active
             lance.Open=math.clamp(lance.Open+(active and dt/0.08 or -dt/0.15),0,1)
             if lance.Open<=0 and not active then self:DropLance(player) else self:PlaceLance(player,lance,endpoint) end
         end
@@ -454644,7 +454658,7 @@ end
 -- glass. The hit that breaks it shatters it: the shell and frame vanish, Shard copies burst off the sphere, fly,
 -- tumble, bounce on the ground and fade, with a shock ring, a flash and a light, and the caster's camera shakes.
 -- Mirror Ward (Speculo) raises the same glass in silver. Without the meshes, the old force-field ball. Sounds play
--- from ReplicatedStorage.SFX (WardRaise, WardCrack, WardShatter; blender/place_ward.lua) once they are there.
+-- from SoundData: WardRaise as it rises, WardCrack on each hit and WardShatter when it breaks.
 local WARD_LIFT,WARD_RADIUS=0.5,3.5
 local WARD_TINT={Aegara={Glass=Color3.fromRGB(255,226,160),Lead=Color3.fromRGB(246,190,90)},
     Speculo={Glass=Color3.fromRGB(214,232,255),Lead=Color3.fromRGB(186,212,255)}}
@@ -454658,12 +454672,29 @@ function E:Kit(kit,name)
     p.Parent=self.Folder
     return p,template.Size
 end
+-- A new Sound for one of SoundData's effects, heard from 10 studs and fading out by 120, or nil without it.
+function E:NewSound(name)
+    local entry=Sounds.Effects[name]; if not entry then return nil end
+    local sound=Instance.new("Sound"); sound.Name=name; sound.SoundId="rbxassetid://"..entry.Id
+    sound.Volume=entry.Volume; sound.PlaybackSpeed=entry.Speed or 1
+    sound.RollOffMinDistance,sound.RollOffMaxDistance=10,120
+    return sound
+end
+-- Play an effect once from `at`, `volume` times its own volume.
 function E:Sound(name,at,volume)
-    local folder=RS:FindFirstChild("SFX"); local template=folder and folder:FindFirstChild(name)
-    if not template or typeof(at)~="Vector3" then return end
+    if typeof(at)~="Vector3" then return end
+    local sound=self:NewSound(name); if not sound then return end
     local holder=self:Part(Vector3.one*0.1,CFrame.new(at),colors.Ward); holder.Transparency=1
-    local sound=template:Clone(); sound.Volume=sound.Volume*(volume or 1); sound.Parent=holder; sound:Play()
+    sound.Volume=sound.Volume*(volume or 1); sound.Parent=holder; sound:Play()
     Debris:AddItem(holder,6)
+end
+-- An effect looping from `parent`, silent until the caller sets its volume, and its own volume; nil without it. It
+-- stops when `parent` is destroyed.
+function E:Loop(name,parent)
+    if not parent then return nil end
+    local sound=self:NewSound(name); if not sound then return nil end
+    local volume=sound.Volume; sound.Looped=true; sound.Volume=0; sound.Parent=parent; sound:Play()
+    return sound,volume
 end
 -- A WardVFX piece that blooms from `from` to `to` times its size and fades over `duration`.
 function E:WardBloom(name,cf,color,from,to,duration)
@@ -454890,6 +454921,11 @@ function E:UpdateZone()
 end
 function E:Start()
     self.Folder=Instance.new("Folder"); self.Folder.Name="LocalWandboundVFX"; self.Folder.Parent=workspace
+    -- Load every effect now, so the first bolt or ward isn't silent while its sound downloads.
+    task.spawn(function()
+        local all={}; for name in pairs(Sounds.Effects) do all[#all+1]=self:NewSound(name) end
+        pcall(function() game:GetService("ContentProvider"):PreloadAsync(all) end)
+    end)
     self.Correction=Instance.new("ColorCorrectionEffect"); self.Correction.Name="WandboundZoneColor"; self.Correction.Parent=Lighting
     self.Atmosphere=Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere",Lighting)
     self.Waypoint=self:Part(Vector3.one*0.1,CFrame.new(0,-1000,0),colors.Ward); self.Waypoint.Transparency=1
@@ -455524,6 +455560,7 @@ function U:Show(menu)
     elseif menu=="Settings" then
         button(self.Body,"Spoken casting: "..(d.Settings.SpokenCasting and "ON" or "OFF"),function() self:Action("Setting","SpokenCasting",not self.Data.Settings.SpokenCasting) end)
         button(self.Body,"Reduced visual effects: "..(d.Settings.ReducedEffects and "ON" or "OFF"),function() self:Action("Setting","ReducedEffects",not self.Data.Settings.ReducedEffects) end)
+        button(self.Body,"Music: "..(d.Settings.Music~=false and "ON" or "OFF"),function() self:Action("Setting","Music",self.Data.Settings.Music==false) end)
         button(self.Body,"Open PvP: "..(d.Settings.PvP and "ON" or "OFF"),function() self:Action("Setting","PvP",not self.Data.Settings.PvP) end)
         self:Paragraph("With open PvP on, you can fight every student outside your house who has it on too, on foot or on a broom, anywhere but within "
             ..Config.Sanctuary.." studs of a Waystone. Within "..Config.PvPLockout.." seconds of combat you can't switch it off or start a duel.",62)
@@ -456287,14 +456324,19 @@ function Fl:Begin(id)
     local dash=type(house)=="string" and house~="" and load("BroomDash"..house..id) or nil
     if track then track:Play(0.25) end
     local v=root.AssemblyLinearVelocity
+    -- A whoosh as you lift off, and the wind round you while you fly, louder and higher the faster you go (Step).
+    effects:Sound("BroomTakeOff",root.Position)
+    local wind,windVolume=effects:Loop("BroomWind",root)
     self.Flight={Broom=broom,Hum=hum,Root=root,Attach=attach,Push=push,Turn=turn,Track=track,Dash=dash,Dashing=false,
-        Velocity=Vector3.new(v.X,math.max(v.Y,0),v.Z)*0.5,Yaw=nil,Bank=0}
+        Velocity=Vector3.new(v.X,math.max(v.Y,0),v.Z)*0.5,Yaw=nil,Bank=0,Wind=wind,WindVolume=windVolume}
 end
 function Fl:End()
     local f=self.Flight; self.Flight=nil
     if not f then return end
     if f.Track then f.Track:Stop(0.25) end
     if f.Dash then f.Dash:Stop(0.25) end
+    if f.Wind then f.Wind:Destroy() end
+    if f.Root.Parent then self.C.EffectsController:Sound("BroomLand",f.Root.Position) end
     f.Push:Destroy(); f.Turn:Destroy(); f.Attach:Destroy()
     -- Landing mid-lance, the lance keeps turning you to your aim (EffectsController:DrawLances).
     if f.Hum.Parent then f.Hum.PlatformStand=false; f.Hum.AutoRotate=not self.C.EffectsController.Pouring; f.Hum:ChangeState(Enum.HumanoidStateType.Freefall) end
@@ -456335,6 +456377,10 @@ function Fl:Step(dt)
     f.Dashing=dashing
     local playing=f.Dashing and f.Dash or f.Track
     if playing then playing:AdjustSpeed(0.75+0.5*math.min(1,pace)) end
+    if f.Wind then
+        local rush=math.min(1,pace)
+        f.Wind.Volume=f.WindVolume*(0.25+0.75*rush); f.Wind.PlaybackSpeed=0.85+0.35*rush
+    end
     local flat=Vector3.new(f.Velocity.X,0,f.Velocity.Z)
     local facing=flat.Magnitude>3 and not pouring and flat.Unit or camera.CFrame.LookVector*Vector3.new(1,0,1)
     if facing.Magnitude<0.1 then return end
@@ -456397,6 +456443,8 @@ function Fl:Wind(player,dt,kit,reduced)
         lines.CFrame=CFrame.lookAt(centre-dir*(1+slide),centre-dir*slide)*CFrame.Angles(0,0,w.Spin*0.3)
         lines.Transparency=reduced and 1 or 1-w.Level*0.55*(1-slide/3)
     end
+    -- A rush of air as the dash begins, for every rider.
+    if was<0.3 and w.Level>=0.3 then self.C.EffectsController:Sound("BroomDash",centre) end
     local ring=kit:FindFirstChild("Ring")
     if ring and not reduced and was<0.3 and w.Level>=0.3 then
         local p=ring:Clone(); p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false
@@ -456544,6 +456592,73 @@ return H
 						<UniqueId name="UniqueId">51f51001ef6d5d6c0afacadc000003e0</UniqueId>
 					</Properties>
 				</Item>
+				<Item class="ModuleScript" referent="RBX71EC286509354C6092D1129512BCE66B">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[local Players=game:GetService("Players")
+local RS=game:GetService("ReplicatedStorage")
+local Tween=game:GetService("TweenService")
+local SoundService=game:GetService("SoundService")
+local Sounds=require(RS.Shared.SoundData)
+-- Background music (SoundData.Music): the track for the zone you're in (your Zone attribute, set by WorldService), or
+-- its own while you fly a broom. Moving from one to another crossfades over SoundData.Crossfade seconds. Every track
+-- loops, and one you leave pauses where it was, so coming back picks it up again. The Music setting turns it off.
+-- Tracks play from SoundService, so they sound the same wherever you are.
+local M={}
+function M:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Tracks={}; self.Playing=nil end
+function M:Wanted()
+    local d=self.C.UIController.Data
+    if d and d.Settings and d.Settings.Music==false then return nil end
+    if self.Player:GetAttribute("Broom") then return "Flying" end
+    local zone=self.Player:GetAttribute("Zone")
+    return Sounds.Music[zone or ""] and zone or "Hollowmere"
+end
+function M:Track(name)
+    local track=self.Tracks[name]
+    if not track then
+        local entry=Sounds.Music[name]; if not entry then return nil end
+        track=Instance.new("Sound"); track.Name="Music"..name; track.SoundId="rbxassetid://"..entry.Id
+        track.Looped=true; track.Volume=0; track.Parent=SoundService
+        self.Tracks[name]=track
+    end
+    return track
+end
+function M:Switch(name)
+    if name==self.Playing then return end
+    local fade=TweenInfo.new(Sounds.Crossfade,Enum.EasingStyle.Sine)
+    local leaving=self.Playing; local old=leaving and self.Tracks[leaving]
+    if old then
+        local out=Tween:Create(old,fade,{Volume=0}); out:Play()
+        out.Completed:Once(function(state)
+            if state==Enum.PlaybackState.Completed and self.Playing~=leaving then old:Pause() end
+        end)
+    end
+    self.Playing=name
+    local track=name and self:Track(name)
+    if track then
+        if not track.IsPlaying then if track.TimePosition>0 then track:Resume() else track:Play() end end
+        Tween:Create(track,fade,{Volume=Sounds.Music[name].Volume}):Play()
+    end
+end
+function M:Start()
+    task.spawn(function()
+        while true do self:Switch(self:Wanted()); task.wait(0.5) end
+    end)
+end
+return M
+]]></ProtectedString>
+						<string name="ScriptGuid">{F03B12CA-B89F-4850-8C41-1B19A81B5C02}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">MusicController</string>
+						<BinaryString name="SerializedOverrides"></BinaryString>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">4602c79c58be03080afae1320000a952</UniqueId>
+					</Properties>
+				</Item>
 			</Item>
 			<Item class="LocalScript" referent="RBX000003A3">
 				<Properties>
@@ -456551,8 +456666,8 @@ return H
 local remotes=RS:WaitForChild("Remotes")
 for _,name in ipairs({"Cast","Channel","Aim","Action","Gesture","Profile","State","UI","FX","CastReply"}) do remotes:WaitForChild(name) end
 local shared=RS:WaitForChild("Shared")
-for _,name in ipairs({"Config","SpellData","Formulas","QuestData","Gesture","WorldPoints","WandData","WandModel","SkillData","BroomData"}) do shared:WaitForChild(name) end
-local order={"UIController","EffectsController","InputController","AdminController","FlightController"}
+for _,name in ipairs({"Config","SpellData","Formulas","QuestData","Gesture","WorldPoints","WandData","WandModel","SkillData","BroomData","SoundData"}) do shared:WaitForChild(name) end
+local order={"UIController","EffectsController","InputController","AdminController","FlightController","MusicController"}
 -- PlayerScripts and its descendants may replicate after this LocalScript starts.
 -- Wait for every controller before requiring any of them or starting the UI.
 local folder=script.Parent:WaitForChild("Controllers")
@@ -457646,6 +457761,56 @@ return B
 					<int64 name="SourceAssetId">-1</int64>
 					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 					<UniqueId name="UniqueId">49d6365aae7c88a20af4a17b000056cc</UniqueId>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBXEF3A9979B72B437F893B5D0EA01FC73C">
+				<Properties>
+					<Content name="LinkedSource"><null></null></Content>
+					<ProtectedString name="Source"><![CDATA[-- Every sound the game plays. All of them come from the licensed libraries in Roblox's Creator Store (ProSoundEffects
+-- sound effects, APM Music tracks), free to use in any experience. EffectsController and FlightController play the
+-- effects; MusicController plays the music. Volume is the sound's own, Speed its PlaybackSpeed.
+local S = {}
+
+S.Effects = {
+    -- Ward Shield, the glass ward (EffectsController:Ward).
+    WardRaise = {Id = 9116409574, Volume = 0.55, Speed = 1.1},           -- Magic Swirling Tone 1: a spinning chime and sparkle
+    WardCrack = {Id = 9114863345, Volume = 0.7, Speed = 1.25},           -- Ice Cubes Fall Dropping To Floor 2: a sharp rattling tinkle
+    WardShatter = {Id = 9114592245, Volume = 1, Speed = 1},              -- Glass Breaks 3: breaks, hits and bounces, debris shards
+    -- Scintara: the spark bolt and the spark lance.
+    ScintaraCast = {Id = 9116275766, Volume = 0.45, Speed = 1.35},       -- Lightning Flashes Quick Electrical Bursts 10
+    ScintaraHit = {Id = 9116275285, Volume = 0.55, Speed = 1.1},         -- Lightning Flashes Quick Electrical Bursts 4
+    ScintaraLanceIgnite = {Id = 9116272379, Volume = 0.7, Speed = 1},    -- Lightning Flashes Quick Electrical Bursts 6
+    ScintaraLanceHum = {Id = 9125636390, Volume = 0.5, Speed = 1.15},    -- Magic Glow Constant Arcing Zaps Electrical Hum 1
+    ScintaraLanceFade = {Id = 9116418234, Volume = 0.35, Speed = 1.6},   -- Magic Tone Falling Shimmer Flanged 1
+    -- Broom flight (FlightController).
+    BroomTakeOff = {Id = 9125442578, Volume = 0.6, Speed = 1},           -- Cloth Whooshes Fast Whooshing Pass Bys Airy Hum 3
+    BroomWind = {Id = 9125742262, Volume = 0.55, Speed = 1},             -- Plasma Trails Constant Airy Whooshing Windy 2
+    BroomDash = {Id = 9114374050, Volume = 0.7, Speed = 1},              -- Fast Pass By Airy Whooshes Windy 10
+    BroomLand = {Id = 9125442175, Volume = 0.55, Speed = 0.9},           -- Cloth Whooshes Fast Whooshes Rumbling Pass Bys 9
+}
+
+-- Music for each zone (Config.Zones, the player's Zone attribute), and for flying a broom anywhere.
+S.Music = {
+    Hollowmere = {Id = 1843199417, Volume = 0.3},    -- Village Fun
+    Castle = {Id = 1848134067, Volume = 0.3},        -- The Magic Waltz B
+    Grounds = {Id = 1845410144, Volume = 0.3},       -- Gifts Of Nature
+    Whisperwood = {Id = 9039950721, Volume = 0.3},   -- Behind The Mirror
+    Flying = {Id = 1838007177, Volume = 0.3},        -- Magic Carpet Ride (a 60)
+}
+S.Crossfade = 2.5   -- seconds from one track to the next
+
+return S
+]]></ProtectedString>
+					<string name="ScriptGuid">{61D9E96C-E5F4-4B29-83AB-BF027B3E31D4}</string>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+					<string name="Name">SoundData</string>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<int64 name="SourceAssetId">-1</int64>
+					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+					<UniqueId name="UniqueId">4602c79c58be03080afae1320000a94f</UniqueId>
 				</Properties>
 			</Item>
 		</Item>
@@ -722962,108 +723127,6 @@ MjdmNDcxNDkx]]></BinaryString>
 				</Item>
 			</Item>
 		</Item>
-		<Item class="Folder" referent="RBX1D1352B462F845089F307EA94C630BE1">
-			<Properties>
-				<Color3 name="IconTint">
-					<R>0</R>
-					<G>0</G>
-					<B>0</B>
-				</Color3>
-				<BinaryString name="AttributesSerialize"></BinaryString>
-				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-				<bool name="DefinesCapabilities">false</bool>
-				<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-				<string name="Name">SFX</string>
-				<BinaryString name="SerializedOverrides"></BinaryString>
-				<int64 name="SourceAssetId">-1</int64>
-				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-				<UniqueId name="UniqueId">4602c79c58be03080afae13200001817</UniqueId>
-			</Properties>
-			<Item class="Sound" referent="RBXF0FC4E3493C84FEEACAABB2792F6ABCD">
-				<Properties>
-					<bool name="AcousticSimulationEnabled">true</bool>
-					<NumberRange name="LoopRegion">0 60000 </NumberRange>
-					<bool name="Looped">false</bool>
-					<bool name="PlayOnRemove">false</bool>
-					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
-					<bool name="PlaybackRegionsEnabled">false</bool>
-					<float name="PlaybackSpeed">1.25</float>
-					<bool name="Playing">false</bool>
-					<float name="RollOffMaxDistance">120</float>
-					<float name="RollOffMinDistance">10</float>
-					<token name="RollOffMode">0</token>
-					<Ref name="SoundGroup">null</Ref>
-					<Content name="SoundId"><url>rbxassetid://9114863345</url></Content>
-					<double name="TimePosition">0</double>
-					<float name="Volume">0.699999988</float>
-					<BinaryString name="AttributesSerialize"></BinaryString>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-					<string name="Name">WardCrack</string>
-					<BinaryString name="SerializedOverrides"></BinaryString>
-					<int64 name="SourceAssetId">-1</int64>
-					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<UniqueId name="UniqueId">4602c79c58be03080afae13200001818</UniqueId>
-				</Properties>
-			</Item>
-			<Item class="Sound" referent="RBXEA2778CCF2F0428497D6740EF63BA2C3">
-				<Properties>
-					<bool name="AcousticSimulationEnabled">true</bool>
-					<NumberRange name="LoopRegion">0 60000 </NumberRange>
-					<bool name="Looped">false</bool>
-					<bool name="PlayOnRemove">false</bool>
-					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
-					<bool name="PlaybackRegionsEnabled">false</bool>
-					<float name="PlaybackSpeed">1</float>
-					<bool name="Playing">false</bool>
-					<float name="RollOffMaxDistance">120</float>
-					<float name="RollOffMinDistance">10</float>
-					<token name="RollOffMode">0</token>
-					<Ref name="SoundGroup">null</Ref>
-					<Content name="SoundId"><url>rbxassetid://9114592245</url></Content>
-					<double name="TimePosition">0</double>
-					<float name="Volume">1</float>
-					<BinaryString name="AttributesSerialize"></BinaryString>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-					<string name="Name">WardShatter</string>
-					<BinaryString name="SerializedOverrides"></BinaryString>
-					<int64 name="SourceAssetId">-1</int64>
-					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<UniqueId name="UniqueId">4602c79c58be03080afae13200001819</UniqueId>
-				</Properties>
-			</Item>
-			<Item class="Sound" referent="RBXC71EF235BEEC4274B2E319FA09B6A926">
-				<Properties>
-					<bool name="AcousticSimulationEnabled">true</bool>
-					<NumberRange name="LoopRegion">0 60000 </NumberRange>
-					<bool name="Looped">false</bool>
-					<bool name="PlayOnRemove">false</bool>
-					<NumberRange name="PlaybackRegion">0 60000 </NumberRange>
-					<bool name="PlaybackRegionsEnabled">false</bool>
-					<float name="PlaybackSpeed">1.10000002</float>
-					<bool name="Playing">false</bool>
-					<float name="RollOffMaxDistance">120</float>
-					<float name="RollOffMinDistance">10</float>
-					<token name="RollOffMode">0</token>
-					<Ref name="SoundGroup">null</Ref>
-					<Content name="SoundId"><url>rbxassetid://9116409574</url></Content>
-					<double name="TimePosition">0</double>
-					<float name="Volume">0.550000012</float>
-					<BinaryString name="AttributesSerialize"></BinaryString>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-					<string name="Name">WardRaise</string>
-					<BinaryString name="SerializedOverrides"></BinaryString>
-					<int64 name="SourceAssetId">-1</int64>
-					<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<UniqueId name="UniqueId">4602c79c58be03080afae1320000181a</UniqueId>
-				</Properties>
-			</Item>
-		</Item>
 	</Item>
 	<Item class="ServerScriptService" referent="RBX0000038E">
 		<Properties>
@@ -724143,7 +724206,7 @@ local function template()
         HasWand = false, Wand = "", Quest = 1, QuestProgress = 0, QuestDone = {},
         Inventory = {}, Combos = {}, LastWaystone = "Hollowmere", Waystones = {Hollowmere = true},
         Daily = {Day = 0, Kills = 0, Claimed = false}, DuelWins = 0,
-        Settings = {SpokenCasting = true, ReducedEffects = false, PvP = true},
+        Settings = {SpokenCasting = true, ReducedEffects = false, PvP = true, Music = true},
         BossDefeated = false, SealDefeated = false, LessonRewards = {}, LastRespec = 0,
         Wands = {}, EquippedWand = 0, WandsHeld = {}, WandRewards = {}, Talents = {}, LastTalentReset = 0,
         Broom = BroomData.Default}
@@ -724408,7 +724471,7 @@ function P:Start()
     self.S.NetworkService.Handlers.Talent = function(player, id) self:Talent(player, id) end
     self.S.NetworkService.Handlers.Setting = function(player, key, value)
         local d = self.S.PlayerDataService:Get(player)
-        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true})[key] or type(value) ~= "boolean" then return end
+        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true, Music = true})[key] or type(value) ~= "boolean" then return end
         -- Open PvP (CombatService:Hostile) can't be switched off to escape a fight.
         local s = self.S.CombatService.States[player]
         if key == "PvP" and not value and s and os.clock()-s.LastCombat < Config.PvPLockout then

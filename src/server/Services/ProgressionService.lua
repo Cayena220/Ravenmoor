@@ -117,7 +117,7 @@ function P:Start()
     self.S.NetworkService.Handlers.Talent = function(player, id) self:Talent(player, id) end
     self.S.NetworkService.Handlers.Setting = function(player, key, value)
         local d = self.S.PlayerDataService:Get(player)
-        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true})[key] or type(value) ~= "boolean" then return end
+        if not d or not ({SpokenCasting = true, ReducedEffects = true, PvP = true, Music = true})[key] or type(value) ~= "boolean" then return end
         -- Open PvP (CombatService:Hostile) can't be switched off to escape a fight.
         local s = self.S.CombatService.States[player]
         if key == "PvP" and not value and s and os.clock()-s.LastCombat < Config.PvPLockout then
