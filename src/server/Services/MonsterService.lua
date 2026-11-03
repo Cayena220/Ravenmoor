@@ -102,7 +102,7 @@ function M:Attack(s,target)
                     state.Statuses.Speculo=nil
                     self.S.CombatService:Damage(player,s,damage,nil)
                     self.S.NetworkService.FX:FireAllClients("Beam",state.Root.Position,s.Root.Position,"Speculo")
-                elseif self.S.CombatService:Damage(nil,state,damage,nil) then
+                elseif self.S.CombatService:Damage(nil,state,damage,nil,nil,s.Root.Position) then
                     if s.Def.Status then self.S.CombatService:Status(state,s.Def.Status,2,nil) end
                     if boss and s.Phase==1 then self.S.CombatService:Status(state,"Rooted",1.2,nil) end
                     if s.MonsterId=="Lanternwisp" then state.Mana=math.max(0,state.Mana-10) end
@@ -117,7 +117,7 @@ function M:Attack(s,target)
                     task.wait(1); if not self.Alive[s] then return end
                     for player,state in pairs(self.S.CombatService.States) do
                         if (state.Root.Position-point).Magnitude<radius and not self.S.WorldService:Zone(state.Root.Position).Safe
-                            and not self.S.DuelService:IsBusy(player) and not self:Protected(player,state.Root.Position) then self.S.CombatService:Damage(nil,state,8,nil) end
+                            and not self.S.DuelService:IsBusy(player) and not self:Protected(player,state.Root.Position) then self.S.CombatService:Damage(nil,state,8,nil,nil,point) end
                     end
                 end
             end)

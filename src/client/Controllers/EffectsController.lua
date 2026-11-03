@@ -13,6 +13,7 @@ local colors={Arcane=Color3.fromRGB(194,163,255),Fire=Color3.fromRGB(255,153,72)
     Alteration=Color3.fromRGB(110,210,189),Enemy=Color3.fromRGB(226,95,129)}
 function E:Init(controllers)
     self.C=controllers; self.Pool={}; self.Flying={}; self.Labels={}; self.Zone=nil; self.Lances={}; self.Clips={}; self.PvPTags={}
+    self.Wards={}; self.Shards={}; self.ShakeUntil=0
     self.Shoulders=setmetatable({},{__mode="k"}); self.Marked=setmetatable({},{__mode="k"}); self.Tilt={0,0}
 end
 function E:Color(id)
@@ -448,12 +449,203 @@ function E:Roll(to,from)
     track.Stopped:Once(function() hum.AutoRotate=true end)
     track:Play(0.05)
 end
-function E:Ward(model,duration)
+-- The glass ward (blender/vfx/ward.py), from the meshes in ReplicatedStorage.VFX.WardVFX: a Shell of glass panes in
+-- its gold Frame, 0.5 studs above the root so it rests on the floor. It rises out of a rune Circle with a little
+-- overshoot, turns slowly, and thins out over its last half second. Each hit it takes (WardHit, from CombatService)
+-- leaves a Crack turned toward where the hit came from, with a ripple, a glint, a few chips and a flash through the
+-- glass. The hit that breaks it shatters it: the shell and frame vanish, Shard copies burst off the sphere, fly,
+-- tumble, bounce on the ground and fade, with a shock ring, a flash and a light, and the caster's camera shakes.
+-- Mirror Ward (Speculo) raises the same glass in silver. Without the meshes, the old force-field ball. Sounds play
+-- from ReplicatedStorage.SFX (WardRaise, WardCrack, WardShatter; blender/place_ward.lua) once they are there.
+local WARD_LIFT,WARD_RADIUS=0.5,3.5
+local WARD_TINT={Aegara={Glass=Color3.fromRGB(255,226,160),Lead=Color3.fromRGB(246,190,90)},
+    Speculo={Glass=Color3.fromRGB(214,232,255),Lead=Color3.fromRGB(186,212,255)}}
+local CRACKED=Color3.fromRGB(255,246,222)
+-- Facing `dir` from `at`, also straight up or down.
+local function facing(at,dir) return CFrame.lookAt(at,at+dir,math.abs(dir.Y)>0.99 and Vector3.xAxis or Vector3.yAxis) end
+function E:Kit(kit,name)
+    local folder=RS:FindFirstChild("VFX") and RS.VFX:FindFirstChild(kit)
+    local template=folder and folder:FindFirstChild(name); if not template then return nil end
+    local p=template:Clone(); p.Anchored=true; p.CanCollide=false; p.CanTouch=false; p.CanQuery=false; p.CastShadow=false
+    p.Parent=self.Folder
+    return p,template.Size
+end
+function E:Sound(name,at,volume)
+    local folder=RS:FindFirstChild("SFX"); local template=folder and folder:FindFirstChild(name)
+    if not template or typeof(at)~="Vector3" then return end
+    local holder=self:Part(Vector3.one*0.1,CFrame.new(at),colors.Ward); holder.Transparency=1
+    local sound=template:Clone(); sound.Volume=sound.Volume*(volume or 1); sound.Parent=holder; sound:Play()
+    Debris:AddItem(holder,6)
+end
+-- A WardVFX piece that blooms from `from` to `to` times its size and fades over `duration`.
+function E:WardBloom(name,cf,color,from,to,duration)
+    local p,base=self:Kit("WardVFX",name); if not p then return end
+    p.Material=Enum.Material.Neon; p.Color=color; p.Size=base*from; p.CFrame=cf; p.Transparency=0.05
+    Tween:Create(p,TweenInfo.new(duration,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=base*to,Transparency=1}):Play()
+    Debris:AddItem(p,duration+0.05)
+end
+function E:Ward(model,duration,id)
     if typeof(model)~="Instance" or not model.Parent then return end
     local root=model:FindFirstChild("HumanoidRootPart"); if not root then return end
-    local p=self:Part(Vector3.one*7,root.CFrame,colors.Ward,Enum.Material.ForceField); p.Shape=Enum.PartType.Ball; p.Transparency=0.6
-    local c; c=Run.RenderStepped:Connect(function() if root.Parent and p.Parent then p.CFrame=root.CFrame else c:Disconnect() end end)
-    task.delay(duration,function() c:Disconnect(); p:Destroy() end)
+    self:DropWard(model,false)
+    local tint=WARD_TINT[id] or WARD_TINT.Aegara; local now=os.clock()
+    local w={Root=root,Tint=tint,Born=now,Until=now+duration,Spin=math.random()*math.pi*2,Cracks={},K=0.3}
+    self.Wards[model]=w
+    local shell,size=self:Kit("WardVFX","Shell")
+    if not shell then
+        w.Plain=self:Part(Vector3.one*7,root.CFrame,colors.Ward,Enum.Material.ForceField); w.Plain.Shape=Enum.PartType.Ball; w.Plain.Transparency=0.6
+        return
+    end
+    shell.Material=Enum.Material.Glass; shell.Color=tint.Glass; shell.Reflectance=0.15; shell.Transparency=1
+    w.Shell,w.ShellSize=shell,size
+    w.Frame,w.FrameSize=self:Kit("WardVFX","Frame")
+    if w.Frame then w.Frame.Material=Enum.Material.Neon; w.Frame.Color=tint.Lead; w.Frame.Transparency=1 end
+    local feet=root.Position-Vector3.new(0,2.85,0)
+    self:WardBloom("Circle",CFrame.fromMatrix(feet,Vector3.xAxis,Vector3.zAxis),tint.Lead,0.55,1.15,0.9)
+    self:WardBloom("Ring",CFrame.fromMatrix(feet,Vector3.xAxis,Vector3.zAxis),tint.Lead,1,4.2,0.35)
+    self:Sound("WardRaise",root.Position)
+    self:PlaceWard(w,now)
+end
+function E:DropWard(model,fade)
+    local w=self.Wards[model]; if not w then return end
+    self.Wards[model]=nil
+    local parts={}
+    for _,p in pairs({w.Shell,w.Frame,w.Plain}) do parts[#parts+1]=p end
+    for _,c in ipairs(w.Cracks) do parts[#parts+1]=c.Part end
+    for _,p in ipairs(parts) do
+        if fade then Tween:Create(p,TweenInfo.new(0.3),{Transparency=1,Size=p.Size*1.04}):Play(); Debris:AddItem(p,0.35)
+        else p:Destroy() end
+    end
+end
+function E:PlaceWard(w,now)
+    local age=now-w.Born
+    -- Rising: from a third of its size to a little over, then settling.
+    local k=age<0.18 and 0.3+0.8*math.sin(age/0.18*math.pi/2) or age<0.32 and 1.1-0.1*(age-0.18)/0.14 or 1
+    w.K=k
+    local centre=w.Root.Position+Vector3.new(0,WARD_LIFT,0)
+    if w.Plain then w.Plain.CFrame=CFrame.new(centre); return end
+    local turn=CFrame.Angles(0,w.Spin+age*0.35,0); local cf=CFrame.new(centre)*turn
+    -- A hit flashes through the glass; the last half second thins it out.
+    local flash=w.Struck and math.max(0,1-(now-w.Struck)/0.18) or 0
+    local fading=math.clamp((0.5-(w.Until-now))/0.5,0,1)
+    local fade=math.min(1,age/0.15)
+    w.Shell.Size=w.ShellSize*k; w.Shell.CFrame=cf
+    w.Shell.Transparency=1-(1-(0.6-0.3*flash))*fade*(1-fading)
+    if w.Frame then
+        w.Frame.Size=w.FrameSize*k; w.Frame.CFrame=cf
+        w.Frame.Color=w.Tint.Lead:Lerp(CRACKED,flash); w.Frame.Transparency=1-(1-0.08)*fade*(1-fading)
+    end
+    for _,c in ipairs(w.Cracks) do
+        c.Part.Size=c.Size*k
+        c.Part.CFrame=cf*c.Turn*CFrame.new(0,0,-(WARD_RADIUS*k-c.Part.Size.Z/2))
+        c.Part.Transparency=1-(1-0.05)*(1-fading)
+    end
+end
+-- A hit on a ward, from `from`: a crack there, or with `broken` the shatter. Someone else's ward this client never
+-- saw raised still shatters round them.
+function E:WardHit(model,from,broken)
+    if typeof(model)~="Instance" then return end
+    local w=self.Wards[model]; local root=w and w.Root or model:FindFirstChild("HumanoidRootPart"); if not root then return end
+    local centre=root.Position+Vector3.new(0,WARD_LIFT,0)
+    local dir=typeof(from)=="Vector3" and from-centre or Vector3.new(math.random()-0.5,math.random()*0.5,math.random()-0.5)
+    dir=dir.Magnitude>0.01 and dir.Unit or Vector3.new(0,0,-1)
+    local k=w and w.K or 1; local point=centre+dir*WARD_RADIUS*k
+    if broken then return self:Shatter(model,centre,dir) end
+    if not w or w.Plain then self:Burst(point,"Aegara",1.5); return end
+    local crack,size=self:Kit("WardVFX","Crack")
+    if crack then
+        crack.Material=Enum.Material.Neon; crack.Color=CRACKED
+        local turn=CFrame.Angles(0,w.Spin+(os.clock()-w.Born)*0.35,0)
+        -- Kept in the ward's own turn, so the crack stays on its pane as the ward turns; rolled at random so
+        -- hits from one side don't stack the same web.
+        table.insert(w.Cracks,{Part=crack,Size=size,Turn=turn:Inverse()*facing(Vector3.zero,dir)*CFrame.Angles(0,0,math.random()*2*math.pi)})
+        if #w.Cracks>6 then table.remove(w.Cracks,1).Part:Destroy() end
+    end
+    w.Struck=os.clock()
+    self:WardBloom("Ring",facing(point,dir),w.Tint.Lead,0.4,1.3,0.3)
+    self:WardBloom("Glint",facing(point+dir*0.05,dir)*CFrame.Angles(0,0,math.random()*2*math.pi),CRACKED,0.7,1.5,0.2)
+    self:Chips(point,dir,w.Tint,3,0.4)
+    self:Sound("WardCrack",point)
+    self:PlaceWard(w,os.clock())
+end
+-- `count` Shard copies `size` times their mesh, thrown off the ward from `point` along `dir`, for FlyShards.
+function E:Chips(point,dir,tint,count,size)
+    local now=os.clock(); local floor=self:Floor(point)
+    for i=1,count do
+        local shard,base=self:Kit("WardVFX","Shard"..math.random(1,6)); if not shard then return end
+        shard.Material=Enum.Material.Glass; shard.Color=tint.Glass; shard.Reflectance=0.3; shard.Transparency=0.3
+        shard.Size=base*size*(0.8+math.random()*0.5)
+        local spread=Vector3.new(math.random()-0.5,math.random()-0.2,math.random()-0.5)*0.9
+        self:Throw(shard,point,(dir+spread).Unit*(6+math.random()*6),dir,now,0.6+math.random()*0.3,floor)
+    end
+end
+function E:Throw(shard,at,velocity,toward,now,life,floor)
+    if #self.Shards>=220 then shard:Destroy(); return end
+    local axis=Vector3.new(math.random()-0.5,math.random()-0.5,math.random()-0.5)
+    table.insert(self.Shards,{Part=shard,Pos=at,Vel=velocity,Turn=facing(Vector3.zero,toward),Axis=axis.Magnitude>0.01 and axis.Unit or Vector3.yAxis,
+        Rate=4+math.random()*8,Born=now,Life=life,Floor=floor,Clear=shard.Transparency})
+end
+-- The ground under a point, or 3 studs down, ignoring characters and effects.
+function E:Floor(at)
+    local ignored={self.Folder}
+    for _,player in ipairs(Players:GetPlayers()) do if player.Character then ignored[#ignored+1]=player.Character end end
+    local params=RaycastParams.new(); params.FilterType=Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances=ignored
+    local hit=workspace:Raycast(at,Vector3.new(0,-12,0),params)
+    return hit and hit.Position.Y+0.05 or at.Y-3.4
+end
+function E:Shatter(model,centre,dir)
+    local w=self.Wards[model]; local tint=w and w.Tint or WARD_TINT.Aegara; local k=w and w.K or 1
+    self:DropWard(model,false)
+    local d=self.C.UIController.Data; local reduced=d and d.Settings.ReducedEffects
+    local count=reduced and 16 or 48; local now=os.clock(); local floor=self:Floor(centre)
+    local golden=math.pi*(3-math.sqrt(5))
+    for i=1,count do
+        local shard,base=self:Kit("WardVFX","Shard"..(1+(i-1)%6)); if not shard then break end
+        -- Spread evenly over the sphere, flung outward, harder on the far side from the hit, and up a little.
+        local y=1-2*(i-0.5)/count; local r=math.sqrt(1-y*y); local a=i*golden
+        local n=Vector3.new(r*math.cos(a),y,r*math.sin(a))
+        if i%3==0 then shard.Material=Enum.Material.Neon; shard.Color=tint.Lead; shard.Transparency=0.05
+        else shard.Material=Enum.Material.Glass; shard.Color=tint.Glass; shard.Reflectance=0.3; shard.Transparency=0.3 end
+        shard.Size=base*(0.85+math.random()*0.65)*k
+        local velocity=n*(7+math.random()*6)-dir*(3+math.random()*6)*math.max(0.2,0.6-n:Dot(dir))+Vector3.new(0,2+math.random()*4,0)
+        self:Throw(shard,centre+n*WARD_RADIUS*k,velocity,n,now,1+math.random()*0.5,floor)
+    end
+    local flat=CFrame.fromMatrix(centre,Vector3.xAxis,Vector3.zAxis)
+    self:WardBloom("Ring",flat,tint.Lead,WARD_RADIUS,WARD_RADIUS*2.4,0.45)
+    self:WardBloom("Ring",facing(centre,dir),CRACKED,WARD_RADIUS*0.9,WARD_RADIUS*2,0.35)
+    self:WardBloom("Glint",facing(centre+dir*WARD_RADIUS*k,dir),CRACKED,1.5,4,0.3)
+    self:Burst(centre,"Aegara",WARD_RADIUS*1.6)
+    local glow=self:Part(Vector3.one*0.1,CFrame.new(centre),tint.Lead); glow.Transparency=1
+    local light=Instance.new("PointLight"); light.Color=tint.Lead; light.Range=22; light.Brightness=6; light.Parent=glow
+    Tween:Create(light,TweenInfo.new(0.5),{Brightness=0}):Play(); Debris:AddItem(glow,0.55)
+    self:Sound("WardShatter",centre)
+    if model==Players.LocalPlayer.Character then self.ShakeUntil=now+0.3 end
+end
+-- Shards fly, fall, tumble and bounce on the ground they started over, then fade out.
+function E:FlyShards(dt)
+    local now=os.clock()
+    for i=#self.Shards,1,-1 do
+        local s=self.Shards[i]; local age=now-s.Born
+        if age>=s.Life or not s.Part.Parent then s.Part:Destroy(); table.remove(self.Shards,i)
+        else
+            s.Vel=s.Vel-Vector3.new(0,34*dt,0); s.Pos=s.Pos+s.Vel*dt
+            if s.Pos.Y<s.Floor then
+                s.Pos=Vector3.new(s.Pos.X,s.Floor,s.Pos.Z); s.Vel=Vector3.new(s.Vel.X*0.45,math.abs(s.Vel.Y)*0.3,s.Vel.Z*0.45); s.Rate=s.Rate*0.4
+            end
+            s.Turn=CFrame.fromAxisAngle(s.Axis,s.Rate*dt)*s.Turn
+            s.Part.CFrame=CFrame.new(s.Pos)*s.Turn
+            s.Part.Transparency=s.Clear+(1-s.Clear)*math.clamp((age-s.Life*0.55)/(s.Life*0.45),0,1)
+        end
+    end
+end
+function E:DrawWards(dt)
+    local now=os.clock()
+    for model,w in pairs(self.Wards) do
+        if not model.Parent or not w.Root.Parent then self:DropWard(model,false)
+        elseif now>=w.Until then self:DropWard(model,true)
+        else self:PlaceWard(w,now) end
+    end
+    self:FlyShards(dt)
 end
 function E:Label(model)
     if self.Labels[model] then return end
@@ -530,7 +722,8 @@ function E:Start()
         elseif kind=="Blast" then self:Burst(a,b,c*2)
         elseif kind=="Damage" then self:Number(a,b,c,false)
         elseif kind=="Heal" then self:Number(a,b,false,true); self:Burst(a,"Restoration",3)
-        elseif kind=="Ward" then self:Ward(a,b)
+        elseif kind=="Ward" then self:Ward(a,b,c)
+        elseif kind=="WardHit" then self:WardHit(a,b,c)
         elseif kind=="Dome" then local p=self:Part(Vector3.one*20,CFrame.new(a),colors.Ward,Enum.Material.ForceField); p.Shape=Enum.PartType.Ball; p.Transparency=0.7; Debris:AddItem(p,b)
         elseif kind=="Beam" then self:Beam(a,b,c)
         elseif kind=="Telegraph" then self:Ring(a,b,c,false)
@@ -551,6 +744,14 @@ function E:Start()
         monsters.ChildAdded:Connect(function(model) task.spawn(function() self:Label(model) end) end)
         for _,model in ipairs(monsters:GetChildren()) do task.spawn(function() self:Label(model) end) end
     end)
+    -- A shattered ward shakes its caster's camera, after the camera scripts have placed it.
+    Run:BindToRenderStep("WandboundWardShake",Enum.RenderPriority.Camera.Value+5,function()
+        local left=self.ShakeUntil-os.clock(); local camera=workspace.CurrentCamera
+        if left>0 and camera then
+            local power=math.rad(1.4)*left/0.3
+            camera.CFrame=camera.CFrame*CFrame.Angles((math.random()-0.5)*power,(math.random()-0.5)*power,(math.random()-0.5)*power)
+        end
+    end)
     local elapsed=0
     Run.RenderStepped:Connect(function(dt)
         for i=#self.Flying,1,-1 do
@@ -562,6 +763,7 @@ function E:Start()
         end
         self:Arms(dt)
         self:DrawLances(dt)
+        self:DrawWards(dt)
         elapsed=elapsed+dt
         if elapsed>0.4 then
             elapsed=0; self:UpdateZone(); self:DrawTags()

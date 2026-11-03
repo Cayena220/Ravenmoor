@@ -84,7 +84,8 @@ function C:CanDamage(player, target)
     if target.LessonOwner and target.LessonOwner ~= player then return false end
     return true
 end
-function C:Damage(player, target, amount, spell, dot)
+-- `from` is where the hit came from (a spell's impact point, a monster), so a ward can crack on that side.
+function C:Damage(player, target, amount, spell, dot, from)
     if player and not self:CanDamage(player, target) then return false end
     if not target or target.Humanoid.Health <= 0 or os.clock() < (target.InvulnerableUntil or 0) then return false end
     if target.Dummy then
@@ -109,8 +110,15 @@ function C:Damage(player, target, amount, spell, dot)
         local bite = Wands.Signature(data) == "VenomBite" and (self:Has(target, "Rooted") or self:Has(target, "Asleep"))
         if crit then amount = amount*(bite and 2 or 1.5) end
     end
+    local warded = (target.Shield or 0) > 0
     local blocked = math.min(target.Shield or 0, amount)
     target.Shield = math.max(0, (target.Shield or 0)-blocked); amount = math.max(0, amount-blocked)
+    -- A hit on a ward cracks the glass where it landed, or shatters it when the ward gives out
+    -- (EffectsController:WardHit). Without `from`, the attacker's position stands in.
+    if warded and target.Player then
+        local attacker = player and self.States[player]
+        self.S.NetworkService.FX:FireAllClients("WardHit", target.Model, from or (attacker and attacker.Root.Position), target.Shield <= 0)
+    end
     target.LastCombat = os.clock()
     if player and self.States[player] then self.States[player].LastCombat = os.clock() end
     if amount > 0 then target.Statuses.Asleep = nil end

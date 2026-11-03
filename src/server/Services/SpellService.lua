@@ -59,7 +59,7 @@ function S:Impact(player,target,spell,spoken,scale,position,lance)
     if spell.School=="Hex" and C:Has(target,"Airborne") then amount=amount*1.25; combo="Juggle" end
     if spell.Id=="Ruptara" and C:Has(target,"Rooted") then amount=amount*1.2; combo="Anchored" end
     if spell.Element=="Fire" and target.MonsterId=="RotbarkSentinel" then amount=amount*1.5 end
-    if not C:Damage(player,target,amount,spell) then return end
+    if not C:Damage(player,target,amount,spell,nil,position) then return end
     if combo then self.S.ProgressionService:Combo(player,combo) end
     if spell.Id=="Scintara" and not lance and target.MonsterId and Wands.Signature(data)=="Static" then self:Static(player,target,amount) end
     if target.Humanoid.Health<=0 or target.Dummy then return end
@@ -238,10 +238,10 @@ function S:Execute(player,spell,aim,spoken)
     if spell.Type=="Projectile" then self:Projectile(player,spell,origin,dir,spoken); return end
     if spell.Id=="Aegara" then
         s.Shield=F.Power(40,data,spell,spoken); s.ShieldUntil=os.clock()+2
-        self.S.NetworkService.FX:FireAllClients("Ward",s.Model,2)
+        self.S.NetworkService.FX:FireAllClients("Ward",s.Model,2,spell.Id)
     elseif spell.Id=="Speculo" or spell.Id=="Durassa" or spell.Id=="Velocis" then
         C:Status(s,spell.Id,F.Duration(spell,data),player)
-        if spell.Id=="Speculo" then self.S.NetworkService.FX:FireAllClients("Ward",s.Model,0.6) end
+        if spell.Id=="Speculo" then self.S.NetworkService.FX:FireAllClients("Ward",s.Model,0.6,spell.Id) end
     elseif spell.Id=="Glimmora" then
         s.Light=not s.Light; local old=s.Root:FindFirstChild("Glimmora"); if old then old:Destroy() end
         if s.Light then local light=Instance.new("PointLight"); light.Name="Glimmora"; light.Range=24; light.Brightness=2; light.Color=Color3.fromRGB(199,180,255); light.Parent=s.Root end

@@ -11,7 +11,7 @@ blender/animations/       One script per rigged model and its animations (spellb
                           spell's wand gesture in casting.py)
 blender/r15.py            The R15 avatar rig and the tools for posing it, for casting.py (character.py has its own copy)
 blender/vfx/              One script per effect: plain meshes that the game tints and animates in code (dash.py,
-                          scintara.py)
+                          scintara.py, ward.py)
 blender/world/            world.py: assembles the whole game in one scene, exports/World.blend
 blender/exports/          Generated .fbx, .blend and .png files (ignored by git; rebuild any time)
 blender/after_import.lua  Studio fix-up to run once the models are imported (step 5)
@@ -20,6 +20,8 @@ blender/place_ranges.lua  Studio script that sets up the imported mountain range
 blender/place_hollowmere.lua  Studio script that sets up the imported village over the part one
 blender/place_dash.lua    Studio script that puts the imported dash effect in ReplicatedStorage.VFX
 blender/place_scintara.lua  Studio script that puts the imported Scintara effect in ReplicatedStorage.VFX
+blender/place_ward.lua    Studio script that puts the imported glass ward in ReplicatedStorage.VFX and its sounds in
+                          ReplicatedStorage.SFX
 blender/place_brooms.lua  Studio script that puts the imported brooms in ReplicatedStorage.Brooms
 tools/blender.py          Finds Blender and runs scripts
 tools/place_animations.py Writes character clips from CharacterAnimations.json and CastAnimations.json into the place
@@ -170,6 +172,32 @@ python tools/blender.py blender/vfx/scintara.py --preview
 `--preview` renders `ScintaraVFX.png`, the seven meshes in a row. It also renders `ScintaraVFX_bolt.png`, the bolt put together, and `ScintaraVFX_lance.png`, a 14-stud lance put together. The file has 4,800 triangles; the largest mesh, `Coil`, has 2,100.
 
 Import it like any model (step 3), then paste [place_scintara.lua](place_scintara.lua) into **View → Command Bar** and press Enter. It moves the ScintaraVFX model into `ReplicatedStorage.VFX`, drops Blender's `.001` name suffixes and turns the meshes white. Running it again changes nothing, and after a rebuild it replaces the old copy with the new import.
+
+## Glass ward
+
+`vfx/ward.py` builds `WardVFX.fbx`: one Model, WardVFX, holding twelve near-white meshes for the ward a student raises with R (Ward Shield, Aegara). The ward is a bubble of glass that rests on the ground round the caster. Each hit it takes cracks the glass on the side the hit came from. The hit that uses up the ward's 40 points of shield shatters it like a window. Mirror Ward (Speculo) raises the same glass in silver, for its 0.6 s. Nothing is animated in Blender: `EffectsController` clones the meshes, colours them, sets their materials and moves them every frame.
+
+| Mesh | What it is | In the game |
+|---|---|---|
+| `Shell` | A geodesic bubble of 162 flat glass panes, 150 hexagons and 12 pentagons, 3.5 studs in radius, with hairline gaps | Glass, pale gold, 0.6 transparent. It rises from a third of its size to a little over in 0.18 s and settles, turns slowly, and thins out over its last half second. A hit flashes through it. |
+| `Frame` | The leading: a thin bar along every edge where two panes meet | Neon gold. It flashes white with each hit. |
+| `Circle` | A rune circle: two rings, twelve diamond runes and three arcs | Flares on the ground under the caster as the ward rises, and fades |
+| `Crack` | A spider-web crack on a patch of the same sphere: eight jagged lines, some forking, with broken rings of crazing between | White-hot neon, turned to face each hit and kept on its pane as the ward turns. A ward holds up to six. |
+| `Shard1` to `Shard6` | Six broken panes: thin, sharp-cornered glass, from a sliver to a big wedge | Chips: three small ones fly off each hit. The shatter: 48 burst off the whole sphere, every third one gold neon and the rest glass. They fly out, hardest on the side away from the hit, tumble, bounce on the ground and fade within 1.5 s. |
+| `Ring` | A thin ring with a fainter ripple inside | A ripple where a hit lands, the flare under a rising ward, and two shock rings when it shatters |
+| `Glint` | A flat eight-pointed star | The flash where a hit lands, and a big one where the breaking hit landed |
+
+The ward's middle is 0.5 studs above the HumanoidRootPart. The server tells every client about each hit on a ward (`WardHit`, from `CombatService:Damage`): where it came from and whether it broke the ward. A spell's hit comes from where it landed, a monster's from the monster, and any other hit from the attacker. When it shatters, a gold light flashes and fades, and the caster's camera shakes for 0.3 s. With Reduced effects on, the shatter throws 16 shards instead of 48. Until the meshes are imported, the ward is the old force-field ball.
+
+The sounds are in `ReplicatedStorage.SFX`: `WardRaise` as the ward rises, `WardCrack` on each hit and `WardShatter` when it breaks. Each plays from the ward. They are sounds from Roblox's own library, listed in `place_ward.lua`'s `SOUNDS`. Without them, the ward is silent.
+
+```bash
+python tools/blender.py blender/vfx/ward.py --preview
+```
+
+`--preview` renders `WardVFX.png`, the pieces laid out. It also renders three EEVEE pictures of a student casting the ward, the CastWard gesture from `exports/Casting.blend`: `WardVFX_raised.png`, `WardVFX_cracked.png` after three hits, and `WardVFX_shatter.png` 0.12 s into the shatter. The pictures' glass, glow and ground are preview materials only. The file has 14,970 triangles; the largest mesh, `Frame`, has 7,680.
+
+Import it like any model (step 3), then paste [place_ward.lua](place_ward.lua) into **View → Command Bar** and press Enter. It moves the WardVFX model into `ReplicatedStorage.VFX` and puts the sounds in `ReplicatedStorage.SFX`. It also drops Blender's `.001` name suffixes and turns the meshes white. Running it again changes nothing.
 
 ## Character animations
 

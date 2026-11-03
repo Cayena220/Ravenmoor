@@ -104,7 +104,7 @@ local profileData={}
 local deps={NetworkService=N,DuelService=duel,PlayerDataService={Get=function(_,p) return profileData[p] end},
     MonsterService={Killed=fire},ProgressionService={Hit=fire,Event=fire}}
 C:Init(deps); deps.CombatService=C
-local player={Parent=true,UserId=7,Attributes={},GetAttribute=function(self,key) return self.Attributes[key] end}; local other={Parent=true,UserId=9}
+local player={Parent=true,UserId=7,Attributes={},GetAttribute=function(self,key) return self.Attributes[key] end}; local other={Parent=true,UserId=9,DisplayName="Rival"}
 local function target(p)
     return {Player=p,Model={Parent=true},Humanoid={Health=110,MaxHealth=110},Root={Position=Vector3.zero},Statuses={},Shield=0,LastCombat=-100}
 end
@@ -160,6 +160,16 @@ C:Damage(nil,shielded,25,nil); check(shielded.Humanoid.Health==110 and shielded.
 C:Damage(nil,shielded,30,nil); check(shielded.Humanoid.Health==95 and shielded.Shield==0,"shield overflow")
 shielded.InvulnerableUntil=os.clock()+1
 check(not C:Damage(nil,shielded,50,nil) and shielded.Humanoid.Health==95,"dodge protection")
+-- A hit on a student's ward tells every client where it landed and whether it broke the glass (EffectsController:WardHit).
+local wardHits,fireAll={},event.FireAllClients
+event.FireAllClients=function(_,kind,...) if kind=="WardHit" then wardHits[#wardHits+1]={...} end end
+local warded=target(other); warded.Shield=40
+C:Damage(nil,warded,25,nil,nil,Vector3.new(0,0,10))
+check(#wardHits==1 and wardHits[1][1]==warded.Model and wardHits[1][2].Z==10 and wardHits[1][3]==false,"a hit cracks a ward on the side it came from")
+C:Damage(nil,warded,30,nil,nil,Vector3.new(5,0,0))
+check(#wardHits==2 and wardHits[2][3]==true and warded.Shield==0 and warded.Humanoid.Health==95,"the hit that empties a ward shatters it")
+C:Damage(nil,warded,5,nil); check(#wardHits==2,"no ward, no glass")
+event.FireAllClients=fireAll
 local reflect=target(other); reflect.Statuses.Speculo={Until=os.clock()+1}; check(C:Has(reflect,"Speculo"),"ward status")
 
 local S=require(ROOT.."/src/server/Services/SpellService.lua"); S:Init(deps)
@@ -308,7 +318,7 @@ local P=require(ROOT.."/src/server/Services/ProgressionService.lua")
 local p={Parent=true,UserId=11,FindFirstChild=function() return nil end,SetAttribute=function() end}
 local record={Level=1,XP=0,Gilders=0,House="",HousePoints=0,Attributes={Power=0,Focus=0,Vitality=0,Agility=0,Unspent=0},
     Spells={},Loadout={Slot1="",Slot2="",Slot3="",Slot4=""},Quest=1,QuestProgress=0,QuestDone={},Daily={Day=0,Kills=0,Claimed=false},
-    Talents={},Wands={},EquippedWand=0,Wand="",HasWand=true}
+    Talents={},Wands={},EquippedWand=0,Wand="",HasWand=true,Settings={PvP=true}}
 profileData[p]=record
 local cFake={UpdateStats=fire,HouseTrim=fire,States={}}
 P:Init({PlayerDataService=deps.PlayerDataService,NetworkService=N,CombatService=cFake,DuelService=duel})
@@ -524,7 +534,7 @@ do
     local d={Level=1,XP=0,Gilders=0,BankGilders=0,House="",HousePoints=0,HasWand=false,Wands={},EquippedWand=0,
         WandRewards={},WandsHeld={},Spells={},Loadout={Ward="Aegara",Slot1="Glimmora",Slot2="",Slot3="",Slot4=""},
         Attributes={Power=0,Focus=0,Vitality=0,Agility=0,Unspent=0},Talents={},Quest=1,QuestProgress=0,QuestDone={},
-        Inventory={},Waystones={},LastRespec=0,LastTalentReset=0}
+        Inventory={},Waystones={},LastRespec=0,LastTalentReset=0,Settings={PvP=true}}
     local player={Parent=true,UserId=1,FindFirstChild=function() return nil end,SetAttribute=noop}
     local state={Humanoid={Health=60,MaxHealth=100},Model={FindFirstChild=function() return nil end},LastCombat=-100}
     local anchor,nearby,busy=nil,true,false
