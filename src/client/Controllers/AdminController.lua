@@ -9,7 +9,7 @@ local Wands=require(RS.Shared.WandData)
 -- The admin panel (P): testing tools that skip the story's gates. The server's AdminService decides who
 -- may use it and checks every command; this controller only draws the menu for players it marked Admin.
 local A={}
-local TAB=Color3.fromRGB(223,210,181)
+local TAB=Color3.fromRGB(20,23,28)
 -- Teleport targets: Waystone ids from Config.Waystones, or names of parts in Workspace.Markers.
 local PLACES={{"Hollowmere","Hollowmere Waystone"},{"Castle","Castle Waystone"},{"Whisperwood","Whisperwood Waystone"},
     {"Oakhart","Oakhart's Wandery"},{"Apothecary","Apothecary"},{"Bank","Vaultkeep Bank"},
@@ -40,10 +40,10 @@ function A:Grid(list,per)
 end
 function A:SpellRow(sp,d)
     local ui=self.C.UIController; local kit=ui.Kit; local row=ui:Row(44)
-    kit.text(row,sp.Id.." · "..sp.DisplayName.."\nLv "..sp.UnlockLevel.." "..sp.School..(d.Spells[sp.Id] and " · learned" or ""),13,kit.palette.Ink,
+    kit.text(row,sp.Id.." · "..sp.DisplayName.."\nLv "..sp.UnlockLevel.." "..sp.School..(d.Spells[sp.Id] and " · learned" or ""),13,kit.palette.Text,
         {Size=UDim2.new(0.46,0,1,0),TextWrapped=true})
     if sp.Id=="Scintara" then
-        kit.text(row,"Always on left mouse",13,kit.palette.Ink,{Position=UDim2.fromScale(0.46,0),Size=UDim2.new(0.54,0,1,0)})
+        kit.text(row,"Always on left mouse",13,kit.palette.TextDim,{Position=UDim2.fromScale(0.46,0),Size=UDim2.new(0.54,0,1,0)})
         return
     end
     local slots={"Slot1","Slot2","Slot3","Slot4"}; if sp.School=="Ward" then slots[5]="Ward" end
@@ -106,16 +106,9 @@ function A:Render()
 end
 function A:Start()
     local ui=self.C.UIController; local kit=ui.Kit
-    self.Button=kit.button(ui.Root,"P  ADMIN",function() self:Toggle() end,{AnchorPoint=Vector2.new(1,0),TextSize=13,
-        BackgroundColor3=kit.palette.Ink,TextColor3=kit.palette.Gold,Visible=false})
-    kit.stroke(self.Button,kit.palette.Gold,0.4)
-    -- Sits under the spellbook button, which UIController resizes for touch screens.
-    local function place()
-        local menu=ui.MenuButton
-        self.Button.Size=UDim2.fromOffset(menu.Size.X.Offset,34)
-        self.Button.Position=UDim2.new(1,-20,0,menu.Position.Y.Offset+menu.Size.Y.Offset+6)
-    end
-    place(); ui.MenuButton:GetPropertyChangedSignal("Size"):Connect(place)
+    -- Sits at the end of the quest tracker in the upper right.
+    self.Button=kit.button(ui.QuestList,"P  ADMIN",function() self:Toggle() end,{Size=UDim2.fromOffset(120,30),TextSize=13,
+        TextColor3=kit.palette.Gold,LayoutOrder=9,Visible=false})
     local function refresh() self.Button.Visible=self:Allowed() end
     refresh(); self.Player:GetAttributeChangedSignal("Admin"):Connect(refresh)
     self.Player:GetAttributeChangedSignal("FreeCast"):Connect(function() if ui.Menu=="Admin" then ui:Show("Admin") end end)

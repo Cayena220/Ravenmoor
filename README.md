@@ -40,7 +40,7 @@ DataStore automatically. See `docs/SAVING.md` before testing persistence.
 | Economy | Gilders, ingredients, spell tomes, bank, Health Draught purchase/brewing/use, three Resero chests, discovered Waystones with 25-Gilder travel |
 | Duels | Two-sided invitation, 3-second countdown, 1-HP loss, timeout/forfeit, no item loss, one active match at a time, reward cap of 10 per hour |
 | Open PvP | Students who keep open PvP on (Settings, on by default) can fight students of other houses anywhere, on foot or on a broom, except within 30 studs of a Waystone (a sanctuary). Housemates are allies: bolts pass through them and Mend heals only allies. Rivals carry a red PvP tag. Within 10 seconds of combat you can't switch PvP off or start a duel. Damage against players is ×0.7, spawn protection lasts 5 seconds, a knock-out names who did it, only monsters teach Mastery, and 15 damage within 2 seconds knocks a rider off their broom |
-| Presentation | Parchment menus, brass accents, resource bars, cooldowns, boss bar, quest marker, local spell effects, zone color transition and 20-minute day |
+| Presentation | Diamond spell slots with cooldown sweeps, a compass minimap that turns with the camera, quest tracker, thin health, mana and stamina bars, boss bar, cinematic NPC conversations with letterbox and numbered replies, dark glass menus, quest marker, local spell effects, zone color transition and 20-minute day |
 | Data | Native UpdateAsync profile store, expiring session lock, periodic save, leave/shutdown save, no blank live fallback on load failure |
 
 The first quest chain unlocks Flamara's level requirement after the Thornimp hunt.
@@ -60,7 +60,8 @@ Professor Quill can teach a starter practice lesson before you qualify for Reser
 | Broom: climb and dive | Space and Q, or look up or down while flying forward | A and L3 | Look up or down |
 | Jump | Space | A | Roblox jump button |
 | Spellbook | K | D-pad Up | Spellbook button |
-| Bag (wands and items) | B | D-pad Left | Bag tab in spellbook |
+| Bag (wands and items) | B | D-pad Left | Bag diamond (lower left) |
+| Health Draught | H | — | Draught diamond (lower left) |
 | Map | M | D-pad Right | Waystone prompt |
 | Free cursor / aim lock | Left Ctrl | Default camera | Default camera |
 | First person | V, or scroll all the way in | Right stick zoom | Pinch zoom |

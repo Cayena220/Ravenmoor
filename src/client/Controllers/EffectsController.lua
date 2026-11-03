@@ -513,9 +513,17 @@ function E:Start()
     self.Correction=Instance.new("ColorCorrectionEffect"); self.Correction.Name="WandboundZoneColor"; self.Correction.Parent=Lighting
     self.Atmosphere=Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere",Lighting)
     self.Waypoint=self:Part(Vector3.one*0.1,CFrame.new(0,-1000,0),colors.Ward); self.Waypoint.Transparency=1
-    local gui=Instance.new("BillboardGui"); gui.Size=UDim2.fromOffset(180,58); gui.AlwaysOnTop=true; gui.MaxDistance=1000; gui.Parent=self.Waypoint
-    self.WaypointLabel=Instance.new("TextLabel"); self.WaypointLabel.Size=UDim2.fromScale(1,1); self.WaypointLabel.BackgroundTransparency=1
-    self.WaypointLabel.TextSize=14; self.WaypointLabel.Font=Enum.Font.GothamMedium; self.WaypointLabel.TextColor3=colors.Ward; self.WaypointLabel.TextStrokeTransparency=0.25; self.WaypointLabel.TextWrapped=true; self.WaypointLabel.Parent=gui
+    -- The quest waypoint matches the HUD: a gold diamond, the quest in serif, the distance under it.
+    local gui=Instance.new("BillboardGui"); gui.Size=UDim2.fromOffset(220,66); gui.AlwaysOnTop=true; gui.MaxDistance=1000; gui.Parent=self.Waypoint
+    local pip=Instance.new("Frame"); pip.AnchorPoint=Vector2.new(0.5,0.5); pip.Position=UDim2.fromOffset(110,9); pip.Size=UDim2.fromOffset(11,11); pip.Rotation=45
+    pip.BackgroundColor3=Color3.fromRGB(226,197,138); pip.BorderSizePixel=0; pip.Parent=gui
+    local edge=Instance.new("UIStroke"); edge.Color=Color3.fromRGB(20,23,28); edge.Parent=pip
+    self.WaypointLabel=Instance.new("TextLabel"); self.WaypointLabel.Position=UDim2.fromOffset(0,18); self.WaypointLabel.Size=UDim2.new(1,0,0,24); self.WaypointLabel.BackgroundTransparency=1
+    self.WaypointLabel.TextSize=19; self.WaypointLabel.Font=Enum.Font.Garamond; self.WaypointLabel.TextColor3=Color3.fromRGB(247,242,232); self.WaypointLabel.TextStrokeTransparency=0.35
+    self.WaypointLabel.TextTruncate=Enum.TextTruncate.AtEnd; self.WaypointLabel.Parent=gui
+    self.WaypointDistance=Instance.new("TextLabel"); self.WaypointDistance.Position=UDim2.fromOffset(0,42); self.WaypointDistance.Size=UDim2.new(1,0,0,18); self.WaypointDistance.BackgroundTransparency=1
+    self.WaypointDistance.TextSize=13; self.WaypointDistance.Font=Enum.Font.GothamMedium; self.WaypointDistance.TextColor3=Color3.fromRGB(226,197,138); self.WaypointDistance.TextStrokeTransparency=0.4
+    self.WaypointDistance.Parent=gui
     RS.Remotes.FX.OnClientEvent:Connect(function(kind,a,b,c,d,e,f)
         if kind=="Projectile" then self:Projectile(a,b,c,d,e,f)
         elseif kind=="Impact" then self:Impact(a,b)
@@ -561,7 +569,8 @@ function E:Start()
             if p then
                 self.Waypoint.Position=Vector3.new(p[1],p[2]+8,p[3])
                 local root=Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                self.WaypointLabel.Text="◇ "..q.Title..(root and "\n"..math.floor((root.Position-self.Waypoint.Position).Magnitude).." studs" or "")
+                self.WaypointLabel.Text=q.Title
+                self.WaypointDistance.Text=root and math.floor((root.Position-self.Waypoint.Position).Magnitude).." studs" or ""
             else self.Waypoint.Position=Vector3.new(0,-1000,0) end
         end
     end)

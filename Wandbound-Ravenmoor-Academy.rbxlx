@@ -454701,9 +454701,17 @@ function E:Start()
     self.Correction=Instance.new("ColorCorrectionEffect"); self.Correction.Name="WandboundZoneColor"; self.Correction.Parent=Lighting
     self.Atmosphere=Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere",Lighting)
     self.Waypoint=self:Part(Vector3.one*0.1,CFrame.new(0,-1000,0),colors.Ward); self.Waypoint.Transparency=1
-    local gui=Instance.new("BillboardGui"); gui.Size=UDim2.fromOffset(180,58); gui.AlwaysOnTop=true; gui.MaxDistance=1000; gui.Parent=self.Waypoint
-    self.WaypointLabel=Instance.new("TextLabel"); self.WaypointLabel.Size=UDim2.fromScale(1,1); self.WaypointLabel.BackgroundTransparency=1
-    self.WaypointLabel.TextSize=14; self.WaypointLabel.Font=Enum.Font.GothamMedium; self.WaypointLabel.TextColor3=colors.Ward; self.WaypointLabel.TextStrokeTransparency=0.25; self.WaypointLabel.TextWrapped=true; self.WaypointLabel.Parent=gui
+    -- The quest waypoint matches the HUD: a gold diamond, the quest in serif, the distance under it.
+    local gui=Instance.new("BillboardGui"); gui.Size=UDim2.fromOffset(220,66); gui.AlwaysOnTop=true; gui.MaxDistance=1000; gui.Parent=self.Waypoint
+    local pip=Instance.new("Frame"); pip.AnchorPoint=Vector2.new(0.5,0.5); pip.Position=UDim2.fromOffset(110,9); pip.Size=UDim2.fromOffset(11,11); pip.Rotation=45
+    pip.BackgroundColor3=Color3.fromRGB(226,197,138); pip.BorderSizePixel=0; pip.Parent=gui
+    local edge=Instance.new("UIStroke"); edge.Color=Color3.fromRGB(20,23,28); edge.Parent=pip
+    self.WaypointLabel=Instance.new("TextLabel"); self.WaypointLabel.Position=UDim2.fromOffset(0,18); self.WaypointLabel.Size=UDim2.new(1,0,0,24); self.WaypointLabel.BackgroundTransparency=1
+    self.WaypointLabel.TextSize=19; self.WaypointLabel.Font=Enum.Font.Garamond; self.WaypointLabel.TextColor3=Color3.fromRGB(247,242,232); self.WaypointLabel.TextStrokeTransparency=0.35
+    self.WaypointLabel.TextTruncate=Enum.TextTruncate.AtEnd; self.WaypointLabel.Parent=gui
+    self.WaypointDistance=Instance.new("TextLabel"); self.WaypointDistance.Position=UDim2.fromOffset(0,42); self.WaypointDistance.Size=UDim2.new(1,0,0,18); self.WaypointDistance.BackgroundTransparency=1
+    self.WaypointDistance.TextSize=13; self.WaypointDistance.Font=Enum.Font.GothamMedium; self.WaypointDistance.TextColor3=Color3.fromRGB(226,197,138); self.WaypointDistance.TextStrokeTransparency=0.4
+    self.WaypointDistance.Parent=gui
     RS.Remotes.FX.OnClientEvent:Connect(function(kind,a,b,c,d,e,f)
         if kind=="Projectile" then self:Projectile(a,b,c,d,e,f)
         elseif kind=="Impact" then self:Impact(a,b)
@@ -454749,7 +454757,8 @@ function E:Start()
             if p then
                 self.Waypoint.Position=Vector3.new(p[1],p[2]+8,p[3])
                 local root=Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                self.WaypointLabel.Text="◇ "..q.Title..(root and "\n"..math.floor((root.Position-self.Waypoint.Position).Magnitude).." studs" or "")
+                self.WaypointLabel.Text=q.Title
+                self.WaypointDistance.Text=root and math.floor((root.Position-self.Waypoint.Position).Magnitude).." studs" or ""
             else self.Waypoint.Position=Vector3.new(0,-1000,0) end
         end
     end)
@@ -454954,6 +454963,12 @@ function I:Start()
             return Enum.ContextActionResult.Sink
         end,false,entry[2],entry[3])
     end
+    -- H drinks a Health Draught (UIController:UseDraught checks the bag and the shared potion cooldown).
+    CAS:BindAction("Wandbound_Draught",function(_,state)
+        if UIS:GetFocusedTextBox() then return Enum.ContextActionResult.Pass end
+        if state==Enum.UserInputState.Begin then self.C.UIController:UseDraught() end
+        return Enum.ContextActionResult.Sink
+    end,false,Enum.KeyCode.H)
     UIS.InputBegan:Connect(function(input,processed)
         if not processed and input.KeyCode==Enum.KeyCode.LeftControl then self.Locked=not self.Locked; self:CameraMode() end
         if not processed and input.KeyCode==Enum.KeyCode.V then self:SetFirstPerson(self.Player.CameraMode~=Enum.CameraMode.LockFirstPerson) end
@@ -454992,6 +455007,8 @@ local RS=game:GetService("ReplicatedStorage")
 local UIS=game:GetService("UserInputService")
 local GuiService=game:GetService("GuiService")
 local Run=game:GetService("RunService")
+local Tween=game:GetService("TweenService")
+local TextService=game:GetService("TextService")
 local Config=require(RS.Shared.Config)
 local Spells=require(RS.Shared.SpellData)
 local Quests=require(RS.Shared.QuestData)
@@ -455001,34 +455018,139 @@ local Wands=require(RS.Shared.WandData)
 local WandModel=require(RS.Shared.WandModel)
 local Skills=require(RS.Shared.SkillData)
 local Brooms=require(RS.Shared.BroomData)
+local Points=require(RS.Shared.WorldPoints)
+local Icons=require(script.Parent:WaitForChild("HudIcons"))
 local U={}
 local function num(x) return string.format("%g",math.floor(x*10+0.5)/10) end
-local palette={Ink=Color3.fromRGB(23,29,36),Panel=Color3.fromRGB(242,232,207),Gold=Color3.fromRGB(183,145,79),
-    Muted=Color3.fromRGB(161,169,177),White=Color3.fromRGB(246,240,223),Line=Color3.fromRGB(78,81,85)}
+-- Dark glass, pale silver lines and a little gold: the HUD and every menu share these.
+local palette={Ink=Color3.fromRGB(20,23,28),Panel=Color3.fromRGB(20,23,28),Gold=Color3.fromRGB(226,197,138),
+    Muted=Color3.fromRGB(150,144,132),White=Color3.fromRGB(247,242,232),Line=Color3.fromRGB(244,239,228),
+    Text=Color3.fromRGB(247,242,232),TextDim=Color3.fromRGB(191,182,164),Card=Color3.fromRGB(255,255,255),
+    Teal=Color3.fromRGB(159,225,203),Arrow=Color3.fromRGB(207,195,255),HP=Color3.fromRGB(111,191,74),
+    Mana=Color3.fromRGB(78,143,216),Stamina=Color3.fromRGB(234,223,180),Boss=Color3.fromRGB(192,79,134)}
+local SLOTS={"Slot1","Slot2","Slot3","Slot4"}
+local PAD={Slot1="X",Slot2="Y",Slot3="B",Slot4="RB"}
+local NUMBER_KEYS={[Enum.KeyCode.One]=1,[Enum.KeyCode.Two]=2,[Enum.KeyCode.Three]=3,[Enum.KeyCode.Four]=4,[Enum.KeyCode.Five]=5,
+    [Enum.KeyCode.Six]=6,[Enum.KeyCode.Seven]=7,[Enum.KeyCode.Eight]=8,[Enum.KeyCode.Nine]=9}
+local MAP_RANGE=250   -- studs from the minimap's centre to its rim
+local CARDINALS={N=Vector2.new(0,-1),E=Vector2.new(1,0),S=Vector2.new(0,1),W=Vector2.new(-1,0)}   -- world X, Z
+local DRAUGHT="Health Draught"
 local function make(class,parent,props)
     local inst=Instance.new(class); for k,v in pairs(props or {}) do inst[k]=v end; inst.Parent=parent; return inst
 end
 local function corner(frame,radius) make("UICorner",frame,{CornerRadius=UDim.new(0,radius or 8)}) end
-local function stroke(frame,color,transparency) make("UIStroke",frame,{Color=color or palette.Gold,Thickness=1,Transparency=transparency or 0}) end
+local function round(frame) make("UICorner",frame,{CornerRadius=UDim.new(0.5,0)}) end
+local function stroke(frame,color,transparency,thickness)
+    return make("UIStroke",frame,{Color=color or palette.Gold,Thickness=thickness or 1,Transparency=transparency or 0,ApplyStrokeMode=Enum.ApplyStrokeMode.Border})
+end
 local function text(parent,txt,size,color,props)
-    local p={Text=txt,TextSize=size or 16,TextColor3=color or palette.White,Font=Enum.Font.Gotham,
+    local p={Text=txt,TextSize=size or 16,TextColor3=color or palette.Text,Font=Enum.Font.Gotham,
         TextXAlignment=Enum.TextXAlignment.Left,TextYAlignment=Enum.TextYAlignment.Center,BackgroundTransparency=1,Size=UDim2.new(1,0,0,30)}
     for k,v in pairs(props or {}) do p[k]=v end; return make("TextLabel",parent,p)
 end
+-- HUD text sits on the open world, so it carries a soft dark outline.
+local function hud(parent,txt,size,props)
+    local p={TextStrokeTransparency=0.55,TextStrokeColor3=Color3.new(0,0,0)}
+    for k,v in pairs(props or {}) do p[k]=v end; return text(parent,txt,size,palette.Text,p)
+end
+-- Spaced capitals for names and titles.
+local function spaced(s)
+    local out={}; for _,c in utf8.codes(string.upper(s)) do out[#out+1]=utf8.char(c) end; return table.concat(out," ")
+end
+-- A glass button whose outline turns gold under the pointer. A gold background makes it the primary action.
 local function button(parent,txt,callback,props)
-    local p={Text=txt,TextSize=15,TextColor3=palette.Ink,Font=Enum.Font.GothamMedium,BackgroundColor3=palette.Panel,
-        BorderSizePixel=0,Size=UDim2.new(1,0,0,48),AutoButtonColor=true,Selectable=true,TextWrapped=true}
+    local p={Text=txt,TextSize=15,TextColor3=palette.Text,Font=Enum.Font.GothamMedium,BackgroundColor3=palette.Panel,BackgroundTransparency=0.35,
+        BorderSizePixel=0,Size=UDim2.new(1,0,0,48),AutoButtonColor=false,Selectable=true,TextWrapped=true}
     for k,v in pairs(props or {}) do p[k]=v end
-    local b=make("TextButton",parent,p); corner(b,7); b.Activated:Connect(callback); return b
+    if p.BackgroundColor3==palette.Gold then
+        p.TextColor3=props.TextColor3 or palette.Ink; p.BackgroundTransparency=props.BackgroundTransparency or 0
+    end
+    local b=make("TextButton",parent,p); corner(b,3)
+    local line=stroke(b,palette.Line,0.6)
+    local function lit(on) line.Color=on and palette.Gold or palette.Line; line.Transparency=on and 0.05 or 0.6 end
+    b.MouseEnter:Connect(function() lit(true) end); b.MouseLeave:Connect(function() lit(false) end)
+    b.SelectionGained:Connect(function() lit(true) end); b.SelectionLost:Connect(function() lit(false) end)
+    b.Activated:Connect(callback); return b
+end
+-- A small turned square: a bullet, a bar's end cap or a map marker.
+local function pip(parent,size,color,hollow,props)
+    local p={AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(size,size),Rotation=45,BackgroundColor3=color or palette.Line,BorderSizePixel=0}
+    for k,v in pairs(props or {}) do p[k]=v end
+    local f=make("Frame",parent,p); if hollow then f.BackgroundTransparency=1; stroke(f,color or palette.Line) end; return f
+end
+-- Line, gold pip, line.
+local function rule(parent,width,props)
+    local p={Size=UDim2.fromOffset(width,9),BackgroundTransparency=1}
+    for k,v in pairs(props or {}) do p[k]=v end
+    local r=make("Frame",parent,p)
+    for _,side in ipairs({0,1}) do
+        make("Frame",r,{AnchorPoint=Vector2.new(side,0.5),Position=UDim2.fromScale(side,0.5),Size=UDim2.new(0.5,-10,0,1),BackgroundColor3=palette.Gold,BackgroundTransparency=0.35,BorderSizePixel=0})
+    end
+    pip(r,6,palette.Gold,false,{Position=UDim2.fromScale(0.5,0.5)}); return r
+end
+-- A round number badge, as on the spell slots and the minimap's rim.
+local function badge(parent,txt,props)
+    local p={AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(22,22),BackgroundColor3=palette.Ink,BorderSizePixel=0,ZIndex=6}
+    for k,v in pairs(props or {}) do p[k]=v end
+    local b=make("Frame",parent,p); round(b); stroke(b,palette.Line)
+    return b,text(b,txt,12,palette.Text,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamMedium,ZIndex=p.ZIndex})
+end
+-- An outlined key name. Returns the chip and a function that changes its key.
+local function keycap(parent,txt,props)
+    local p={Size=UDim2.fromOffset(20,20),BackgroundColor3=palette.Ink,BackgroundTransparency=0.35,BorderSizePixel=0}
+    for k,v in pairs(props or {}) do p[k]=v end
+    local cap=make("Frame",parent,p); corner(cap,3); stroke(cap,palette.Line)
+    local label=text(cap,txt,12,palette.Text,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,Font=Enum.Font.GothamMedium,ZIndex=cap.ZIndex})
+    local function set(t) label.Text=t; cap.Size=UDim2.fromOffset(math.max(20,#t*7+10),20) end
+    set(txt); return cap,set
+end
+-- A diamond button: an unrotated holder (it takes the clicks and carries the icon and label) around a turned
+-- square with a thin double outline. Rotated frames can't clip, so the cooldown is a gradient over a second square.
+local function diamond(parent,size,props)
+    local span=math.ceil(size*math.sqrt(2))+10
+    local p={Size=UDim2.fromOffset(span,span),BackgroundTransparency=1,Text="",AutoButtonColor=false,Selectable=true}
+    for k,v in pairs(props or {}) do p[k]=v end
+    local holder=make("TextButton",parent,p)
+    local function square(grow,z)
+        return make("Frame",holder,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(size+grow,size+grow),Rotation=45,BorderSizePixel=0,ZIndex=z})
+    end
+    local ring=square(8,1); ring.BackgroundTransparency=1; local ringLine=stroke(ring,palette.Line,0.55)
+    local shape=square(0,2); shape.BackgroundColor3=palette.Ink; shape.BackgroundTransparency=0.4; stroke(shape,palette.Line,0,1.5)
+    local cool=square(0,3); cool.BackgroundColor3=Color3.new(0,0,0); cool.BackgroundTransparency=0.3; cool.Visible=false
+    -- Turned 45° against the square's own turn, the gradient runs from the top tip down to the bottom tip.
+    local gradient=make("UIGradient",cool,{Rotation=45})
+    local inner=math.floor(size*0.62)
+    local icon=make("Frame",holder,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(inner,inner),BackgroundTransparency=1,ZIndex=4})
+    local label=text(holder,"",math.max(12,math.floor(size*0.3)),palette.Text,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,
+        Font=Enum.Font.GothamBold,ZIndex=5,TextStrokeTransparency=0.35})
+    local function lit(on) ringLine.Color=on and palette.Gold or palette.Line; ringLine.Transparency=on and 0.05 or 0.55 end
+    holder.MouseEnter:Connect(function() lit(true) end); holder.MouseLeave:Connect(function() lit(false) end)
+    holder.SelectionGained:Connect(function() lit(true) end); holder.SelectionLost:Connect(function() lit(false) end)
+    return {Holder=holder,Ring=ring,Shape=shape,Cool=cool,Gradient=gradient,Icon=icon,Label=label}
+end
+-- Darkens the top `remaining/total` of a diamond, so it clears from the bottom up as the cooldown ends.
+local function cooling(view,remaining,total)
+    if remaining<=0 then view.Cool.Visible=false; return end
+    local share=math.clamp(remaining/math.max(total or remaining,0.01),0,1)
+    -- The gradient spans the square's side, not its tip-to-tip height: map the share of the height onto it.
+    local cut=math.clamp((share-0.1464)/0.7071,0.002,0.996)
+    view.Cool.Visible=true
+    view.Gradient.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(cut,0),
+        NumberSequenceKeypoint.new(cut+0.002,1),NumberSequenceKeypoint.new(1,1)})
+end
+local function bar(parent,position,width,height,color)
+    local track=make("Frame",parent,{Position=position,Size=UDim2.fromOffset(width,height),BackgroundColor3=palette.Ink,BackgroundTransparency=0.4,BorderSizePixel=0})
+    stroke(track,palette.Line,0.45)
+    return track,make("Frame",track,{Size=UDim2.fromScale(1,1),BackgroundColor3=color,BorderSizePixel=0})
 end
 -- Shared with other controllers (the admin panel) so their menus match this one.
-U.Kit={make=make,corner=corner,stroke=stroke,text=text,button=button,palette=palette}
+U.Kit={make=make,corner=corner,stroke=stroke,text=text,button=button,pip=pip,rule=rule,badge=badge,keycap=keycap,diamond=diamond,palette=palette}
 function U:Init(controllers)
-    self.C=controllers; self.Player=Players.LocalPlayer; self.Remotes=RS.Remotes; self.Data=nil; self.State={}; self.Cooldowns={}; self.Menu=nil
-    self.SpellSlots={"Basic","Lance","Slot1","Slot2","Slot3","Slot4","Ward","Dodge","Broom"}; self.Buttons={}; self.TraceConnections={}
+    self.C=controllers; self.Player=Players.LocalPlayer; self.Remotes=RS.Remotes; self.Data=nil; self.State={}; self.Cooldowns={}; self.CooldownTotals={}; self.Menu=nil
+    self.Buttons={}; self.Slots={}; self.TraceConnections={}
 end
 function U:Action(action,a,b) self.Remotes.Action:FireServer(action,a,b) end
-function U:IsOpen() return self.Panel.Visible end
+function U:IsOpen() return self.Panel.Visible or self.TalkGui.Enabled end
 function U:Toast(message)
     self.ToastToken=(self.ToastToken or 0)+1; local token=self.ToastToken
     self.ToastLabel.Text=message; self.ToastFrame.Visible=true
@@ -455036,11 +455158,12 @@ function U:Toast(message)
 end
 function U:Close()
     for _,connection in ipairs(self.TraceConnections) do connection:Disconnect() end; self.TraceConnections={}
-    self.Panel.Visible=false; self.Menu=nil; GuiService.SelectedObject=nil
+    self.Panel.Visible=false; self.Backdrop.Visible=false; self.TalkGui.Enabled=false; self.HUD.Visible=true; self.Menu=nil; GuiService.SelectedObject=nil
     if self.C.InputController then self.C.InputController:CameraMode() end
 end
 function U:Open(title,menu)
-    self:Close(); if self.C.InputController then self.C.InputController:Lance(false) end; self.Menu=menu; self.Panel.Visible=true; self.PanelTitle.Text=title
+    self:Close(); if self.C.InputController then self.C.InputController:Lance(false) end; self.Menu=menu; self.Panel.Visible=true; self.Backdrop.Visible=true
+    self.PanelTitle.Text=utf8.len(title)<=26 and spaced(title) or title
     for _,child in ipairs(self.Body:GetChildren()) do if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end end
     self.Body.CanvasPosition=Vector2.zero
     if self.C.InputController then self.C.InputController:CameraMode() end
@@ -455048,29 +455171,47 @@ function U:Open(title,menu)
 end
 -- `height` is the least the paragraph takes; it grows to fit its text on a narrow screen.
 function U:Paragraph(content,height)
-    return text(self.Body,content,16,palette.Ink,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top,
+    return text(self.Body,content,16,palette.Text,{Size=UDim2.new(1,-12,0,height or 64),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top,
         AutomaticSize=Enum.AutomaticSize.Y})
 end
 function U:Row(height)
     return make("Frame",self.Body,{BackgroundTransparency=1,Size=UDim2.new(1,-12,0,height or 50)})
 end
+-- The backing of a list row: a faint glass card with a coloured edge on the left.
+function U:Card(row,accent)
+    local card=make("Frame",row,{BackgroundColor3=palette.Card,BackgroundTransparency=0.95,BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
+    if accent then make("Frame",row,{BackgroundColor3=accent,BorderSizePixel=0,Size=UDim2.new(0,2,1,0)}) end
+    return card
+end
+function U:SpellColor(id) return self.C.EffectsController:Color(id) end
 function U:Tabs()
-    local row=self:Row(42)
+    local row=self:Row(38)
     local tabs={"Spells","Skills","Journal","Bag","House","Settings"}
-    for i,name in ipairs(tabs) do button(row,name,function() self:Show(name) end,{Position=UDim2.new((i-1)/#tabs,3,0,0),Size=UDim2.new(1/#tabs,-6,1,0),TextSize=13,BackgroundColor3=Color3.fromRGB(223,210,181)}) end
+    make("Frame",row,{AnchorPoint=Vector2.new(0,1),Position=UDim2.fromScale(0,1),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.Line,BackgroundTransparency=0.85,BorderSizePixel=0})
+    for i,name in ipairs(tabs) do
+        local active=self.Menu==name
+        local tab=make("TextButton",row,{Text=name,TextSize=15,Font=active and Enum.Font.GothamMedium or Enum.Font.Gotham,TextColor3=active and palette.Text or palette.TextDim,
+            BackgroundTransparency=1,Position=UDim2.fromScale((i-1)/#tabs,0),Size=UDim2.new(1/#tabs,0,1,-3),AutoButtonColor=false,Selectable=true})
+        tab.Activated:Connect(function() self:Show(name) end)
+        if active then
+            make("Frame",tab,{AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,2),Size=UDim2.fromOffset(56,2),BackgroundColor3=palette.Gold,BorderSizePixel=0})
+        else
+            tab.MouseEnter:Connect(function() tab.TextColor3=palette.Text end); tab.MouseLeave:Connect(function() tab.TextColor3=palette.TextDim end)
+        end
+    end
 end
 function U:WandRow(index,wand,equipped)
     local row=self:Row(98)
-    make("Frame",row,{BackgroundColor3=equipped and Color3.fromRGB(236,219,176) or Color3.fromRGB(226,215,192),BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
+    self:Card(row,equipped and palette.Gold or nil)
     local view=make("ViewportFrame",row,{Position=UDim2.fromOffset(8,8),Size=UDim2.fromOffset(112,82),BackgroundColor3=palette.Ink,BorderSizePixel=0,
-        Ambient=Color3.fromRGB(170,170,180),LightColor=Color3.fromRGB(255,244,224),LightDirection=Vector3.new(-1,-1,-0.5)}); corner(view)
+        Ambient=Color3.fromRGB(170,170,180),LightColor=Color3.fromRGB(255,244,224),LightDirection=Vector3.new(-1,-1,-0.5)}); corner(view,3)
     local at=CFrame.Angles(0.3,0,0); local center=(at*CFrame.new(0,0,(0.65-Wands.Length(wand))/2)).Position
     WandModel.Build(wand,at,true).Parent=view
     view.CurrentCamera=make("Camera",view,{FieldOfView=40,CFrame=CFrame.lookAt(center+Vector3.new(3.3,0.6,0),center)})
     local name=Wands.Name(wand)
     local selection={Name=name,Revision=self.Data.WandRevision or 0}
-    text(row,name,15,palette.Ink,{Position=UDim2.fromOffset(130,4),Size=UDim2.new(1,-138,0,24),Font=Enum.Font.GothamMedium,TextTruncate=Enum.TextTruncate.AtEnd})
-    text(row,Wands.Describe(wand),13,Color3.fromRGB(94,87,73),{Position=UDim2.fromOffset(130,28),Size=UDim2.new(1,-138,0,32),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
+    text(row,name,18,palette.Text,{Position=UDim2.fromOffset(130,4),Size=UDim2.new(1,-138,0,24),Font=Enum.Font.Garamond,TextTruncate=Enum.TextTruncate.AtEnd})
+    text(row,Wands.Describe(wand),13,palette.TextDim,{Position=UDim2.fromOffset(130,28),Size=UDim2.new(1,-138,0,32),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
     if equipped then
         text(row,"EQUIPPED",12,palette.Gold,{Position=UDim2.fromOffset(130,62),Size=UDim2.fromOffset(120,30),Font=Enum.Font.GothamBold})
         return
@@ -455079,7 +455220,7 @@ function U:WandRow(index,wand,equipped)
     local armed,discard=false,nil
     discard=button(row,"Discard",function()
         if armed then self:Action("DiscardWand",index,selection) else armed=true; discard.Text="Confirm?" end
-    end,{Position=UDim2.fromOffset(222,62),Size=UDim2.fromOffset(84,30),TextSize=13,BackgroundColor3=Color3.fromRGB(224,212,187)})
+    end,{Position=UDim2.fromOffset(222,62),Size=UDim2.fromOffset(84,30),TextSize=13})
 end
 function U:SkillTree()
     local d=self.Data; local available=Skills.Points(d.Level)-Skills.Spent(d.Talents)
@@ -455090,10 +455231,10 @@ function U:SkillTree()
         for _,id in ipairs(Skills.Order[school]) do
             local t=Skills.Talents[id]; local rank=d.Talents[id] or 0
             local row=self:Row(72)
-            make("Frame",row,{BackgroundColor3=rank>0 and Color3.fromRGB(236,219,176) or Color3.fromRGB(226,215,192),BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
-            text(row,t.Name.."  ·  "..rank.." / "..t.MaxRank,16,palette.Ink,{Position=UDim2.fromOffset(12,4),Size=UDim2.new(1,-90,0,26)})
+            self:Card(row,rank>0 and palette.Gold or nil)
+            text(row,t.Name.."  ·  "..rank.." / "..t.MaxRank,18,palette.Text,{Font=Enum.Font.Garamond,Position=UDim2.fromOffset(14,4),Size=UDim2.new(1,-92,0,26)})
             local note=spent<t.Requires and "  Needs "..t.Requires.." points in "..school.."." or ""
-            text(row,t.Text..note,13,Color3.fromRGB(94,87,73),{Position=UDim2.fromOffset(12,30),Size=UDim2.new(1,-90,0,38),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
+            text(row,t.Text..note,13,palette.TextDim,{Position=UDim2.fromOffset(14,30),Size=UDim2.new(1,-92,0,38),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
             if Skills.CanLearn(d,id) then
                 button(row,"+1",function() self:Action("Talent",id) end,{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),Size=UDim2.fromOffset(60,40),BackgroundColor3=palette.Gold})
             end
@@ -455108,16 +455249,24 @@ function U:Spellbook()
     for _,s in ipairs(list) do
         local learned=self.Data and self.Data.Spells[s.Id]
         local row=self:Row(learned and 104 or 75)
-        make("Frame",row,{BackgroundColor3=Color3.fromRGB(226,215,192),BorderSizePixel=0,Size=UDim2.fromScale(1,1)})
-        text(row,s.DisplayName.."  /  "..s.Id,17,palette.Ink,{Position=UDim2.fromOffset(12,4),Size=UDim2.new(1,-24,0,25)})
+        self:Card(row,learned and self:SpellColor(s.Id) or palette.Muted)
+        text(row,s.DisplayName..'  <font size="13" color="#A9A090">/ '..s.Id..'</font>',20,learned and palette.Text or palette.TextDim,
+            {Font=Enum.Font.Garamond,RichText=true,Position=UDim2.fromOffset(14,4),Size=UDim2.new(1,-28,0,25)})
         local detail=learned and (s.School.." · "..num(F.ManaCost(s,self.Data)).." mana · "..num(F.Cooldown(s,self.Data)).."s · Mastery "..learned.Mastery.." ("..learned.Hits.." hits)")
             or ("Level "..s.UnlockLevel.." · "..s.Source..(not s.Implemented and " · Planned content" or ""))
-        text(row,detail,13,Color3.fromRGB(94,87,73),{Position=UDim2.fromOffset(12,31),Size=UDim2.new(1,-24,0,36),TextWrapped=true})
+        text(row,detail,13,palette.TextDim,{Position=UDim2.fromOffset(14,31),Size=UDim2.new(1,-28,0,30),TextWrapped=true})
         if learned and s.Id~="Scintara" then
-            local slots={"Slot1","Slot2","Slot3","Slot4"}; if s.School=="Ward" then slots[#slots+1]="Ward" end
-            for i,slot in ipairs(slots) do
-                button(row,slot=="Ward" and "Ward" or tostring(i),function() self:Action("Loadout",slot,s.Id) end,
-                    {Size=UDim2.fromOffset(45,30),Position=UDim2.fromOffset(12+(i-1)*52,68),BackgroundColor3=self.Data.Loadout[slot]==s.Id and Color3.fromRGB(148,190,148) or palette.Gold})
+            for i,slot in ipairs(SLOTS) do
+                local view=diamond(row,22,{Position=UDim2.fromOffset(8+(i-1)*42,61)})
+                view.Label.Text=tostring(i); view.Label.TextSize=13
+                if self.Data.Loadout[slot]==s.Id then
+                    view.Shape.BackgroundColor3=palette.Gold; view.Shape.BackgroundTransparency=0; view.Label.TextColor3=palette.Ink; view.Label.TextStrokeTransparency=1
+                end
+                view.Holder.Activated:Connect(function() self:Action("Loadout",slot,s.Id) end)
+            end
+            if s.School=="Ward" then
+                button(row,"Ward",function() self:Action("Loadout","Ward",s.Id) end,{Size=UDim2.fromOffset(64,28),Position=UDim2.fromOffset(182,68),TextSize=13,
+                    BackgroundColor3=self.Data.Loadout.Ward==s.Id and palette.Gold or palette.Panel})
             end
         end
     end
@@ -455160,8 +455309,8 @@ function U:Show(menu)
         local ids={}; for id,count in pairs(d.Inventory) do if count>0 then ids[#ids+1]=id end end; table.sort(ids)
         if #ids==0 then self:Paragraph("Your bag is empty. Woodland creatures drop ingredients and rare spell tomes.",75) end
         for _,id in ipairs(ids) do
-            if id=="Health Draught" or id=="Frigora Tome" or id=="Somnara Tome" then
-                button(self.Body,id.." ×"..d.Inventory[id].."  ·  Use",function() self:Action("UseItem",id) end)
+            if id==DRAUGHT or id=="Frigora Tome" or id=="Somnara Tome" then
+                button(self.Body,id.." ×"..d.Inventory[id].."  ·  Use"..(id==DRAUGHT and " (H)" or ""),function() self:Action("UseItem",id) end)
             else self:Paragraph(id.." ×"..d.Inventory[id].."  ·  Crafting material",38) end
         end
     elseif menu=="House" then
@@ -455176,7 +455325,7 @@ function U:Show(menu)
         button(self.Body,"Open PvP: "..(d.Settings.PvP and "ON" or "OFF"),function() self:Action("Setting","PvP",not self.Data.Settings.PvP) end)
         self:Paragraph("With open PvP on, you can fight every student outside your house who has it on too, on foot or on a broom, anywhere but within "
             ..Config.Sanctuary.." studs of a Waystone. Within "..Config.PvPLockout.." seconds of combat you can't switch it off or start a duel.",62)
-        self:Paragraph("PC: LMB bolt · hold RMB lance · R ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives\nGamepad: RT bolt · hold LT lance · R3 ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
+        self:Paragraph("PC: LMB bolt · hold RMB lance · R ward · 1–4 spells · Shift or double-tap WASD dodge\nK spellbook · B bag · M map · H Health Draught · Ctrl cursor lock · V first person\nF broom · Space climbs · Q dives · 1–9 pick a reply in conversation\nGamepad: RT bolt · hold LT lance · R3 ward · X/Y/B/RB slots · LB dodge\nD-pad Up book · Left bag · Right map · Down broom · A jump or climb · L3 dive",146)
         self:Paragraph(self.Player:GetAttribute("SessionOnly") and "STUDIO PRACTICE · Progress resets when you stop. Enable StudioSaves in Config only for a separate test experience."
             or "Progress autosaves every minute and when you leave.",75)
     elseif menu=="Bank" then
@@ -455187,7 +455336,7 @@ function U:Show(menu)
         end
         button(self.Body,"Deposit all carried Gilders",function() self:Action("Bank","Deposit",math.min(self.Data.Gilders,1000000)) end)
     elseif menu=="Shop" then
-        self:Paragraph("THE HOLLOWMERE APOTHECARY\nHealth Draught restores 40% of your health over 4 seconds. Shared potion cooldown: 30 seconds.",85)
+        self:Paragraph("THE HOLLOWMERE APOTHECARY\nHealth Draught restores 40% of your health over 4 seconds. Shared potion cooldown: 30 seconds. Press H to drink one.",85)
         button(self.Body,"Buy Health Draught · 50 Gilders",function() self:Action("Shop","BuyHealth") end)
         button(self.Body,"Brew Health Draught · 1 Thorn Barb + 1 Spider Silk",function() self:Action("Shop","BrewHealth") end)
     elseif menu=="Library" then
@@ -455223,41 +455372,100 @@ function U:Map()
     self:Open("RAVENMOOR & THE SURROUNDING WOODS","Map")
     self:Paragraph("North: Academy and classrooms\nEast: Training Yard and Dueling Club\nWest: Whisperwood and Vexweave's Grotto\nSouth: Hollowmere Village and the sky-ferry",115)
     local map=self:Row(240)
-    make("Frame",map,{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.fromRGB(208,211,187),BorderSizePixel=0})
+    make("Frame",map,{Size=UDim2.fromScale(1,1),BackgroundColor3=palette.Card,BackgroundTransparency=0.95,BorderSizePixel=0})
     local zones={{"WHISPERWOOD",0.03,0.08,0.43,0.82,Color3.fromRGB(75,104,83)},{"ACADEMY",0.5,0.05,0.46,0.28,Color3.fromRGB(94,105,128)},
         {"GROUNDS",0.5,0.38,0.46,0.22,Color3.fromRGB(130,148,104)},{"HOLLOWMERE",0.5,0.65,0.46,0.28,Color3.fromRGB(157,120,83)}}
     for _,z in ipairs(zones) do
-        local region=make("Frame",map,{Position=UDim2.fromScale(z[2],z[3]),Size=UDim2.fromScale(z[4],z[5]),BackgroundColor3=z[6],BorderSizePixel=0}); corner(region)
-        text(region,z[1],14,palette.White,{Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true})
+        local region=make("Frame",map,{Position=UDim2.fromScale(z[2],z[3]),Size=UDim2.fromScale(z[4],z[5]),BackgroundColor3=z[6],BackgroundTransparency=0.25,BorderSizePixel=0})
+        corner(region,3); stroke(region,palette.Line,0.6)
+        text(region,spaced(z[1]),14,palette.Text,{Font=Enum.Font.Garamond,Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true})
     end
     self:Paragraph("Waystone travel costs 25 Gilders. Attune a stone by touching its prompt. Travel starts beside any Waystone, outside combat.",70)
     for _,id in ipairs({"Hollowmere","Castle","Whisperwood"}) do
         button(self.Body,(self.Data.Waystones[id] and "Travel to " or "Undiscovered: ")..id,function() self:Action("Travel",id) end)
     end
 end
+-- One reply in a conversation: a pip, the reply and an optional note under it. Number keys pick replies too.
+function U:TalkChoice(index,choice)
+    local b=make("TextButton",self.TalkChoices,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=palette.Card,BackgroundTransparency=1,
+        BorderSizePixel=0,Text="",AutoButtonColor=false,Selectable=true,LayoutOrder=index})
+    local edge=make("Frame",b,{Size=UDim2.new(0,2,1,0),BackgroundColor3=palette.Gold,BorderSizePixel=0,Visible=false})
+    make("Frame",b,{AnchorPoint=Vector2.new(0,1),Position=UDim2.fromScale(0,1),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.Line,BackgroundTransparency=0.78,BorderSizePixel=0})
+    local mark=pip(b,9,palette.Line,true,{Position=UDim2.new(0,20,0.5,0)}); local markLine=mark:FindFirstChildOfClass("UIStroke")
+    local body=make("Frame",b,{Position=UDim2.fromOffset(40,0),Size=UDim2.new(1,-76,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1})
+    make("UIListLayout",body,{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,2)})
+    make("UIPadding",body,{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12)})
+    hud(body,choice.Label,19,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,LayoutOrder=1})
+    if choice.Note then hud(body,choice.Note,14,{TextColor3=palette.TextDim,Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,LayoutOrder=2}) end
+    if index<=9 and not UIS.TouchEnabled then
+        hud(b,tostring(index),14,{TextColor3=palette.TextDim,AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-12,0.5,0),Size=UDim2.fromOffset(20,20),TextXAlignment=Enum.TextXAlignment.Right})
+    end
+    local function lit(on)
+        b.BackgroundTransparency=on and 0.86 or 1; edge.Visible=on
+        mark.BackgroundTransparency=on and 0 or 1; mark.BackgroundColor3=palette.Gold; markLine.Color=on and palette.Gold or palette.Line
+    end
+    b.MouseEnter:Connect(function() lit(true) end); b.MouseLeave:Connect(function() lit(false) end)
+    b.SelectionGained:Connect(function() lit(true) end); b.SelectionLost:Connect(function() lit(false) end)
+    b.Activated:Connect(choice.Run)
+    return b
+end
+-- A conversation: letterbox bars, the speaker and their line along the bottom, replies stacked on the right.
+-- Each choice is {Label=, Note=?, Run=function}. The HUD steps aside until it closes.
+function U:Dialogue(speaker,line,choices)
+    local continuing=self.TalkGui.Enabled
+    self:Close(); if self.C.InputController then self.C.InputController:Lance(false) end
+    self.Menu="Dialogue"; self.TalkGui.Enabled=true; self.HUD.Visible=false
+    self.TalkName.Text=spaced(speaker)
+    local width=TextService:GetTextSize(self.TalkName.Text,15,Enum.Font.GothamMedium,Vector2.new(4000,40)).X
+    self.TalkNameLines[1].Position=UDim2.new(0.5,-width/2-14,0.5,0); self.TalkNameLines[2].Position=UDim2.new(0.5,width/2+14,0.5,0)
+    self.TalkLine.Text=line; self.TalkLine.MaxVisibleGraphemes=0
+    for _,child in ipairs(self.TalkChoices:GetChildren()) do if child:IsA("GuiButton") then child:Destroy() end end
+    local buttons={}; for i,choice in ipairs(choices) do buttons[i]=self:TalkChoice(i,choice) end
+    local ease=TweenInfo.new(0.35,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+    for _,b in ipairs(self.TalkBars) do
+        if continuing then b.Size=UDim2.fromScale(1,0.08) else b.Size=UDim2.fromScale(1,0); Tween:Create(b,ease,{Size=UDim2.fromScale(1,0.08)}):Play() end
+    end
+    if continuing then self.TalkShade.BackgroundTransparency=0.72 else self.TalkShade.BackgroundTransparency=1; Tween:Create(self.TalkShade,ease,{BackgroundTransparency=0.72}):Play() end
+    -- The line types itself out; a click, a tap or Space shows the rest at once.
+    local count=utf8.len(line) or #line; local shown=0
+    self.TraceConnections[#self.TraceConnections+1]=Run.RenderStepped:Connect(function(dt)
+        if self.TalkLine.MaxVisibleGraphemes<0 then return end
+        shown=shown+dt*math.max(60,count/0.7)
+        self.TalkLine.MaxVisibleGraphemes=shown>=count and -1 or math.floor(shown)
+    end)
+    self.TraceConnections[#self.TraceConnections+1]=UIS.InputBegan:Connect(function(input)
+        if UIS:GetFocusedTextBox() then return end
+        if input.KeyCode==Enum.KeyCode.Space or input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            self.TalkLine.MaxVisibleGraphemes=-1
+        end
+        local index=NUMBER_KEYS[input.KeyCode]
+        if index and choices[index] then choices[index].Run() end
+    end)
+    if self.C.InputController then self.C.InputController:CameraMode() end
+    if UIS.GamepadEnabled and buttons[1] then GuiService.SelectedObject=buttons[1] end
+end
 function U:Sorting()
     self.SortAnswers={}; self:SortingQuestion(1)
 end
 function U:SortingQuestion(index)
-    self:Open("THE MIRROR OF CHOOSING","Sorting")
     local question=Config.SortingQuestions[index]
+    local choices={}
     if question then
-        self:Paragraph("Question "..index.." of 5\n"..question.Q,90)
-        for i,answer in ipairs(question.A) do button(self.Body,answer,function() self.SortAnswers[index]=i; self:SortingQuestion(index+1) end) end
-    else
-        local scores={0,0,0,0}; for _,answer in ipairs(self.SortAnswers) do scores[answer]=scores[answer]+1 end
-        local best=1; for i=2,4 do if scores[i]>scores[best] then best=i end end
-        self:Paragraph("The mirror sees "..Config.HouseOrder[best].." in you.\nThe choice is yours. Select the house you want to join.",85)
-        for _,house in ipairs(Config.HouseOrder) do
-            button(self.Body,house.." · "..Config.Houses[house].Trait.."\n"..Config.Houses[house].Perk,function() self:Action("Sort",self.SortAnswers,house); self:Close() end,{Size=UDim2.new(1,-12,0,58)})
-        end
+        for i,answer in ipairs(question.A) do choices[i]={Label=answer,Run=function() self.SortAnswers[index]=i; self:SortingQuestion(index+1) end} end
+        return self:Dialogue("The Mirror of Choosing","Question "..index.." of "..#Config.SortingQuestions..". "..question.Q,choices)
     end
+    local scores={0,0,0,0}; for _,answer in ipairs(self.SortAnswers) do scores[answer]=scores[answer]+1 end
+    local best=1; for i=2,4 do if scores[i]>scores[best] then best=i end end
+    for i,house in ipairs(Config.HouseOrder) do
+        choices[i]={Label=house.." · "..Config.Houses[house].Trait,Note=Config.Houses[house].Perk,Run=function() self:Action("Sort",self.SortAnswers,house); self:Close() end}
+    end
+    self:Dialogue("The Mirror of Choosing","The mirror sees "..Config.HouseOrder[best].." in you. The choice is yours. Select the house you want to join.",choices)
 end
 function U:Lesson(info)
     self:Open("A LESSON WITH "..string.upper(info.Teacher),"Lesson")
     self:Paragraph("Learning "..info.Spell..". Trace from START to END in one stroke. Score 70% or better, then hit five targets. Mouse / touch: drag. Gamepad: hold RT + left stick; X submits.",84)
     local canvas=make("Frame",self.Body,{Size=UDim2.new(1,-12,0,220),BackgroundColor3=Color3.fromRGB(34,45,52),BorderSizePixel=0,ClipsDescendants=true,Active=true})
-    corner(canvas); local ink=make("Frame",canvas,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
+    corner(canvas,3); stroke(canvas,palette.Line,0.7); local ink=make("Frame",canvas,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
     for _,point in ipairs(Gesture.Resample(info.Path,32)) do
         local dot=make("Frame",canvas,{Size=UDim2.fromOffset(7,7),AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(point[1],point[2]),BackgroundColor3=palette.Gold,BorderSizePixel=0}); corner(dot,10)
     end
@@ -455293,104 +455501,256 @@ function U:Lesson(info)
     self.TraceConnections[#self.TraceConnections+1]=Run.RenderStepped:Connect(function(dt)
         if UIS.GamepadEnabled then padPos=Vector2.new(math.clamp(padPos.X+padAxis.X*dt*0.45,0,1),math.clamp(padPos.Y+padAxis.Y*dt*0.65,0,1)); cursor.Position=UDim2.fromScale(padPos.X,padPos.Y); if dragging then add(padPos.X,padPos.Y) end end
     end)
-    button(self.Body,"Submit gesture",function() self.Remotes.Gesture:FireServer(info.Token,points) end)
-    button(self.Body,"Clear and try again",clear,{BackgroundColor3=Color3.fromRGB(224,212,187)})
+    button(self.Body,"Submit gesture",function() self.Remotes.Gesture:FireServer(info.Token,points) end,{BackgroundColor3=palette.Gold})
+    button(self.Body,"Clear and try again",clear)
+end
+function U:UseDraught()
+    if self:IsOpen() or not self.Data then return end
+    if (self.Data.Inventory[DRAUGHT] or 0)<1 then return self:Toast("You have no Health Draughts. Buy one at the Apothecary, or brew one from a Thorn Barb and Spider Silk.") end
+    if (self.Cooldowns[DRAUGHT] or 0)>os.clock() then return end
+    self:Action("UseItem",DRAUGHT)
 end
 function U:Build()
-    self.Gui=make("ScreenGui",self.Player:WaitForChild("PlayerGui"),{Name="WandboundHUD",ResetOnSpawn=false,IgnoreGuiInset=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+    local playerGui=self.Player:WaitForChild("PlayerGui")
+    self.Gui=make("ScreenGui",playerGui,{Name="WandboundHUD",ResetOnSpawn=false,IgnoreGuiInset=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
     self.Root=make("Frame",self.Gui,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
-    self.Brand=text(self.Root,"WANDBOUND",23,palette.White,{Position=UDim2.fromOffset(22,8),Font=Enum.Font.Garamond,Size=UDim2.fromOffset(280,32)})
-    self.Subtitle=text(self.Root,"R A V E N M O O R   A C A D E M Y",10,palette.Gold,{Position=UDim2.fromOffset(23,38),Size=UDim2.fromOffset(300,20)})
-    self.Location=text(self.Root,"Hollowmere Village",15,palette.White,{Position=UDim2.fromOffset(23,63),Size=UDim2.fromOffset(400,28)})
-    self.ClassLabel=text(self.Root,"Next class",14,palette.White,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,9),Size=UDim2.fromOffset(240,40),TextXAlignment=Enum.TextXAlignment.Right,TextWrapped=true})
-    self.MenuButton=button(self.Root,"K  SPELLBOOK",function() self:Show("Spells") end,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-20,0,57),Size=UDim2.fromOffset(155,42),TextSize=13,BackgroundColor3=palette.Ink,TextColor3=palette.White})
-    stroke(self.MenuButton,palette.Gold)
-    self.QuestFrame=make("Frame",self.Root,{Position=UDim2.fromOffset(22,104),Size=UDim2.fromOffset(265,129),BackgroundColor3=palette.Ink,BackgroundTransparency=0.15,BorderSizePixel=0}); corner(self.QuestFrame); stroke(self.QuestFrame,palette.Gold,0.55)
-    text(self.QuestFrame,"YOUR NEXT CHAPTER",10,palette.Gold,{Position=UDim2.fromOffset(12,5),Size=UDim2.new(1,-24,0,22)})
-    self.QuestLabel=text(self.QuestFrame,"Opening your record…",14,palette.White,{Position=UDim2.fromOffset(12,30),Size=UDim2.new(1,-24,1,-38),TextWrapped=true,TextYAlignment=Enum.TextYAlignment.Top})
-    self.Crosshair=text(self.Root,"+",26,palette.White,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(32,32),TextXAlignment=Enum.TextXAlignment.Center})
-    self.StatFrame=make("Frame",self.Root,{BackgroundTransparency=1,Position=UDim2.new(0,22,1,-130),Size=UDim2.fromOffset(250,105)})
+    self.HUD=make("Frame",self.Root,{Size=UDim2.fromScale(1,1),BackgroundTransparency=1})
+    self.Clusters={}
+    local function cluster(name,anchor,position,size)
+        local frame=make("Frame",self.HUD,{Name=name,AnchorPoint=anchor,Position=position,Size=size,BackgroundTransparency=1})
+        self.Clusters[name]={Frame=frame,Scale=make("UIScale",frame)}; return frame
+    end
+    -- Upper left: a compass minimap that turns with the camera, then where you are.
+    local map=cluster("Map",Vector2.zero,UDim2.fromOffset(24,14),UDim2.fromOffset(330,234))
+    local ring=make("Frame",map,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(92,92),Size=UDim2.fromOffset(166,166),BackgroundTransparency=1}); round(ring); stroke(ring,palette.Line,0.55)
+    local mini=make("Frame",map,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromOffset(92,92),Size=UDim2.fromOffset(150,150),BackgroundColor3=palette.Ink,BackgroundTransparency=0.45,BorderSizePixel=0})
+    round(mini); stroke(mini,palette.Line,0,1.5)
+    self.MapRadius=75; self.MapWaystones={}
+    for _,id in ipairs({"Hollowmere","Castle","Whisperwood"}) do
+        local w=make("Frame",mini,{AnchorPoint=Vector2.new(0.5,0.5),Size=UDim2.fromOffset(11,11),BackgroundTransparency=1,Visible=false}); round(w); stroke(w,palette.Teal,0,1.5)
+        self.MapWaystones[id]=w
+    end
+    self.MapBoss=pip(mini,11,palette.Boss,false,{Visible=false}); stroke(self.MapBoss,palette.Ink)
+    self.MapQuest=pip(mini,12,palette.Gold,false,{Visible=false}); stroke(self.MapQuest,palette.Ink)
+    self.MapArrow=make("Frame",mini,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(20,20),BackgroundTransparency=1})
+    Icons.Draw("arrow",self.MapArrow,20,palette.Arrow)
+    self.Cardinals={}
+    for letter in pairs(CARDINALS) do
+        local b,label=badge(mini,letter,{Size=UDim2.fromOffset(24,24)})
+        if letter=="N" then label.TextColor3=palette.Gold end
+        self.Cardinals[letter]=b
+    end
+    self.ZoneLabel=hud(map,"Hollowmere",22,{Font=Enum.Font.Garamond,Position=UDim2.fromOffset(0,186),Size=UDim2.new(1,0,0,26)})
+    self.ZoneDetail=hud(map,"",15,{Position=UDim2.fromOffset(0,212),Size=UDim2.new(1,0,0,20)})
+    -- Top centre: a boss you are close to.
+    local boss=cluster("Boss",Vector2.new(0.5,0),UDim2.new(0.5,0,0,14),UDim2.fromOffset(420,64)); boss.Visible=false; self.BossFrame=boss
+    self.BossLabel=hud(boss,"",18,{Font=Enum.Font.Garamond,Size=UDim2.new(1,0,0,22),TextXAlignment=Enum.TextXAlignment.Center})
+    pip(boss,9,palette.Line,true,{Position=UDim2.fromOffset(24,32)}); pip(boss,9,palette.Line,true,{Position=UDim2.fromOffset(396,32)})
+    local _,bossFill=bar(boss,UDim2.fromOffset(34,29),352,6,palette.Boss); self.BossFill=bossFill
+    self.BossPhase=hud(boss,"",13,{Position=UDim2.fromOffset(0,40),Size=UDim2.new(1,0,0,20),TextXAlignment=Enum.TextXAlignment.Center})
+    -- Upper right: the quest tracker and the next class. Other controllers may add to the end of this list.
+    local quest=cluster("Quest",Vector2.new(1,0),UDim2.new(1,-24,0,14),UDim2.fromOffset(380,0)); quest.AutomaticSize=Enum.AutomaticSize.Y
+    make("UIListLayout",quest,{HorizontalAlignment=Enum.HorizontalAlignment.Right,Padding=UDim.new(0,3),SortOrder=Enum.SortOrder.LayoutOrder})
+    self.QuestList=quest
+    self.QuestHeader=hud(quest,"CURRENT QUEST",14,{Font=Enum.Font.GothamMedium,TextColor3=palette.Gold,Size=UDim2.new(1,0,0,16),TextXAlignment=Enum.TextXAlignment.Right,LayoutOrder=1})
+    local titleRow=make("Frame",quest,{Size=UDim2.new(1,0,0,30),BackgroundTransparency=1,LayoutOrder=2})
+    self.QuestTitle=hud(titleRow,"",24,{Font=Enum.Font.Garamond,Size=UDim2.new(1,-22,1,0),TextXAlignment=Enum.TextXAlignment.Right,TextTruncate=Enum.TextTruncate.AtEnd})
+    pip(titleRow,9,palette.Gold,false,{Position=UDim2.new(1,-5,0.5,0)})
+    self.QuestHint=hud(quest,"Opening your record…",16,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Right,LayoutOrder=3})
+    local ruleRow=make("Frame",quest,{Size=UDim2.new(1,0,0,9),BackgroundTransparency=1,LayoutOrder=4})
+    make("Frame",ruleRow,{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.fromScale(1,0.5),Size=UDim2.fromOffset(150,1),BackgroundColor3=palette.Line,BackgroundTransparency=0.4,BorderSizePixel=0})
+    self.ClassLabel=hud(quest,"",15,{Size=UDim2.new(1,0,0,20),TextXAlignment=Enum.TextXAlignment.Right,LayoutOrder=5})
+    self.Crosshair=make("Frame",self.HUD,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(18,18),BackgroundTransparency=1})
+    round(self.Crosshair); stroke(self.Crosshair,palette.Line,0.3)
+    local dot=make("Frame",self.Crosshair,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(4,4),BackgroundColor3=palette.Line,BorderSizePixel=0}); round(dot)
+    -- Lower left: your bag, your broom and a Health Draught.
+    local kit=cluster("Kit",Vector2.new(0,1),UDim2.new(0,24,1,-18),UDim2.fromOffset(250,98))
+    local function tool(name,icon,x,key,callback)
+        local view=diamond(kit,46,{Position=UDim2.fromOffset(x,22)})
+        view.Glyph=Icons.Draw(icon,view.Icon,26); view.Holder.Activated:Connect(callback)
+        view.Cap,view.SetKey=keycap(kit,key,{Position=UDim2.fromOffset(x+50,6),ZIndex=6})
+        self.Slots[name]=view; self.Buttons[name]=view.Holder; return view
+    end
+    tool("Bag","bag",0,"B",function() if self.C.InputController then self.C.InputController:ToggleMenu("Bag") end end)
+    tool("Broom","broom",84,"F",function() if self.C.InputController then self.C.InputController:UseSlot("Broom") end end)
+    local draught=tool("Draught","flask",168,"H",function() self:UseDraught() end)
+    draught.Badge,draught.Count=badge(kit,"0",{Position=UDim2.fromOffset(230,84)})
+    -- Lower right: key hints, four spell diamonds, then your bars and Scintara.
+    local spells=cluster("Spells",Vector2.new(1,1),UDim2.new(1,-24,1,-16),UDim2.fromOffset(430,196))
+    self.HintRow=make("Frame",spells,{Size=UDim2.new(1,-12,0,24),BackgroundTransparency=1})
+    make("UIListLayout",self.HintRow,{FillDirection=Enum.FillDirection.Horizontal,HorizontalAlignment=Enum.HorizontalAlignment.Right,
+        VerticalAlignment=Enum.VerticalAlignment.Center,Padding=UDim.new(0,16),SortOrder=Enum.SortOrder.LayoutOrder})
+    self.Hints={}
+    local function hint(name,icon,key,order,callback)
+        local item=make("TextButton",self.HintRow,{Size=UDim2.fromScale(0,1),AutomaticSize=Enum.AutomaticSize.X,BackgroundTransparency=1,Text="",AutoButtonColor=false,LayoutOrder=order})
+        make("UIListLayout",item,{FillDirection=Enum.FillDirection.Horizontal,VerticalAlignment=Enum.VerticalAlignment.Center,Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder})
+        local glyph=make("Frame",item,{Size=UDim2.fromOffset(20,20),BackgroundTransparency=1,LayoutOrder=1})
+        local view={Item=item,Glyph=glyph,Scale=make("UIScale",glyph),Icon=Icons.Draw(icon,glyph,18)}
+        view.Cap,view.SetKey=keycap(item,key,{LayoutOrder=2})
+        view.Timer=hud(item,"",13,{Size=UDim2.fromOffset(0,20),AutomaticSize=Enum.AutomaticSize.X,LayoutOrder=3,Visible=false})
+        item.Activated:Connect(callback); self.Hints[name]=view
+    end
+    hint("Ward","shield","R",1,function() if self.C.InputController then self.C.InputController:UseSlot("Ward") end end)
+    hint("Dodge","dodge","Shift",2,function() if self.C.InputController then self.C.InputController:UseSlot("Dodge") end end)
+    hint("Book","book","K",3,function() if self.C.InputController then self.C.InputController:ToggleMenu("Spells") end end)
+    for i,slot in ipairs(SLOTS) do
+        local view=diamond(spells,58,{Position=UDim2.fromOffset(66+(i-1)*86,30)})
+        view.Badge,view.Number=badge(spells,tostring(i),{Position=UDim2.fromOffset(87+(i-1)*86,51)})
+        view.Holder.Activated:Connect(function()
+            local id=self.Data and self.Data.Loadout[slot]
+            if not id or id=="" then return self:Show("Spells") end
+            if self.C.InputController then self.C.InputController:UseSlot(slot) end
+        end)
+        self.Slots[slot]=view; self.Buttons[slot]=view.Holder
+    end
     self.Bars={}
-    for i,name in ipairs({"HP","MANA","STAMINA"}) do
-        local color=({Color3.fromRGB(165,70,72),Color3.fromRGB(85,124,195),Color3.fromRGB(170,148,80)})[i]
-        local frame=make("Frame",self.StatFrame,{Position=UDim2.fromOffset(0,(i-1)*31),Size=UDim2.new(1,0,0,24),BackgroundColor3=palette.Ink,BorderSizePixel=0}); corner(frame,4)
-        local fill=make("Frame",frame,{Size=UDim2.fromScale(1,1),BackgroundColor3=color,BorderSizePixel=0}); corner(fill,4)
-        local label=text(frame,name,12,palette.White,{Position=UDim2.fromOffset(8,0),Size=UDim2.new(1,-16,1,0)})
-        self.Bars[name]={Fill=fill,Label=label}
+    local function stat(name,x,y,w,h,color)
+        local track,fill=bar(spells,UDim2.fromOffset(x,y),w,h,color); self.Bars[name]={Track=track,Fill=fill,Shown=-1}; return track
     end
-    self.Hotbar=make("Frame",self.Root,{BackgroundTransparency=1,AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,1,-18),Size=UDim2.fromOffset(#self.SpellSlots*80,72)})
-    for i,slot in ipairs(self.SpellSlots) do
-        local b=button(self.Hotbar,slot,function() if self.C.InputController and slot~="Lance" then self.C.InputController:UseSlot(slot) end end,
-            {Size=UDim2.fromOffset(72,68),Position=UDim2.fromOffset((i-1)*80,0),BackgroundColor3=palette.Ink,TextColor3=palette.White,TextSize=12})
-        stroke(b,palette.Gold,0.35); self.Buttons[slot]=b
-        -- The lance pours while the button is held, as the right mouse button does.
-        if slot=="Lance" then
-            b.InputBegan:Connect(function(input)
-                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(true) end
-            end)
-            b.InputEnded:Connect(function(input)
-                if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(false) end
-            end)
-        end
+    stat("MANA",50,140,140,6,palette.Mana); stat("STAMINA",198,140,140,6,palette.Stamina)
+    local hpTrack=stat("HP",50,155,288,8,palette.HP)
+    self.ShieldFill=make("Frame",hpTrack,{Size=UDim2.fromScale(0,1),BackgroundColor3=palette.Line,BorderSizePixel=0})
+    pip(spells,9,palette.Line,true,{Position=UDim2.fromOffset(40,159)}); pip(spells,9,palette.Line,true,{Position=UDim2.fromOffset(348,159)})
+    local basic=diamond(spells,34,{Position=UDim2.fromOffset(371,130)}); Icons.Draw("spark",basic.Icon,20)
+    basic.Holder.Activated:Connect(function() if self.C.InputController then self.C.InputController:UseSlot("Basic") end end)
+    self.Slots.Basic=basic; self.Buttons.Basic=basic.Holder
+    -- Touch screens have no right mouse button: this diamond pours the spark lance while it is held.
+    local lance=diamond(spells,46,{Position=UDim2.fromOffset(354,36),Visible=false}); Icons.Draw("lance",lance.Icon,26)
+    lance.Holder.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(true) end
+    end)
+    lance.Holder.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.Touch or input.UserInputType==Enum.UserInputType.MouseButton1 then self.C.InputController:Lance(false) end
+    end)
+    self.Slots.Lance=lance; self.Buttons.Lance=lance.Holder
+    -- Notices: a glass strip under the zone name. It stays up while you talk, so it lives outside the HUD.
+    self.ToastFrame=make("Frame",self.Root,{Position=UDim2.fromOffset(24,254),Size=UDim2.fromOffset(360,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundColor3=palette.Ink,
+        BackgroundTransparency=0.45,BorderSizePixel=0,Visible=false,ZIndex=7})
+    self.ToastScale=make("UIScale",self.ToastFrame)
+    for _,side in ipairs({0,1}) do
+        make("Frame",self.ToastFrame,{AnchorPoint=Vector2.new(0,side),Position=UDim2.fromScale(0,side),Size=UDim2.new(1,0,0,1),BackgroundColor3=palette.Line,BackgroundTransparency=0.45,BorderSizePixel=0})
     end
-    self.ToastFrame=make("Frame",self.Root,{AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,64),Size=UDim2.new(0.6,0,0,56),BackgroundColor3=palette.Ink,BorderSizePixel=0,Visible=false,ZIndex=7}); corner(self.ToastFrame); stroke(self.ToastFrame)
-    self.ToastLabel=text(self.ToastFrame,"",15,palette.White,{Size=UDim2.new(1,-20,1,0),Position=UDim2.fromOffset(10,0),TextXAlignment=Enum.TextXAlignment.Center,TextWrapped=true,ZIndex=8})
-    self.BossFrame=make("Frame",self.Root,{AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,128),Size=UDim2.new(0.4,0,0,47),BackgroundColor3=palette.Ink,BorderSizePixel=0,Visible=false}); corner(self.BossFrame)
-    self.BossLabel=text(self.BossFrame,"",14,palette.White,{Size=UDim2.new(1,-16,0,29),Position=UDim2.fromOffset(8,0),TextXAlignment=Enum.TextXAlignment.Center})
-    self.BossFill=make("Frame",self.BossFrame,{Position=UDim2.fromOffset(6,33),Size=UDim2.new(1,-12,0,7),BackgroundColor3=Color3.fromRGB(168,70,116),BorderSizePixel=0})
-    self.Panel=make("Frame",self.Root,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(760,570),BackgroundColor3=palette.Panel,BorderSizePixel=0,Visible=false,ZIndex=20}); corner(self.Panel,12); stroke(self.Panel)
-    self.PanelTitle=text(self.Panel,"",22,palette.Ink,{Font=Enum.Font.Garamond,Position=UDim2.fromOffset(22,9),Size=UDim2.new(1,-100,0,39),ZIndex=21,TextWrapped=true})
-    self.CloseButton=button(self.Panel,"×",function() self:Close() end,{Position=UDim2.new(1,-54,0,8),Size=UDim2.fromOffset(42,42),TextSize=25,ZIndex=22,BackgroundColor3=Color3.fromRGB(221,207,177)})
-    self.Body=make("ScrollingFrame",self.Panel,{Position=UDim2.fromOffset(20,60),Size=UDim2.new(1,-34,1,-78),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,ScrollBarImageColor3=palette.Gold,CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=21})
-    make("UIListLayout",self.Body,{Padding=UDim.new(0,9),SortOrder=Enum.SortOrder.LayoutOrder})
-    self.Body.DescendantAdded:Connect(function(inst) if inst:IsA("GuiObject") then inst.ZIndex=22 end end)
+    pip(self.ToastFrame,9,palette.Gold,false,{Position=UDim2.new(0,18,0.5,0)})
+    self.ToastLabel=hud(self.ToastFrame,"",16,{Position=UDim2.fromOffset(34,0),Size=UDim2.new(1,-46,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true})
+    make("UIPadding",self.ToastLabel,{PaddingTop=UDim.new(0,9),PaddingBottom=UDim.new(0,9)})
+    -- Menus and popups: dark glass with a gold double line, over a dimmed screen.
+    self.Backdrop=make("TextButton",self.Root,{Size=UDim2.fromScale(1,1),BackgroundColor3=palette.Ink,BackgroundTransparency=0.45,BorderSizePixel=0,Text="",
+        AutoButtonColor=false,Selectable=false,Visible=false,ZIndex=19})
+    self.Panel=make("Frame",self.Root,{AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(760,570),BackgroundColor3=palette.Ink,
+        BorderSizePixel=0,Visible=false,ZIndex=20}); corner(self.Panel,2); stroke(self.Panel,palette.Gold,0.15)
+    local inset=make("Frame",self.Panel,{Position=UDim2.fromOffset(6,6),Size=UDim2.new(1,-12,1,-12),BackgroundTransparency=1}); stroke(inset,palette.Gold,0.72)
+    for _,at in ipairs({{0,0},{1,0},{0,1},{1,1}}) do pip(self.Panel,10,palette.Gold,false,{Position=UDim2.fromScale(at[1],at[2])}) end
+    self.PanelTitle=text(self.Panel,"",24,palette.Text,{Font=Enum.Font.Garamond,AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,14),Size=UDim2.new(1,-130,0,34),
+        TextXAlignment=Enum.TextXAlignment.Center,TextScaled=true})
+    make("UITextSizeConstraint",self.PanelTitle,{MaxTextSize=24})
+    rule(self.Panel,280,{AnchorPoint=Vector2.new(0.5,0),Position=UDim2.new(0.5,0,0,52)})
+    local close=diamond(self.Panel,24,{AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-10,0,8)}); close.Label.Text="×"; close.Label.TextSize=20; close.Label.Font=Enum.Font.Gotham
+    close.Holder.Activated:Connect(function() self:Close() end); self.CloseButton=close.Holder
+    self.Body=make("ScrollingFrame",self.Panel,{Position=UDim2.fromOffset(22,72),Size=UDim2.new(1,-38,1,-90),BackgroundTransparency=1,BorderSizePixel=0,ScrollBarThickness=4,
+        ScrollBarImageColor3=palette.Gold,CanvasSize=UDim2.new(),AutomaticCanvasSize=Enum.AutomaticSize.Y})
+    self.BodyList=make("UIListLayout",self.Body,{Padding=UDim.new(0,9),SortOrder=Enum.SortOrder.LayoutOrder})
+    self.BodyList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() self:FitPanel() end)
+    -- Conversations get a screen of their own, over the top bar too, for the letterbox.
+    self.TalkGui=make("ScreenGui",playerGui,{Name="WandboundTalk",ResetOnSpawn=false,IgnoreGuiInset=true,DisplayOrder=5,Enabled=false,ZIndexBehavior=Enum.ZIndexBehavior.Sibling})
+    self.TalkShade=make("Frame",self.TalkGui,{Size=UDim2.fromScale(1,1),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=1,BorderSizePixel=0})
+    self.TalkBars={}
+    for i,side in ipairs({0,1}) do
+        self.TalkBars[i]=make("Frame",self.TalkGui,{AnchorPoint=Vector2.new(0,side),Position=UDim2.fromScale(0,side),Size=UDim2.fromScale(1,0),BackgroundColor3=Color3.fromRGB(8,9,11),BorderSizePixel=0})
+    end
+    local caption=make("Frame",self.TalkGui,{AnchorPoint=Vector2.new(0.5,1),Position=UDim2.new(0.5,0,0.92,-16),Size=UDim2.new(0.62,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1})
+    make("UIListLayout",caption,{HorizontalAlignment=Enum.HorizontalAlignment.Center,Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder})
+    local nameRow=make("Frame",caption,{Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,LayoutOrder=1})
+    self.TalkName=hud(nameRow,"",15,{Font=Enum.Font.GothamMedium,TextColor3=palette.Gold,Size=UDim2.fromScale(1,1),TextXAlignment=Enum.TextXAlignment.Center})
+    self.TalkNameLines={}
+    for i,side in ipairs({1,0}) do
+        self.TalkNameLines[i]=make("Frame",nameRow,{AnchorPoint=Vector2.new(side,0.5),Position=UDim2.fromScale(0.5,0.5),Size=UDim2.fromOffset(70,1),BackgroundColor3=palette.Gold,BackgroundTransparency=0.25,BorderSizePixel=0})
+    end
+    self.TalkLine=hud(caption,"",21,{Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Center,LayoutOrder=2,TextStrokeTransparency=0.45})
+    self.TalkChoices=make("Frame",self.TalkGui,{AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-64,0.45,0),Size=UDim2.fromOffset(420,0),AutomaticSize=Enum.AutomaticSize.Y,BackgroundTransparency=1})
+    make("UIListLayout",self.TalkChoices,{SortOrder=Enum.SortOrder.LayoutOrder})
+    self.TalkScales={make("UIScale",caption),make("UIScale",self.TalkChoices)}
 end
 function U:Layout()
-    local size=self.Root.AbsoluteSize; local mobile=UIS.TouchEnabled and size.X<1050
-    self.Panel.Size=UDim2.fromOffset(math.min(800,size.X-26),math.min(600,size.Y-26))
-    self.ClassLabel.Size=UDim2.fromOffset(size.X<600 and 160 or 240,42)
-    self.Brand.TextSize=size.X<600 and 20 or 23
-    self.Subtitle.Visible=size.X>=600
-    self.MenuButton.Text=mobile and "SPELLBOOK" or "K  SPELLBOOK"
-    self.MenuButton.Size=UDim2.fromOffset(mobile and 135 or 155,mobile and 54 or 42)
-    self.QuestFrame.Size=UDim2.fromOffset(size.X<600 and 210 or 265,120)
-    self.StatFrame.Size=UDim2.fromOffset(mobile and 180 or 235,95)
-    self.StatFrame.Position=UDim2.new(0,22,1,mobile and -270 or -200)
-    if mobile then
-        self.Hotbar.Size=UDim2.fromOffset(292,math.ceil(#self.SpellSlots/4)*74-4); self.Hotbar.Position=UDim2.new(1,-14,1,-83); self.Hotbar.AnchorPoint=Vector2.new(1,1)
-        for i,slot in ipairs(self.SpellSlots) do self.Buttons[slot].Size=UDim2.fromOffset(66,66); self.Buttons[slot].Position=UDim2.fromOffset(((i-1)%4)*74,math.floor((i-1)/4)*74) end
-    else
-        self.Hotbar.Size=UDim2.fromOffset(#self.SpellSlots*80,72); self.Hotbar.Position=UDim2.new(0.5,0,1,-18); self.Hotbar.AnchorPoint=Vector2.new(0.5,1)
-        for i,slot in ipairs(self.SpellSlots) do self.Buttons[slot].Size=UDim2.fromOffset(72,68); self.Buttons[slot].Position=UDim2.fromOffset((i-1)*80,0) end
+    local size=self.Root.AbsoluteSize; local touch=UIS.TouchEnabled; local small=math.min(size.X,size.Y)<=500
+    -- Below about three quarters the smallest HUD text stops being readable.
+    local scale=math.clamp(size.Y/1000,0.75,1)
+    for _,c in pairs(self.Clusters) do c.Scale.Scale=scale end
+    -- Thumbs need bigger targets, clear of Roblox's jump button and thumbstick.
+    if touch then
+        local reach=math.max(scale,small and 0.8 or 0.95)
+        self.Clusters.Spells.Scale.Scale=reach; self.Clusters.Kit.Scale.Scale=reach
     end
+    self.Clusters.Spells.Frame.Position=UDim2.new(1,-20,1,touch and (small and -92 or -184) or -16)
+    self.Clusters.Kit.Frame.Position=touch and UDim2.new(0,small and 130 or 200,1,-16) or UDim2.new(0,24,1,-18)
+    for i,slot in ipairs(SLOTS) do
+        local x=(touch and 0 or 66)+(i-1)*86
+        self.Slots[slot].Holder.Position=UDim2.fromOffset(x,30); self.Slots[slot].Badge.Position=UDim2.fromOffset(x+21,51)
+    end
+    self.Slots.Lance.Holder.Visible=touch
+    self.HintRow.Size=UDim2.new(1,-12,0,touch and 40 or 24); self.HintRow.Position=UDim2.fromOffset(0,touch and -18 or 0)
+    for _,view in pairs(self.Hints) do view.Scale.Scale=touch and 1.7 or 1; view.Cap.Visible=not touch end
+    self.ToastScale.Scale=scale; self.ToastFrame.Position=UDim2.fromOffset(24,14+240*scale)
+    for _,s in ipairs(self.TalkScales) do s.Scale=math.clamp(size.Y/1000,0.75,1) end
+    self.PanelRoom=Vector2.new(math.min(800,size.X-26),math.min(600,size.Y-26)); self:FitPanel()
+end
+-- The panel is as tall as its content, up to the room the screen has.
+function U:FitPanel()
+    local room=self.PanelRoom or Vector2.new(800,600)
+    self.Panel.Size=UDim2.fromOffset(room.X,math.min(room.Y,math.max(220,self.BodyList.AbsoluteContentSize.Y+100)))
+end
+-- Moves a bar's fill (and, for health, the shield past it) with a short tween.
+function U:SetBar(bar,share)
+    share=math.clamp(share,0,1)
+    if math.abs(share-bar.Shown)<0.002 then return end
+    bar.Shown=share; Tween:Create(bar.Fill,TweenInfo.new(0.15),{Size=UDim2.fromScale(share,1)}):Play()
 end
 function U:UpdateHUD()
     local d=self.Data; local s=self.State
+    self.HUD.Visible=not self.TalkGui.Enabled
+    local pad=tostring(UIS:GetLastInputType()):find("Gamepad")~=nil
+    local showKeys=pad or not UIS.TouchEnabled
     if d then
         local q=Quests[d.Quest]
-        self.QuestLabel.Text=q and (q.Title.."  "..d.QuestProgress.."/"..q.Need.."\n"..q.Hint) or "The first seal is safe. Explore, master your spells, and duel with friends."
+        self.QuestHeader.Text=q and "CURRENT QUEST" or "THE STORY SO FAR"
+        self.QuestTitle.Text=q and q.Title or "The first seal is safe"
+        self.QuestHint.Text=q and (q.Hint.."  ·  "..d.QuestProgress.." / "..q.Need) or "Explore, master your spells, and duel with friends."
         local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
         local sanctuary=d.Settings.PvP and root and F.Sanctuary(root.Position)
-        self.Location.Text=(self.Player:GetAttribute("Zone") or "Hollowmere")..(sanctuary and "  ·  Sanctuary" or "").."  ·  Lv "..d.Level.."  ·  "..d.Gilders.." G"
-        local keys={Basic="LMB",Lance="RMB",Slot1="1",Slot2="2",Slot3="3",Slot4="4",Ward="R",Dodge="SHIFT",Broom="F"}
-        if tostring(UIS:GetLastInputType()):find("Gamepad") then keys={Basic="RT",Lance="LT",Slot1="X",Slot2="Y",Slot3="B",Slot4="RB",Ward="R3",Dodge="LB",Broom="DOWN"} end
-        local flying=self.Player:GetAttribute("Broom")~=nil
-        for _,slot in ipairs(self.SpellSlots) do
-            local id=slot=="Basic" and "Scintara" or slot=="Lance" and "ScintaraLance" or d.Loadout[slot]
-            local remaining=math.max(0,(id and self.Cooldowns[id] or 0)-os.clock())
-            local name=slot=="Dodge" and "Dodge" or slot=="Broom" and (flying and "Land" or "Broom") or slot=="Lance" and "Lance"
-                or (id and id~="" and id or "Empty")
-            self.Buttons[slot].Text=(UIS.TouchEnabled and "" or keys[slot].."\n")..name..(remaining>0 and string.format("\n%.1fs",remaining) or "")
-            self.Buttons[slot].TextColor3=remaining>0 and palette.Muted or palette.White
+        self.ZoneLabel.Text=self.Player:GetAttribute("Zone") or "Hollowmere"
+        self.ZoneDetail.Text="Level "..d.Level.."  ·  "..d.Gilders.." Gilders"..(sanctuary and "  ·  Sanctuary" or "")
+        for i,slot in ipairs(SLOTS) do
+            local view=self.Slots[slot]; local id=d.Loadout[slot]; if id=="" then id=nil end
+            if view.Shown~=(id or "") then
+                view.Shown=id or ""; local spell=id and Spells[id]
+                for _,child in ipairs(view.Icon:GetChildren()) do child:Destroy() end
+                Icons.Draw(spell and Icons.ForSpell(spell) or "plus",view.Icon,spell and 30 or 20,spell and palette.Line or palette.TextDim,spell and spell.DisplayName:sub(1,1))
+                view.Shape.BackgroundColor3=spell and self:SpellColor(id):Lerp(Color3.new(),0.3) or palette.Ink
+                view.Shape.BackgroundTransparency=spell and 0.05 or 0.55
+            end
+            view.Number.Text=pad and PAD[slot] or tostring(i)
         end
+        local flying=self.Player:GetAttribute("Broom")~=nil
+        local broom=self.Slots.Broom
+        if broom.Flying~=flying then
+            broom.Flying=flying
+            broom.Shape.BackgroundColor3=flying and palette.Gold or palette.Ink; broom.Shape.BackgroundTransparency=flying and 0.05 or 0.4
+            Icons.Tint(broom.Glyph,flying and palette.Ink or palette.Line)
+        end
+        broom.SetKey((pad and "D-Down" or "F")..(flying and "  Land" or ""))
+        local draught=self.Slots.Draught; local count=d.Inventory[DRAUGHT] or 0
+        draught.Count.Text=tostring(count); draught.Shape.BackgroundTransparency=count>0 and 0.4 or 0.7
+        Icons.Tint(draught.Glyph,count>0 and palette.Line or palette.Muted)
+        self.Slots.Bag.SetKey(pad and "D-Left" or "B"); draught.Cap.Visible=showKeys and not pad
+        self.Slots.Bag.Cap.Visible=showKeys; broom.Cap.Visible=showKeys
+        self.Hints.Ward.SetKey(pad and "R3" or "R"); self.Hints.Dodge.SetKey(pad and "LB" or "Shift"); self.Hints.Book.SetKey(pad and "D-Up" or "K")
+        local lancing=self.C.InputController and self.C.InputController.Lancing
+        self.Slots.Basic.Shape.BackgroundColor3=lancing and palette.Gold or palette.Ink
     end
-    for name,bar in pairs(self.Bars) do
-        local value=name=="HP" and (s.HP or 0) or (name=="MANA" and (s.Mana or 0) or (s.Stamina or 0))
-        local maximum=name=="HP" and (s.MaxHP or 110) or (name=="MANA" and (s.MaxMana or 102) or 100)
-        bar.Fill.Size=UDim2.fromScale(math.clamp(value/math.max(1,maximum),0,1),1)
-        bar.Label.Text=name.."   "..math.ceil(value).." / "..math.floor(maximum)..(name=="HP" and (s.Shield or 0)>0 and "  +"..math.floor(s.Shield).." shield" or "")
-    end
-    if s.Class then local t=s.Class.Seconds; self.ClassLabel.Text="NEXT CLASS · "..s.Class.Subject.."\n"..string.format("%d:%02d",math.floor(t/60),t%60).."  ·  Practice anytime" end
+    local hp,maxHp=s.HP or 0,math.max(1,s.MaxHP or 110)
+    self:SetBar(self.Bars.HP,hp/maxHp); self:SetBar(self.Bars.MANA,(s.Mana or 0)/math.max(1,s.MaxMana or 102)); self:SetBar(self.Bars.STAMINA,(s.Stamina or 0)/100)
+    local share=math.clamp(hp/maxHp,0,1)
+    self.ShieldFill.Position=UDim2.fromScale(share,0); self.ShieldFill.Size=UDim2.fromScale(math.min((s.Shield or 0)/maxHp,1-share),1)
+    if s.Class then local t=s.Class.Seconds; self.ClassLabel.Text="Next class · "..s.Class.Subject.." in "..string.format("%d:%02d",math.floor(t/60),t%60) end
     local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
     local boss=nil; local runtime=workspace:FindFirstChild("Runtime"); local folder=runtime and runtime:FindFirstChild("Monsters")
     if root and folder then
@@ -455398,24 +455758,74 @@ function U:UpdateHUD()
             local r=model.PrimaryPart; if r and model:GetAttribute("Rank")=="Boss" and (r.Position-root.Position).Magnitude<130 then boss=model; break end
         end
     end
+    self.BossRoot=boss and boss.PrimaryPart
     self.BossFrame.Visible=boss~=nil and not self:IsOpen()
     if boss then
         local hum=boss:FindFirstChildOfClass("Humanoid")
-        if hum then self.BossLabel.Text=boss.Name.." · Phase "..tostring(boss:GetAttribute("Phase") or 1); self.BossFill.Size=UDim2.new(math.clamp(hum.Health/hum.MaxHealth,0,1),-12,0,7) end
+        if hum then
+            self.BossLabel.Text=spaced(boss.Name); self.BossPhase.Text="Phase "..tostring(boss:GetAttribute("Phase") or 1)
+            self.BossFill.Size=UDim2.fromScale(math.clamp(hum.Health/hum.MaxHealth,0,1),1)
+        end
     end
     self.Crosshair.Visible=not self:IsOpen() and (not self.C.InputController or self.C.InputController.Locked)
 end
+-- Every frame: the minimap turns with the camera (your arrow points the way you face), and cooldowns drain.
+function U:UpdateFrame()
+    if not self.HUD.Visible then return end
+    local camera=workspace.CurrentCamera; local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
+    if camera and root then
+        local look=camera.CFrame.LookVector; local f=Vector2.new(look.X,look.Z)
+        if f.Magnitude<0.01 then local up=camera.CFrame.UpVector; f=Vector2.new(up.X,up.Z) end
+        f=f.Unit; local r=Vector2.new(-f.Y,f.X); local radius=self.MapRadius; local pos=root.Position
+        local function place(gui,dx,dz,pin)
+            local d=Vector2.new(dx,dz); local p=Vector2.new(d:Dot(r),-d:Dot(f))*(radius/MAP_RANGE)
+            if p.Magnitude>radius-8 then
+                if not pin then gui.Visible=false; return end
+                p=p.Unit*(radius-8)
+            end
+            gui.Visible=true; gui.Position=UDim2.new(0.5,p.X,0.5,p.Y)
+        end
+        for letter,way in pairs(CARDINALS) do self.Cardinals[letter].Position=UDim2.new(0.5,way:Dot(r)*radius,0.5,-way:Dot(f)*radius) end
+        local d=self.Data; local q=d and Quests[d.Quest]; local point=q and Points[q.Anchor]
+        if point then place(self.MapQuest,point[1]-pos.X,point[3]-pos.Z,true) else self.MapQuest.Visible=false end
+        for id,ring in pairs(self.MapWaystones) do
+            local at=Points["Waystone_"..id]
+            if d and d.Waystones[id] and at then place(ring,at[1]-pos.X,at[3]-pos.Z,false) else ring.Visible=false end
+        end
+        local boss=self.BossRoot
+        if boss and boss.Parent then place(self.MapBoss,boss.Position.X-pos.X,boss.Position.Z-pos.Z,true) else self.MapBoss.Visible=false end
+        local facing=root.CFrame.LookVector; local c=Vector2.new(facing.X,facing.Z)
+        if c.Magnitude>0.01 then c=c.Unit; self.MapArrow.Rotation=math.deg(math.atan2(c:Dot(r),c:Dot(f))) end
+    end
+    local d=self.Data; if not d then return end
+    local now=os.clock()
+    -- While the seconds count down, they take the icon's place.
+    local function show(view,id,quiet)
+        local remaining=math.max(0,(id and self.Cooldowns[id] or 0)-now)
+        cooling(view,remaining,id and self.CooldownTotals[id])
+        local counting=remaining>0 and not quiet
+        view.Icon.Visible=not counting
+        view.Label.Text=counting and (remaining<10 and string.format("%.1f",remaining) or tostring(math.ceil(remaining))) or ""
+    end
+    for _,slot in ipairs(SLOTS) do local id=d.Loadout[slot]; show(self.Slots[slot],id~="" and id or nil) end
+    show(self.Slots.Basic,"Scintara",true); show(self.Slots.Lance,"ScintaraLance",true); show(self.Slots.Draught,DRAUGHT)
+    local ward=d.Loadout.Ward; local left=math.max(0,(ward and ward~="" and self.Cooldowns[ward] or 0)-now)
+    self.Hints.Ward.Timer.Visible=left>0; if left>0 then self.Hints.Ward.Timer.Text=string.format("%.1f",left) end
+end
 function U:Welcome()
     self:Open("WANDBOUND · RAVENMOOR ACADEMY","Welcome")
-    self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",80)
-    self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",95)
-    self:Paragraph("Approach a named character and use the interaction prompt. Follow the quest card. Red ground circles warn you where enemies will strike.",90)
-    self:Paragraph("LMB casts Spark Bolt · hold RMB for its lance · R raises your ward · Shift or double-tap WASD dodges · F flies your broom\nUse the on-screen buttons on touch devices. K opens your spellbook.",74)
+    self:Paragraph("A lantern flickers in the tower.\nSomething beneath Ravenmoor is waking.",50)
+    self:Paragraph("Begin at Oakhart's Wandery in Hollowmere. Receive your wand, choose a house, attend your first class, and follow Tobb into Whisperwood.",50)
+    self:Paragraph("Approach a named character and use the interaction prompt. Follow the gold marker on your minimap and the quest in the upper right. Red ground circles warn you where enemies will strike.",50)
+    self:Paragraph("LMB casts Spark Bolt · hold RMB for its lance · R raises your ward · Shift or double-tap WASD dodges · F flies your broom · H drinks a Health Draught\nUse the on-screen diamonds on touch devices. K opens your spellbook.",70)
     button(self.Body,"BEGIN YOUR FIRST YEAR",function() self:Close() end,{BackgroundColor3=palette.Gold,Size=UDim2.new(1,-12,0,56)})
 end
 function U:Start()
     self:Build(); self:Layout(); self.Root:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() self:Layout() end)
     self.Remotes.Profile.OnClientEvent:Connect(function(data)
+        -- One fewer draught means you drank one: show the server's shared 30-second potion cooldown.
+        local before=self.Data and self.Data.Inventory[DRAUGHT] or 0
+        if (data.Inventory[DRAUGHT] or 0)<before then self.Cooldowns[DRAUGHT]=os.clock()+30; self.CooldownTotals[DRAUGHT]=30 end
         self.Data=data
         if self.Menu and ({Spells=true,Skills=true,Journal=true,Bag=true,Settings=true,Bank=true,Shop=true,House=true,Library=true,Wandery=true,Admin=true})[self.Menu] then
             -- Re-render in place: keep the scroll position once the new layout has been measured.
@@ -455424,27 +455834,32 @@ function U:Start()
         end
     end)
     self.Remotes.State.OnClientEvent:Connect(function(state)
-        self.State=state; self.Cooldowns={}; for id,left in pairs(state.Cooldowns) do self.Cooldowns[id]=os.clock()+left end
+        local now=os.clock(); local old=self.Cooldowns
+        self.State=state; self.Cooldowns={[DRAUGHT]=old[DRAUGHT]}
+        for id,left in pairs(state.Cooldowns) do
+            if (old[id] or 0)<=now or left>(self.CooldownTotals[id] or 0) then self.CooldownTotals[id]=left end
+            self.Cooldowns[id]=now+left
+        end
     end)
     self.Remotes.CastReply.OnClientEvent:Connect(function(id,ok,value)
-        if ok then self.Cooldowns[id]=os.clock()+value elseif value~="Cooling down" then self:Toast(value) end
+        if ok then self.Cooldowns[id]=os.clock()+value; self.CooldownTotals[id]=value elseif value~="Cooling down" then self:Toast(value) end
     end)
     self.Remotes.UI.OnClientEvent:Connect(function(kind,info)
         if kind=="Toast" then self:Toast(info)
         elseif kind=="Dialogue" then
-            self:Open(string.upper(info.Name),"Dialogue")
-            self:Paragraph(info.Text,110)
-            for _,choice in ipairs(info.Choices) do
-                button(self.Body,choice.Label,function() self:Close(); self:Action("Interact",info.Anchor,choice.Id) end)
+            local choices={}
+            for i,choice in ipairs(info.Choices) do
+                choices[i]={Label=choice.Label,Run=function() self:Close(); self:Action("Interact",info.Anchor,choice.Id) end}
             end
-            button(self.Body,"Goodbye",function() self:Close() end)
+            choices[#choices+1]={Label="Goodbye",Run=function() self:Close() end}
+            self:Dialogue(info.Name,info.Text,choices)
         elseif kind=="Sorting" then self:Sorting()
         elseif kind=="Lesson" then self:Lesson(info)
         elseif kind=="GestureResult" then if info.Pass then self:Close() else self:Toast("Rune accuracy: "..info.Score.."%. Clear the canvas and try again.") end
         elseif kind=="DuelInvite" then
-            self:Open("A CHALLENGE TO DUEL","Invite"); self:Paragraph(info.Name.." challenges you to a friendly duel. No items are lost.",80)
-            button(self.Body,"Accept duel",function() self:Action("DuelRespond",true); self:Close() end)
-            button(self.Body,"Decline",function() self:Action("DuelRespond",false); self:Close() end)
+            self:Dialogue(info.Name,info.Name.." challenges you to a friendly duel. No items are lost.",{
+                {Label="Accept duel",Run=function() self:Action("DuelRespond",true); self:Close() end},
+                {Label="Decline",Run=function() self:Action("DuelRespond",false); self:Close() end}})
         elseif kind=="DuelStart" then self:Close(); self:Toast("Bow. Ready in "..info.." seconds…")
         elseif kind=="Knockout" then
             self:Close(); self:Toast((info.By and "Knocked out by "..info.By or "Knocked out").." · returning to your Waystone in "..info.Seconds.." seconds. Nothing lost.")
@@ -455456,7 +455871,10 @@ function U:Start()
         for _=1,10 do if self.Data then break end; self:Action("Ready"); task.wait(1) end
     end)
     local elapsed=0
-    Run.RenderStepped:Connect(function(dt) elapsed=elapsed+dt; if elapsed>0.1 then elapsed=0; self:UpdateHUD() end end)
+    Run.RenderStepped:Connect(function(dt)
+        self:UpdateFrame()
+        elapsed=elapsed+dt; if elapsed>0.1 then elapsed=0; self:UpdateHUD() end
+    end)
 end
 return U
 ]]></ProtectedString>
@@ -455486,7 +455904,7 @@ local Wands=require(RS.Shared.WandData)
 -- The admin panel (P): testing tools that skip the story's gates. The server's AdminService decides who
 -- may use it and checks every command; this controller only draws the menu for players it marked Admin.
 local A={}
-local TAB=Color3.fromRGB(223,210,181)
+local TAB=Color3.fromRGB(20,23,28)
 -- Teleport targets: Waystone ids from Config.Waystones, or names of parts in Workspace.Markers.
 local PLACES={{"Hollowmere","Hollowmere Waystone"},{"Castle","Castle Waystone"},{"Whisperwood","Whisperwood Waystone"},
     {"Oakhart","Oakhart's Wandery"},{"Apothecary","Apothecary"},{"Bank","Vaultkeep Bank"},
@@ -455517,10 +455935,10 @@ function A:Grid(list,per)
 end
 function A:SpellRow(sp,d)
     local ui=self.C.UIController; local kit=ui.Kit; local row=ui:Row(44)
-    kit.text(row,sp.Id.." · "..sp.DisplayName.."\nLv "..sp.UnlockLevel.." "..sp.School..(d.Spells[sp.Id] and " · learned" or ""),13,kit.palette.Ink,
+    kit.text(row,sp.Id.." · "..sp.DisplayName.."\nLv "..sp.UnlockLevel.." "..sp.School..(d.Spells[sp.Id] and " · learned" or ""),13,kit.palette.Text,
         {Size=UDim2.new(0.46,0,1,0),TextWrapped=true})
     if sp.Id=="Scintara" then
-        kit.text(row,"Always on left mouse",13,kit.palette.Ink,{Position=UDim2.fromScale(0.46,0),Size=UDim2.new(0.54,0,1,0)})
+        kit.text(row,"Always on left mouse",13,kit.palette.TextDim,{Position=UDim2.fromScale(0.46,0),Size=UDim2.new(0.54,0,1,0)})
         return
     end
     local slots={"Slot1","Slot2","Slot3","Slot4"}; if sp.School=="Ward" then slots[5]="Ward" end
@@ -455583,16 +456001,9 @@ function A:Render()
 end
 function A:Start()
     local ui=self.C.UIController; local kit=ui.Kit
-    self.Button=kit.button(ui.Root,"P  ADMIN",function() self:Toggle() end,{AnchorPoint=Vector2.new(1,0),TextSize=13,
-        BackgroundColor3=kit.palette.Ink,TextColor3=kit.palette.Gold,Visible=false})
-    kit.stroke(self.Button,kit.palette.Gold,0.4)
-    -- Sits under the spellbook button, which UIController resizes for touch screens.
-    local function place()
-        local menu=ui.MenuButton
-        self.Button.Size=UDim2.fromOffset(menu.Size.X.Offset,34)
-        self.Button.Position=UDim2.new(1,-20,0,menu.Position.Y.Offset+menu.Size.Y.Offset+6)
-    end
-    place(); ui.MenuButton:GetPropertyChangedSignal("Size"):Connect(place)
+    -- Sits at the end of the quest tracker in the upper right.
+    self.Button=kit.button(ui.QuestList,"P  ADMIN",function() self:Toggle() end,{Size=UDim2.fromOffset(120,30),TextSize=13,
+        TextColor3=kit.palette.Gold,LayoutOrder=9,Visible=false})
     local function refresh() self.Button.Visible=self:Allowed() end
     refresh(); self.Player:GetAttributeChangedSignal("Admin"):Connect(refresh)
     self.Player:GetAttributeChangedSignal("FreeCast"):Connect(function() if ui.Menu=="Admin" then ui:Show("Admin") end end)
@@ -455827,6 +456238,108 @@ return Fl
 						<int64 name="SourceAssetId">-1</int64>
 						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 						<UniqueId name="UniqueId">49d6365aae7c88a20af4a17b000056d1</UniqueId>
+					</Properties>
+				</Item>
+				<Item class="ModuleScript" referent="RBXF5E68EB866D24F528F2BB28D9B8236C7">
+					<Properties>
+						<Content name="LinkedSource"><null></null></Content>
+						<ProtectedString name="Source"><![CDATA[-- White-line HUD icons drawn from Frames, so the place needs no image assets. Each glyph is a list of strokes
+-- in a unit square: lines {x1,y1,x2,y2}, rings {x,y,diameter}, boxes {x,y,w,h,radius,rotation} and diamonds
+-- {x,y,size,filled}. Rings, boxes and hollow diamonds are outlines; a filled diamond or a dot is solid.
+local H={}
+local LINE=Color3.fromRGB(244,239,228)
+local glyphs={
+    flame={{"ring",0.5,0.64,0.46},{"line",0.5,0.08,0.27,0.56},{"line",0.5,0.08,0.73,0.56},{"dot",0.5,0.68,0.14}},
+    snowflake={{"line",0.5,0.08,0.5,0.92},{"line",0.14,0.29,0.86,0.71},{"line",0.14,0.71,0.86,0.29},{"diamond",0.5,0.5,0.2,true}},
+    bolt={{"line",0.64,0.06,0.34,0.52},{"line",0.34,0.52,0.66,0.48},{"line",0.66,0.48,0.36,0.94}},
+    leaf={{"box",0.55,0.42,0.4,0.66,0.5,40},{"line",0.38,0.62,0.18,0.9},{"line",0.38,0.62,0.7,0.24}},
+    shield={{"line",0.18,0.16,0.82,0.16},{"line",0.18,0.16,0.18,0.54},{"line",0.82,0.16,0.82,0.54},{"line",0.18,0.54,0.5,0.88},{"line",0.82,0.54,0.5,0.88}},
+    spark={{"line",0.5,0.06,0.5,0.94},{"line",0.06,0.5,0.94,0.5},{"diamond",0.5,0.5,0.34,true}},
+    burst={{"ring",0.5,0.5,0.34},{"line",0.5,0.04,0.5,0.28},{"line",0.5,0.72,0.5,0.96},{"line",0.04,0.5,0.28,0.5},{"line",0.72,0.5,0.96,0.5},
+        {"line",0.18,0.18,0.32,0.32},{"line",0.68,0.68,0.82,0.82},{"line",0.82,0.18,0.68,0.32},{"line",0.32,0.68,0.18,0.82}},
+    stone={{"box",0.5,0.56,0.66,0.52,0.18,10},{"line",0.38,0.38,0.52,0.6},{"line",0.52,0.6,0.46,0.76}},
+    shadow={{"ring",0.5,0.5,0.7},{"dot",0.62,0.4,0.4}},
+    bag={{"box",0.5,0.62,0.66,0.54,0.14,0},{"box",0.5,0.3,0.3,0.26,0.5,0},{"line",0.17,0.56,0.83,0.56},{"dot",0.5,0.56,0.12}},
+    broom={{"line",0.88,0.1,0.45,0.53},{"diamond",0.45,0.53,0.16,true},{"line",0.45,0.53,0.1,0.7},{"line",0.45,0.53,0.17,0.86},{"line",0.45,0.53,0.3,0.92}},
+    flask={{"line",0.32,0.08,0.68,0.08},{"line",0.42,0.08,0.42,0.38},{"line",0.58,0.08,0.58,0.38},{"ring",0.5,0.65,0.54},{"dot",0.5,0.72,0.26}},
+    book={{"box",0.5,0.5,0.66,0.78,0.06,0},{"line",0.28,0.11,0.28,0.89},{"line",0.4,0.38,0.7,0.38},{"line",0.4,0.54,0.7,0.54}},
+    dodge={{"line",0.16,0.22,0.44,0.5},{"line",0.44,0.5,0.16,0.78},{"line",0.5,0.22,0.78,0.5},{"line",0.78,0.5,0.5,0.78}},
+    lance={{"line",0.14,0.86,0.76,0.24},{"diamond",0.78,0.22,0.24,true},{"line",0.22,0.62,0.38,0.78}},
+    lock={{"box",0.5,0.66,0.62,0.44,0.1,0},{"box",0.5,0.36,0.36,0.44,0.5,0},{"dot",0.5,0.66,0.12}},
+    plus={{"line",0.5,0.2,0.5,0.8},{"line",0.2,0.5,0.8,0.5}},
+    arrow={{"line",0.5,0.06,0.18,0.9},{"line",0.5,0.06,0.82,0.9},{"line",0.18,0.9,0.5,0.68},{"line",0.82,0.9,0.5,0.68},{"line",0.5,0.2,0.5,0.68}},
+}
+H.Glyphs=glyphs
+local function frame(parent,color,props)
+    local f=Instance.new("Frame"); f.BorderSizePixel=0; f.BackgroundColor3=color; f.AnchorPoint=Vector2.new(0.5,0.5)
+    for k,v in pairs(props) do f[k]=v end; f.Parent=parent; return f
+end
+local function outline(f,color,thick)
+    f.BackgroundTransparency=1
+    local s=Instance.new("UIStroke"); s.Color=color; s.Thickness=thick; s.Parent=f
+end
+local function round(f,radius) local c=Instance.new("UICorner"); c.CornerRadius=UDim.new(radius,0); c.Parent=f end
+-- Draws `name` centred in `parent`, `size` pixels square. An unknown name draws `fallback` (a letter) instead.
+function H.Draw(name,parent,size,color,fallback)
+    color=color or LINE
+    local box=Instance.new("Frame"); box.Name="Icon"; box.BackgroundTransparency=1; box.AnchorPoint=Vector2.new(0.5,0.5)
+    box.Position=UDim2.fromScale(0.5,0.5); box.Size=UDim2.fromOffset(size,size); box.ZIndex=parent.ZIndex; box.Parent=parent
+    -- Thinner than 2px, a level stroke can drop out entirely once the HUD is scaled down.
+    local thick=math.max(2,math.floor(size*0.075*2+0.5)/2); local z=box.ZIndex
+    local glyph=glyphs[name]
+    if not glyph then
+        local label=Instance.new("TextLabel"); label.BackgroundTransparency=1; label.Size=UDim2.fromScale(1,1); label.Text=fallback or "?"
+        label.Font=Enum.Font.Garamond; label.TextScaled=true; label.TextColor3=color; label.ZIndex=z; label.Parent=box
+        return box
+    end
+    for _,s in ipairs(glyph) do
+        local kind=s[1]
+        if kind=="line" then
+            local dx,dy=s[4]-s[2],s[5]-s[3]
+            frame(box,color,{Position=UDim2.fromScale((s[2]+s[4])/2,(s[3]+s[5])/2),Size=UDim2.new(math.sqrt(dx*dx+dy*dy),thick,0,thick),
+                Rotation=math.deg(math.atan2(dy,dx)),ZIndex=z})
+        elseif kind=="ring" then
+            local f=frame(box,color,{Position=UDim2.fromScale(s[2],s[3]),Size=UDim2.fromScale(s[4],s[4]),ZIndex=z}); round(f,0.5); outline(f,color,thick)
+        elseif kind=="dot" then
+            local f=frame(box,color,{Position=UDim2.fromScale(s[2],s[3]),Size=UDim2.fromScale(s[4],s[4]),ZIndex=z}); round(f,0.5)
+        elseif kind=="box" then
+            local f=frame(box,color,{Position=UDim2.fromScale(s[2],s[3]),Size=UDim2.fromScale(s[4],s[5]),Rotation=s[7] or 0,ZIndex=z})
+            if s[6]>0 then round(f,s[6]) end; outline(f,color,thick)
+        elseif kind=="diamond" then
+            local f=frame(box,color,{Position=UDim2.fromScale(s[2],s[3]),Size=UDim2.fromScale(s[4],s[4]),Rotation=45,ZIndex=z})
+            if not s[5] then outline(f,color,thick) end
+        end
+    end
+    return box
+end
+-- Recolours an icon drawn by Draw.
+function H.Tint(box,color)
+    for _,d in ipairs(box:GetDescendants()) do
+        if d:IsA("UIStroke") then d.Color=color
+        elseif d:IsA("TextLabel") then d.TextColor3=color
+        elseif d:IsA("Frame") then d.BackgroundColor3=color end
+    end
+end
+-- The glyph for a spell: its element first (fire, frost, lightning), then its school.
+local ELEMENTS={Fire="flame",Frost="snowflake",Lightning="bolt"}
+local SCHOOLS={Ward="shield",Restoration="leaf",Alteration="stone",Charm="spark",Hex="burst",Shadow="shadow"}
+function H.ForSpell(spell)
+    if not spell then return "plus" end
+    if spell.Id=="Scintara" then return "spark" end
+    return ELEMENTS[spell.Element] or SCHOOLS[spell.School] or "spark"
+end
+return H
+]]></ProtectedString>
+						<string name="ScriptGuid">{963A309D-3662-4140-A597-D263A2F70473}</string>
+						<BinaryString name="AttributesSerialize"></BinaryString>
+						<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+						<bool name="DefinesCapabilities">false</bool>
+						<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+						<string name="Name">HudIcons</string>
+						<BinaryString name="SerializedOverrides"></BinaryString>
+						<int64 name="SourceAssetId">-1</int64>
+						<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+						<UniqueId name="UniqueId">51f51001ef6d5d6c0afacadc000003e0</UniqueId>
 					</Properties>
 				</Item>
 			</Item>
@@ -456145,6 +456658,21 @@ for _,name in ipairs(order) do controllers[name]:Start() end
 			<int64 name="SourceAssetId">-1</int64>
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003ad</UniqueId>
+		</Properties>
+	</Item>
+	<Item class="ServiceVisibilityService" referent="RBX7FF920C21E0A47E298F055B1B9CFA732">
+		<Properties>
+			<BinaryString name="HiddenServices">AAAAAA==</BinaryString>
+			<BinaryString name="VisibleServices">AAAAAA==</BinaryString>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
+			<string name="Name">ServiceVisibilityService</string>
+			<BinaryString name="SerializedOverrides"></BinaryString>
+			<int64 name="SourceAssetId">-1</int64>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003cc</UniqueId>
 		</Properties>
 	</Item>
 	<Item class="LuaWebService" referent="RBX6BE130A5108041578BE4BA4CD2282219">
@@ -729227,21 +729755,6 @@ return {
 				</Item>
 			</Item>
 		</Item>
-	</Item>
-	<Item class="ServiceVisibilityService" referent="RBX7FF920C21E0A47E298F055B1B9CFA732">
-		<Properties>
-			<BinaryString name="HiddenServices">AAAAAA==</BinaryString>
-			<BinaryString name="VisibleServices">AAAAAA==</BinaryString>
-			<BinaryString name="AttributesSerialize"></BinaryString>
-			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-			<bool name="DefinesCapabilities">false</bool>
-			<UniqueId name="HistoryId">00000000000000000000000000000000</UniqueId>
-			<string name="Name">ServiceVisibilityService</string>
-			<BinaryString name="SerializedOverrides"></BinaryString>
-			<int64 name="SourceAssetId">-1</int64>
-			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-			<UniqueId name="UniqueId">03d2e6901b9fab800aeb6390000003cc</UniqueId>
-		</Properties>
 	</Item>
 	<Item class="VideoService" referent="RBXA66C3CC7B1884B4598AE06146880A3DC">
 		<Properties>

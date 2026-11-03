@@ -181,6 +181,12 @@ function I:Start()
             return Enum.ContextActionResult.Sink
         end,false,entry[2],entry[3])
     end
+    -- H drinks a Health Draught (UIController:UseDraught checks the bag and the shared potion cooldown).
+    CAS:BindAction("Wandbound_Draught",function(_,state)
+        if UIS:GetFocusedTextBox() then return Enum.ContextActionResult.Pass end
+        if state==Enum.UserInputState.Begin then self.C.UIController:UseDraught() end
+        return Enum.ContextActionResult.Sink
+    end,false,Enum.KeyCode.H)
     UIS.InputBegan:Connect(function(input,processed)
         if not processed and input.KeyCode==Enum.KeyCode.LeftControl then self.Locked=not self.Locked; self:CameraMode() end
         if not processed and input.KeyCode==Enum.KeyCode.V then self:SetFirstPerson(self.Player.CameraMode~=Enum.CameraMode.LockFirstPerson) end
