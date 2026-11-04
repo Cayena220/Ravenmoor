@@ -1,5 +1,12 @@
 # Blender models and animations
 
+**WorldPlan realistic environment:** the edited `exports/WorldPlan.blend` preserves
+the academy and rebuilds the surroundings. See [REALISTIC-WORLD.md](REALISTIC-WORLD.md)
+for the backup, cameras, materials and validation details.
+
+**Realistic forest trees:** see [FOREST-TREES.md](FOREST-TREES.md) for the three
+oak variants, packed Blender file, PBR textures and three mesh detail levels.
+
 Python scripts in this folder build meshes, rigs and animations in Blender and export them as FBX files for Roblox Studio. Blender runs in the background, so you never need to open it, and no add-ons are involved. You can still open any result in Blender to look at it or tweak it.
 
 ```text
@@ -438,6 +445,73 @@ python tools/sync_scripts.py --map
 ```
 
 Then rebuild the ranges and import them again. Run `place_waystones.lua` again too, because a map sync brings back the slate stones.
+
+## WorldPlan in the game
+
+`exports/WorldPlan.blend` is the world the game now uses: the realistic village, ruins, glasshouses, lake, meadow and
+mountains, 4,316 oaks, the four house quarters round the common garden, and the new academy with its interior. It is
+built at film detail, 15 million triangles, so it goes into Roblox through `export_worldplan_game.py`, which cuts it to
+a game budget and writes one FBX per area to `exports/RobloxWorld/`:
+
+```bash
+"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" -b blender/exports/WorldPlan.blend --python blender/export_worldplan_game.py -- --preview
+```
+
+- **Cut by what it is.** Carved ornament keeps 7% of its triangles, buildings 20%, ground 30%, mountains 12%. Grass,
+  ferns and groundcover keep one tuft in twelve, each grown to fill the gaps. The world comes to about 2.25 million
+  triangles in 493 meshes, and each oak to under 3,500.
+- **The castle and the four houses are cut gently** (`BUILDINGS`), since cutting them like the rest left holes in the
+  masonry, see-through cone roofs and walls collapsed to one big triangle. Their bevels, a few hundredths of a stud,
+  come off first, which halves them (8.5 million triangles to 3.8 million). Walls, roofs, floors and the carved door
+  and window arches (whose round mouldings shatter when cut) then keep every triangle; other ornament keeps 50%, rails
+  and cloth 50%, the four gilt house shields 10%. A separate piece of 24 triangles or fewer (a stone block, a slate, a
+  quoin) is never cut, as any cut deletes some outright. They come to 2.67 million triangles in 315 meshes, against
+  1.49 million before, and the world to 3.4 million. Blender renders
+  both sides of every face and some of these face inward, so their meshes are drawn from both sides
+  (`double_sided`) and still cast shadows (`cast_shadow`).
+- **Merged by Roblox material.** Each MeshPart has one material, so meshes that become the same one (Limestone, Slate,
+  Wood, Metal and so on) are merged in cells of the map, with every Blender material's colour baked into the vertex
+  colours. The mountains' slope ramp is baked the same way: green on the flats, grey on the crags.
+- **The academy interior** is its own scene in WorldPlan. In the game it stands 1,500 studs above the campus, and the
+  academy's door leads there (`WorldService.StartAcademyPortals`). The teachers, the Mirror of Choosing and the Library
+  move into it; `src/shared/WorldPoints.lua` has their new points, and the quest marker and minimap guide a student to
+  the door when the goal is on the other side of it.
+- **Left out on purpose:** the staff, chests, monsters, training dummies, Waystones, the duel arena and the road lamps.
+  The place keeps its own, so their prompts, quests and night lights carry on.
+- `manifest.json` lists every mesh's place, size, Roblox material and collision, the oaks and their templates, the
+  portals and the lamps. `--preview` renders `preview_<camera>.png` from WorldPlan's cameras.
+
+To put it in the place:
+
+1. Import every `exports/RobloxWorld/WP_*.fbx` with **File → Import 3D**, Scale Unit = Studs. The importer uploads the
+   meshes to your account. Where it puts them doesn't matter.
+2. Run [install_worldplan.lua](install_worldplan.lua)'s stages in order: `Check`, `Stage` until no mesh is left,
+   `Trees` until every oak stands, then `Finish`. Its header says what each does. Claude runs them through the Studio
+   connection, reading `manifest.json` from disk. `Finish` keeps the old map in `ServerStorage.WorldPlan Recovery`.
+   It also lays a meadow-green floor just under the ground, which closes a seam between the meadow and the eastern
+   mountains, and runs `LowMountains`. The 61 mountain meshes stream to every player all the time, so they always draw
+   at their lowest level of detail and cast no shadows. The 49 wholly outside `Config.WorldBounds` have box collision
+   and collide with nothing; the 12 that reach the play area keep precise collision for their lower slopes. Window
+   glass is solid (`SolidWindows`), so no one comes in through a window; doors, banners, planting and carved ornament
+   stay walk-through, and the walls behind the ornament stop players.
+4. To change a few meshes later without importing everything again, export with `--patch` and their names, for
+   example `-- --patch WP_Nightfang_004,WP_Skyquill_005` (which split those two houses' window glass from the glass in
+   their doors). An area's name rebuilds every mesh in it, as `-- --patch AcademyExterior,AcademyInterior,EmberClaw,
+   Stoneroot,Skyquill,Nightfang` rebuilt the castle and the four houses. It writes `WP_Patch<letter>.fbx` (split into
+   `_1`, `_2` ... past 120 meshes) with new names, `WP_<Area>_Q01` and so on, the next letter for each patch, and
+   updates `manifest.json`. Import those files, then run `Patch` until it reports none left: it sets every new mesh up
+   in the staging folder first, then swaps them all in at once.
+3. Save the place in Edit mode.
+
+The game stands 1,443 of WorldPlan's 4,316 oaks, so the woods don't read as one wall of crowns. `python
+blender/thin_forest.py` keeps the largest oak first and drops any within 16 studs of one already kept (22 on the far
+slopes, outside `Config.WorldBounds`), and any whose crown reaches into the academy or a house. It writes the kept
+numbers to `exports/RobloxWorld/forest_thinning.json`. After `Finish`, run [thin_forest.lua](thin_forest.lua) with
+that file; it removes the other oaks as one undoable change. `tools/validate.py` checks the standing oaks against the
+list, and fails once an export changes the manifest: then run both again. `--inside` and `--outside` set the spacings.
+
+After this, `tools/build.py --world-only` and `tools/sync_scripts.py --map` would put the old part-built map back, so
+don't run them. `tools/validate.py` sees the WorldPlan map and checks it against the manifest instead.
 
 ## Conventions
 

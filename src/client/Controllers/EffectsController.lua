@@ -803,7 +803,7 @@ function E:Start()
         elapsed=elapsed+dt
         if elapsed>0.4 then
             elapsed=0; self:UpdateZone(); self:DrawTags()
-            local data=self.C.UIController.Data; local q=data and Quests[data.Quest]; local p=q and Points[q.Anchor]
+            local data=self.C.UIController.Data; local q=data and Quests[data.Quest]; local p=q and self.C.UIController:Guide(Points[q.Anchor])
             if p then
                 self.Waypoint.Position=Vector3.new(p[1],p[2]+8,p[3])
                 local root=Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")

@@ -16,6 +16,10 @@ local Spells=require(RS.Shared.SpellData)
 -- lance from the saddle: the broom slows as your walk would, and turns to face where you aim.
 local Fl={}
 local DASH_IN,DASH_OUT=0.8,0.6   -- of the broom's top speed: start dashing above the first, stop below the second
+-- The broom's push is strong enough to hold a rider up and reach its speed (the quickest handling wants about 210
+-- studs/s² on top of gravity), but finite: an unlimited push drives a rider through walls, and the WorldPlan
+-- buildings' thin mesh walls can't stop it.
+local THRUST=300   -- studs/s² beyond gravity
 local WIND=Color3.fromRGB(194,163,255)   -- for riders not yet in a house: the arcane violet
 function Fl:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Streams={} end
 function Fl:IsFlying() return self.Flight~=nil end
@@ -33,7 +37,7 @@ function Fl:Begin(id)
     local attach=Instance.new("Attachment"); attach.Name="BroomFlight"; attach.Parent=root
     local push=Instance.new("LinearVelocity"); push.Name="BroomPush"; push.Attachment0=attach
     push.RelativeTo=Enum.ActuatorRelativeTo.World; push.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector
-    push.MaxForce=math.huge; push.VectorVelocity=Vector3.zero; push.Parent=root
+    push.MaxForce=root.AssemblyMass*(workspace.Gravity+THRUST); push.VectorVelocity=Vector3.zero; push.Parent=root
     local turn=Instance.new("AlignOrientation"); turn.Name="BroomTurn"; turn.Mode=Enum.OrientationAlignmentMode.OneAttachment
     turn.Attachment0=attach; turn.MaxTorque=math.huge; turn.Responsiveness=12+broom.Handling*3
     local look=root.CFrame.LookVector*Vector3.new(1,0,1)

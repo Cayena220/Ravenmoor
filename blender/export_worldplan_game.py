@@ -1,16 +1,18 @@
 """Export WorldPlan.blend to Roblox at a game budget: a few FBX files of merged meshes, for install_worldplan.lua.
 
     blender -b blender/exports/WorldPlan.blend --python blender/export_worldplan_game.py -- [--preview] [--only Garden,Stoneroot]
-        [--patch WP_Nightfang_004,WP_Skyquill_005]
+        [--patch WP_Nightfang_004,WP_Skyquill_005] [--patch AcademyExterior,EmberClaw]
 
 WorldPlan is built at film detail, 15 million triangles. Roblox streams a few million at most, so every object is cut
 down by what it is (CUTS): carved ornament keeps 7% of its triangles, buildings 20%, ground 30%. Grass, ferns and other
-planting made of many small tufts keep about one tuft in twelve, each grown to cover the gaps. The academy interior,
+planting made of many small tufts keep about one tuft in twelve, each grown to cover the gaps. The castle and the four
+houses (BUILDINGS) are cut far more gently, without holes, and drawn from both sides. The academy interior,
 a scene of its own, stands 1,500 studs above the campus (INSIDE), where its portals lead.
 
---patch re-exports only the named meshes of the current manifest, by today's rules, as WP_Patch.fbx with new names
-(WP_<Area>_P01 ...), and updates manifest.json to match; every other mesh keeps its name, so only the patch needs
-importing. install_worldplan.lua's Patch stage swaps the meshes in the place.
+--patch re-exports only the named meshes of the current manifest, or every mesh of a named area, by today's rules, as
+WP_Patch<letter>.fbx with new names (WP_<Area>_P01 ..., the next letter for each later patch), and updates
+manifest.json to match; every other mesh keeps its name, so only the patch needs importing. install_worldplan.lua's
+Patch stage swaps the meshes in the place.
 
 Roblox gives each MeshPart one material. Meshes that come out as the same Roblox material (ROBLOX) are merged within a
 cell of the map, with each Blender material's colour baked into the vertex colours, so a facade of five limestones is
@@ -32,13 +34,18 @@ PREVIEW = '--preview' in ARGS
 ONLY = set(ARGS[ARGS.index('--only') + 1].split(',')) if '--only' in ARGS else None
 OUT = Path(__file__).resolve().parent / 'exports' / 'RobloxWorld'
 OUT.mkdir(parents=True, exist_ok=True)
-PATCH, PATCH_SOURCES = None, set()
+PATCH, PATCH_SOURCES, WHOLE = None, set(), set()
 if '--patch' in ARGS:
     old_manifest = json.loads((OUT / 'manifest.json').read_text())
-    PATCH = {r['name']: r for r in old_manifest['meshes'] if r['name'] in ARGS[ARGS.index('--patch') + 1].split(',')}
+    wanted = ARGS[ARGS.index('--patch') + 1].split(',')
+    # An area's name (EmberClaw, AcademyInterior ...) rebuilds every mesh in it from all its sources.
+    WHOLE = {r['group'] for r in old_manifest['meshes'] if r['group'] in wanted}
+    PATCH = {r['name']: r for r in old_manifest['meshes'] if r['name'] in wanted or r['group'] in WHOLE}
     ONLY = {r['group'] for r in PATCH.values()}
     PATCH_SOURCES = {s for r in PATCH.values() for s in r['sources']}
     PATCH_MATERIALS = {r['material'] for r in PATCH.values()}
+    # New names take the first letter no earlier patch used (WP_Nightfang_P01, then WP_Nightfang_Q01 ...).
+    TAG = next(c for c in 'PQRSTUVWXYZ' if not any(re.fullmatch(rf'WP_\w+_{c}\d+', r['name']) for r in old_manifest['meshes']))
 SOURCE = Path(bpy.data.filepath)
 assert SOURCE.name == 'WorldPlan.blend', 'Open blender/exports/WorldPlan.blend'
 AX = Matrix(((-1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))   # Blender (x, y, z) is Roblox (-x, z, y)
@@ -56,6 +63,8 @@ CUTS = [
     ('glass', ('window glass', 'glass panes', 'stained glass', 'display glass', 'lit window'), 1, True, 192),
     ('cloth', ('banner', 'textile', 'sail', 'door'), .3, False, 192),
     ('rail', ('balusters', 'handrails'), .15, True, 96),
+    ('heraldry', ('shield',), .07, False, 192),   # each house's gilt crest: one 165,000-triangle relief, 8 studs across
+    ('moulding', ('carved arches',), .07, False, 192),   # door and window arches; cut, their round mouldings shatter
     ('ornament', ('arches', 'quoins', 'cornices', 'tracery', 'mullions', 'finials', 'ironwork', 'coat of arms', 'crest',
                   'relief', 'medallion', 'wyvern', 'heraldry', 'sculptural', 'statuary', 'rose window', 'bear over',
                   'owl', 'firecat'), .07, False, 192),
@@ -66,6 +75,14 @@ CUTS = [
 ]
 LETTERING = ('lettering', (), .4, False, 192)
 MIN_KEEP = 300   # small objects keep at least this many triangles
+# The castle and the four houses are cut gently. Their bevels, a few hundredths of a stud and invisible in the game,
+# come off first; that alone halves them. Then walls, roofs and floors keep every triangle and only ornament, rails and
+# cloth are cut, and a separate piece of WHOLE_PIECE triangles or fewer (a stone block, a slate, a quoin) is never cut,
+# since a cut opens a hole where it stood. Blender renders both sides of every face, so these meshes are drawn from both
+# sides too, and a face that points inward still shows; unlike thin planting and cloth, they still cast shadows.
+BUILDINGS = {'AcademyExterior', 'AcademyInterior', 'EmberClaw', 'Stoneroot', 'Skyquill', 'Nightfang'}
+BUILDING_KEEP = {'building': 1, 'ground': 1, 'moulding': 1, 'ornament': .5, 'heraldry': .1, 'rail': .5, 'cloth': .5}
+WHOLE_PIECE = 24
 
 # Roblox material from words in the Blender material's name; the first match wins.
 ROBLOX = [
@@ -114,13 +131,15 @@ def area(o, inside):
     return 'Grounds'
 
 
-def cut_of(o, label):
+def cut_of(o, label, group=None):
     # These tufts already use only two crossed quads. Keep their coverage and UVs.
     if o.get('wp_grass_cards') or o.get('wp_grass_card_prototype'):
         return ('cards', (), 1, False, 192)
     if o.type == 'FONT': return LETTERING
     low = label.lower()
-    return next(c for c in CUTS if any(w in low for w in c[1]))
+    cut = next(c for c in CUTS if any(w in low for w in c[1]))
+    if group in BUILDINGS and cut[0] in BUILDING_KEEP: cut = (cut[0], cut[1], BUILDING_KEEP[cut[0]], *cut[3:])
+    return cut
 
 
 def feeders(socket, depth=5):
@@ -253,7 +272,7 @@ def place(shape, matrix, group, label, cut):
         ids = np.flatnonzero(mids == mid)
         m = mats[mid] if mid < len(mats) else None
         roblox, colour, uses_vc, images, slope = shade(m)
-        if PATCH and roblox not in PATCH_MATERIALS: continue   # a patch rebuilds only what the patched meshes held
+        if PATCH and group not in WHOLE and roblox not in PATCH_MATERIALS: continue   # a patch rebuilds only what the patched meshes held
         textured = 'Base Color' in images
         corner = np.ones((len(ids), 3, 4), np.float32)
         if textured: pass   # the image carries the colour
@@ -277,6 +296,10 @@ def flush():
     for tmp, name in pending:
         ev = tmp.evaluated_get(deps); mesh = ev.to_mesh()
         cache[name] = mesh_arrays(mesh); ev.to_mesh_clear()
+        if name in whole:   # the small pieces set aside uncut join what the cut left of the large ones
+            (v, t, uv, col, mids, mats), (v2, t2, uv2, col2, mids2, _) = cache[name], whole.pop(name)
+            cache[name] = (np.concatenate([v, v2]), np.concatenate([t, t2 + len(v)]), np.concatenate([uv, uv2]),
+                           None if col is None else np.concatenate([col, col2]), np.concatenate([mids, mids2]), mats)
     for tmp, name in pending:
         data = tmp.data; bpy.data.objects.remove(tmp); bpy.data.meshes.remove(data)
         for matrix, group, label, cut in uses.pop(name): place(cache[name], matrix, group, label, cut)
@@ -284,6 +307,7 @@ def flush():
 
 
 uses = defaultdict(list)
+whole = {}   # per object: its small pieces, set aside uncut while the rest is cut
 queued_tris = 0
 
 
@@ -312,14 +336,18 @@ def realized_instance_mesh(o, collection):
 def request(o, deps, matrix, group, label, collection):
     """Cut an object down once (instances reuse the result) and place it at `matrix`."""
     global queued_tris, source_tris
-    cut = cut_of(o, label)
+    cut = cut_of(o, label, group)
     name = o.name
     if name in cache: return place(cache[name], matrix, group, label, cut)
     uses[name].append((matrix, group, label, cut))
     if len(uses[name]) > 1: return
+    bevels = [m for m in getattr(o, 'modifiers', ()) if group in BUILDINGS and m.type == 'BEVEL' and m.show_viewport]
+    for m in bevels: m.show_viewport = False
+    if bevels: deps = bpy.context.evaluated_depsgraph_get()
     ev = o.evaluated_get(deps)
     mesh = (realized_instance_mesh(o, collection) if o.get('wp_grass_cards') or o.get('wp_instance_geometry') else
             bpy.data.meshes.new_from_object(ev, preserve_all_data_layers=True, depsgraph=deps))
+    for m in bevels: m.show_viewport = True
     count = sum(max(0, len(p.vertices) - 2) for p in mesh.polygons)
     source_tris += count
     if count == 0:
@@ -341,8 +369,17 @@ def request(o, deps, matrix, group, label, collection):
             return
     bm = bmesh.new(); bm.from_mesh(mesh)
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=.0005); bm.to_mesh(mesh); bm.free()
-    tmp = bpy.data.objects.new('cut ' + name, mesh); collection.objects.link(tmp)
     ratio = min(1, max(keep, MIN_KEEP / count))
+    if ratio < 1 and group in BUILDINGS:
+        v, t, uv, col, mids, mats = mesh_arrays(mesh)
+        label = islands(t, len(v)); per = np.bincount(label[t[:, 0]], minlength=len(v))
+        small = per[label[t[:, 0]]] <= WHOLE_PIECE
+        if small.any():
+            whole[name] = (v, t[small], uv[small], None if col is None else col[small], mids[small], mats)
+            bm = bmesh.new(); bm.from_mesh(mesh); bm.verts.index_update()
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if per[label[f.verts[0].index]] <= WHOLE_PIECE], context='FACES')
+            bm.to_mesh(mesh); bm.free()
+    tmp = bpy.data.objects.new('cut ' + name, mesh); collection.objects.link(tmp)
     if ratio < 1:
         mod = tmp.modifiers.new('Cut', 'DECIMATE'); mod.decimate_type = 'COLLAPSE'; mod.ratio = ratio
         mod.use_collapse_triangulate = True
@@ -389,14 +426,14 @@ for scene in sources:
                 manifest['trees'].append({'template': re.sub(r'LOD\d', 'Roblox', c.name), 'matrix': [list(r) for r in tree]})
                 continue
             group = area(o, inside)
-            if ONLY and group not in ONLY or PATCH and o.name not in PATCH_SOURCES: continue
+            if ONLY and group not in ONLY or PATCH and group not in WHOLE and o.name not in PATCH_SOURCES: continue
             for child in c.all_objects:
                 if child.type in {'MESH', 'FONT', 'CURVE'} and not child.hide_render:
                     request(child, deps, world @ Matrix.Translation(-c.instance_offset) @ child.matrix_world, group,
                             o.name + ' / ' + child.name, cutting)
         elif o.type in {'MESH', 'FONT', 'CURVE'}:
             group = area(o, inside)
-            if ONLY and group not in ONLY or PATCH and o.name not in PATCH_SOURCES: continue
+            if ONLY and group not in ONLY or PATCH and group not in WHOLE and o.name not in PATCH_SOURCES: continue
             request(o, deps, world, group, o.name, cutting)
     flush()
     bpy.data.collections.remove(cutting)
@@ -485,7 +522,7 @@ for key in sorted(buckets, key=str):
     for ids in pieces(np.arange(len(t)), centres, cell):
         vert_ids, faces = np.unique(t[ids].ravel(), return_inverse=True)
         coords = v[vert_ids]; lo, hi = coords.min(axis=0), coords.max(axis=0); centre = (lo + hi) / 2
-        serial[group] += 1; name = f'WP_{group}_P{serial[group]:02d}' if PATCH else f'WP_{group}_{serial[group]:03d}'
+        serial[group] += 1; name = f'WP_{group}_{TAG}{serial[group]:02d}' if PATCH else f'WP_{group}_{serial[group]:03d}'
         data = bpy.data.meshes.new(name)
         data.from_pydata((coords - centre).tolist(), [], faces.reshape(-1, 3).tolist())
         data.materials.append(fbx_material(roblox, image_key))
@@ -501,8 +538,9 @@ for key in sorted(buckets, key=str):
         row = {'name': name, 'group': group, 'triangles': len(ids), 'position': list(AX @ Vector(centre)),
                'size': [float(size[0]), float(size[2]), float(size[1])], 'material': roblox,
                'collision': ('precise' if precise else 'default') if collide else 'none',
-               'double_sided': bool(double), 'images': [n for _, n in image_key], 'night': night.split(' / ')[-1].split('.')[0] if night else None,
+               'double_sided': bool(double) or group in BUILDINGS, 'images': [n for _, n in image_key], 'night': night.split(' / ')[-1].split('.')[0] if night else None,
                'sources': sources[:4]}
+        if group in BUILDINGS and not double: row['cast_shadow'] = True
         if image_key:
             row['texture_maps'] = dict(image_key)
         if any(socket == 'Alpha' for socket, _ in image_key):
@@ -519,7 +557,7 @@ for template in templates:
 # One FBX per area (two when it is large); the three oaks share one.
 files = defaultdict(list)
 for group, objects in by_group.items():
-    stem = 'Patch' if PATCH else 'Trees' if group.startswith('Oak_') else group
+    stem = f'Patch{TAG}' if PATCH else 'Trees' if group.startswith('Oak_') else group
     files[stem] += objects
 for old in OUT.glob('WP_*.fbx'):
     if not ONLY: old.unlink()
@@ -540,13 +578,12 @@ for stem, objects in sorted(files.items()):
         log(f'{filename}: {len(chosen)} meshes, {manifest["files"][-1]["triangles"]:,} triangles')
 if PATCH:
     # The patch's meshes take the patched ones' places in the full manifest; the patched names are recorded so
-    # install_worldplan.lua's Patch stage can remove them from the place.
-    new = manifest['meshes']; manifest = old_manifest
+    # install_worldplan.lua's Patch stage can remove them from the place. Its files (WP_PatchQ.fbx, or
+    # WP_PatchQ_1.fbx ... when large) are marked as replacing them.
+    new, written = manifest['meshes'], manifest['files']; manifest = old_manifest
     manifest['meshes'] = [r for r in manifest['meshes'] if r['name'] not in PATCH] + new
     for file in manifest['files']: file['meshes'] = [n for n in file['meshes'] if n not in PATCH]
-    manifest['files'] = [f for f in manifest['files'] if f['meshes'] and f['file'] != 'WP_Patch.fbx']
-    manifest['files'].append({'file': 'WP_Patch.fbx', 'meshes': [r['name'] for r in new],
-                              'triangles': sum(r['triangles'] for r in new), 'replaces': sorted(PATCH)})
+    manifest['files'] = [f for f in manifest['files'] if f['meshes']] + [dict(f, replaces=sorted(PATCH)) for f in written]
     manifest.setdefault('patched', []).extend(sorted(PATCH))
     log('Patch: ' + ', '.join(f"{r['name']} ({r['collision']}, {r['sources'][0]})" for r in new))
 name = 'manifest.json' if not ONLY or PATCH else 'manifest-partial.json'

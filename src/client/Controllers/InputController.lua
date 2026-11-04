@@ -5,7 +5,16 @@ local CAS=game:GetService("ContextActionService")
 local Run=game:GetService("RunService")
 local Prompts=game:GetService("ProximityPromptService")
 local I={}
-function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Lancing=false; self.LastCast=0; self.VisiblePrompts={}; self.Taps={} end
+function I:Init(controllers) self.C=controllers; self.Player=Players.LocalPlayer; self.Locked=true; self.Lancing=false; self.LastCast=0; self.VisiblePrompts={}; self.Taps={}; self.PromptPause=0 end
+-- Interaction prompts stand down while a conversation or menu is open, and while the server answers the one just
+-- used, so E can't start a conversation over. They come back as soon as it closes.
+function I:PromptGate()
+    local open=self.C.UIController:IsOpen()
+    if open then self.PromptPause=0 end
+    local on=not open and os.clock()>=self.PromptPause
+    if Prompts.Enabled~=on then Prompts.Enabled=on end
+end
+function I:PausePrompts(seconds) self.PromptPause=os.clock()+(seconds or 1.5); self:PromptGate() end
 function I:CameraMode()
     local open=self.C.UIController:IsOpen() or UIS:GetFocusedTextBox()~=nil
     if self.Controls and open~=self.ControlsPaused then
@@ -138,6 +147,7 @@ end
 function I:Start()
     Prompts.PromptShown:Connect(function(prompt) self.VisiblePrompts[prompt]=true end)
     Prompts.PromptHidden:Connect(function(prompt) self.VisiblePrompts[prompt]=nil end)
+    Prompts.PromptTriggered:Connect(function() self:PausePrompts() end)
     task.spawn(function()
         local module=self.Player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule",15)
         if module then self.Controls=require(module):GetControls(); self:CameraMode() end
@@ -158,7 +168,7 @@ function I:Start()
             -- Let the visible prompt receive its gamepad key instead of casting a spell.
             if tostring(input.UserInputType):find("Gamepad") then
                 for prompt in pairs(self.VisiblePrompts) do
-                    if prompt.Parent and prompt.Enabled and prompt.GamepadKeyCode==input.KeyCode then
+                    if Prompts.Enabled and prompt.Parent and prompt.Enabled and prompt.GamepadKeyCode==input.KeyCode then
                         return Enum.ContextActionResult.Pass
                     end
                 end
@@ -199,7 +209,7 @@ function I:Start()
     self.Player.CameraMinZoomDistance=0.5; self.Player.CameraMaxZoomDistance=14
     local elapsed=0
     Run:BindToRenderStep("WandboundCamera",Enum.RenderPriority.Camera.Value+1,function(dt)
-        self:CameraMode(); elapsed=elapsed+dt
+        self:CameraMode(); self:PromptGate(); elapsed=elapsed+dt
         if elapsed>0.12 then elapsed=0; local aim=self:Aim(); if aim then RS.Remotes.Aim:FireServer(aim) end end
     end)
 end

@@ -698,7 +698,7 @@ do
     local uis={GetFocusedTextBox=function() return focused end,GetMouseLocation=function() return {X=0,Y=0} end,
         InputBegan=signal(),TextBoxFocused=signal(),TextBoxFocusReleased=signal(),WindowFocusReleased=signal()}
     local player={PlayerGui={GetGuiObjectsAtPosition=function() return {} end},CharacterAdded=signal(),GetAttribute=function() return nil end}
-    local prompts={PromptShown=signal(),PromptHidden=signal()}
+    local prompts={PromptShown=signal(),PromptHidden=signal(),PromptTriggered=signal(),Enabled=true}
     local services={Players={LocalPlayer=player},ReplicatedStorage={},UserInputService=uis,ContextActionService=cas,RunService={BindToRenderStep=function() end},ProximityPromptService=prompts}
     game={GetService=function(_,name) return services[name] end}
     local input=dofile(ROOT.."/src/client/Controllers/InputController.lua")
@@ -756,6 +756,16 @@ do
     slot(nil,"Begin",interact); check(casts==before+3,"disabled prompts do not block spells")
     prompt.Enabled=true; prompt.Parent=nil
     slot(nil,"Begin",interact); check(casts==before+4,"removed prompts do not block spells")
+    input:PromptGate(); check(prompts.Enabled,"prompts show while nothing is open")
+    prompts.PromptTriggered.Callback(prompt); check(not prompts.Enabled,"a used prompt stands down while the server answers")
+    ui.Menu="Dialogue"; input:PromptGate(); check(not prompts.Enabled,"no prompt during a conversation, so E can't restart it")
+    ui.Menu="Library"; input:PromptGate(); check(not prompts.Enabled,"no prompt while a menu is open")
+    ui.Menu=nil; input:PromptGate(); check(prompts.Enabled,"prompts return as soon as the conversation closes")
+    input:PausePrompts(); check(not prompts.Enabled,"a reply that asks the server hides prompts until it answers")
+    input.PromptPause=0; input:PromptGate(); check(prompts.Enabled,"prompts return if the server sends nothing")
+    prompt.Parent={}; prompts.PromptShown.Callback(prompt); prompts.Enabled=false
+    slot(nil,"Begin",interact); check(casts==before+5,"a hidden prompt does not swallow the gamepad key")
+    prompts.Enabled=true
 end
 -- Every sound the client plays is in SoundData, every zone has its music, and the Music setting can be switched.
 do
@@ -770,4 +780,40 @@ do
     local f=assert(io.open(ROOT.."/src/server/Services/ProgressionService.lua")); local text=f:read("a"); f:close()
     check(text:find("Music = true",1,true),"players can switch the music off")
 end
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing, sounds and music).")
+-- The academy's door leads to its interior, 1,500 studs up, and back (WorldService.StartAcademyPortals).
+do
+    local oldGame,oldWorkspace,oldInstance,oldCFrame,oldRequire=game,workspace,Instance,CFrame,require
+    local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
+    local prompts={}
+    Instance={new=function(class) local o={ClassName=class,Triggered=signal()}; if class=="ProximityPrompt" then prompts[#prompts+1]=o end; return o end}
+    CFrame={new=function(p) return {Position=p} end}
+    local inside={Position=Vector3.new(85,1503,-598)}
+    local door={Name="Enter",Position=Vector3.new(85,13.6,-525.7),Touched=signal(),IsA=function(_,c) return c=="BasePart" end,
+        GetAttribute=function(_,k) return k=="ActionText" and "Enter the academy" or nil end,
+        FindFirstChild=function(_,k) return k=="Destination" and {Value=inside,IsA=function(_,c) return c=="CFrameValue" end} or nil end}
+    workspace={StreamingEnabled=false,FindFirstChild=function(_,k) return k=="AcademyPortals" and {GetChildren=function() return {door} end} or nil end}
+    local character,pivot={},nil
+    local root={Position=Vector3.new(85,9,-522)}
+    character.HumanoidRootPart=root; character.FindFirstChild=function(_,k) return character[k] end
+    character.PivotTo=function(_,cf) pivot=cf; root.Position=cf.Position end
+    local player={Character=character}
+    local players={PlayerRemoving=signal(),GetPlayerFromCharacter=function(_,m) return m==character and player or nil end}
+    game={GetService=function(_,name) return ({Players=players,ReplicatedStorage={Shared=shared},Lighting={}})[name] end}
+    require=function(path) return assert(loadfile(path))() end
+    local W=require(ROOT.."/src/server/Services/WorldService.lua")
+    local busy,cancelled=false,0
+    W.S={CombatService={States={[player]={Humanoid={Health=100}}}},DuelService={IsBusy=function() return busy end},
+        ClassService={Cancel=function() cancelled=cancelled+1 end}}
+    W.Movement={}
+    W:StartAcademyPortals()
+    check(#prompts==1 and prompts[1].ActionText=="Enter the academy" and prompts[1].Parent==door,"the academy door has its prompt")
+    busy=true; prompts[1].Triggered.Callback(player); check(pivot==nil,"no entering the academy mid-duel")
+    busy=false; prompts[1].Triggered.Callback(player)
+    check(pivot==inside and cancelled==1,"the door takes a student into the interior and ends their lesson")
+    check(W.Movement[player] and W.Movement[player].Grace>os.clock(),"the portal jump is not taken for a speed cheat")
+    root.Position=Vector3.new(85,9,-522); pivot=nil
+    door.Touched.Callback({FindFirstAncestorOfClass=function() return character end})
+    check(pivot==nil,"just through the door, it does not send them straight back")
+    game,workspace,Instance,CFrame,require=oldGame,oldWorkspace,oldInstance,oldCFrame,oldRequire
+end
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing, sounds, music and the academy portals).")

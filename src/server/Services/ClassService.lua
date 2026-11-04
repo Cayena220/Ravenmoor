@@ -43,7 +43,8 @@ function L:Submit(player,token,points)
         local model=Instance.new("Model"); model.Name="Lesson target"
         local part=Instance.new("Part"); part.Name="HumanoidRootPart"; part.Shape=Enum.PartType.Ball; part.Size=Vector3.new(2.5,2.5,2.5)
         part.Anchored=true; part.CanCollide=false; part.Material=Enum.Material.Neon; part.Color=Color3.fromRGB(117,216,201)
-        local pos=marker.Position+Vector3.new((i-3)*5,5,15); part.Position=pos; part.Parent=model; model.PrimaryPart=part
+        local depth=marker:GetAttribute("LessonTargetDepth") or 15
+        local pos=marker.Position+Vector3.new((i-3)*5,5,depth); part.Position=pos; part.Parent=model; model.PrimaryPart=part
         local hum=Instance.new("Humanoid"); hum.RequiresNeck=false; hum.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; hum.Parent=model
         model:SetAttribute("LessonOwner",player.UserId); model.Parent=self.S.WorldService.Targets
         local target=self.S.CombatService:Register(model,{Dummy=true,LessonOwner=player,Home=pos,Index=i})

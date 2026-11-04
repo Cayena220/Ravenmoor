@@ -29,6 +29,47 @@ function W:Teleport(player, position)
     player.Character:PivotTo(CFrame.new(position))
     root.AssemblyLinearVelocity = Vector3.zero
 end
+-- Portal parts are installed with the WorldPlan map; older maps remain compatible.
+function W:StartAcademyPortals()
+    local portals=workspace:FindFirstChild("AcademyPortals")
+    if not portals then return end
+    local cooldown, pending={},{}
+    Players.PlayerRemoving:Connect(function(player) cooldown[player]=nil; pending[player]=nil end)
+    for _,portal in ipairs(portals:GetChildren()) do
+        local destination=portal:IsA("BasePart") and portal:FindFirstChild("Destination")
+        if destination and destination:IsA("CFrameValue") then self:Portal(portal,destination,cooldown,pending) end
+    end
+end
+-- A portal part sends a student who touches it, or uses its prompt, to its Destination.
+function W:Portal(portal,destination,cooldown,pending)
+    local function enter(player)
+        if pending[player] or os.clock()<(cooldown[player] or 0) then return end
+        local root=self:Root(player)
+        if not root or not self:Near(player,portal,18) or self.S.DuelService:IsBusy(player) then return end
+        pending[player]=true
+        local character=player.Character
+        if workspace.StreamingEnabled then pcall(function() player:RequestStreamAroundAsync(destination.Value.Position,5) end) end
+        if player.Character==character and self:Near(player,portal,18) then
+            self.S.ClassService:Cancel(player)
+            self:Teleport(player,destination.Value.Position)
+            character:PivotTo(destination.Value)
+            local moved=self:Root(player)
+            if moved then moved.AssemblyAngularVelocity=Vector3.zero end
+            cooldown[player]=os.clock()+2
+        end
+        pending[player]=nil
+    end
+    local prompt=Instance.new("ProximityPrompt")
+    prompt.Name="AcademyEntrance"; prompt.ActionText=portal:GetAttribute("ActionText") or "Enter"
+    prompt.ObjectText="Ravenmoor Academy"; prompt.MaxActivationDistance=12
+    prompt.RequiresLineOfSight=false; prompt.HoldDuration=.2; prompt.Parent=portal
+    prompt.Triggered:Connect(enter)
+    portal.Touched:Connect(function(hit)
+        local character=hit:FindFirstAncestorOfClass("Model")
+        local player=character and Players:GetPlayerFromCharacter(character)
+        if player then enter(player) end
+    end)
+end
 function W:Travel(player, destination)
     local d = self.S.PlayerDataService:Get(player); local pos = Config.Waystones[destination]
     local s = self.S.CombatService.States[player]
@@ -52,6 +93,7 @@ function W:SetNightLights(night)
     end
 end
 function W:Start()
+    self:StartAcademyPortals()
     self.S.NetworkService.Handlers.Travel = function(player, id) if type(id) == "string" then self:Travel(player, id) end end
     Players.PlayerRemoving:Connect(function(player) self.Movement[player] = nil end)
     self.NightLights = {}

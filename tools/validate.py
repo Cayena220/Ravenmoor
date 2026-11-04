@@ -30,6 +30,35 @@ def box(node):
 
 def name_of(node): return node.find("Properties/string[@name='Name']").text
 
+def check_worldplan(world, items):
+    """The WorldPlan map against its export's manifest (when blender/exports holds one, as it does after an export):
+    every mesh in place, every oak blender/thin_forest.py keeps standing (all of them without its list), both portals set."""
+    scenery=next((i for i in items if i.get('class')=='Model' and name_of(i)=='Scenery'),None)
+    meshes=[n for root in (world,scenery) if root is not None for n in root.iter('Item')
+            if n.get('class')=='MeshPart' and (name_of(n).startswith('WP_') or name_of(n) in ('Lit window','Lantern'))]
+    oaks={name_of(n) for n in world.iter('Item') if n.get('class')=='Model' and name_of(n).startswith('Oak ')}
+    path=ROOT/'blender/exports/RobloxWorld/manifest.json'
+    if path.exists():
+        manifest=json.loads(path.read_text())
+        expected=sum(1 for r in manifest['meshes'] if not r['group'].startswith('Oak_'))
+        assert len(meshes)==expected, f'{len(meshes)} WorldPlan meshes in the place, {expected} in the manifest (blender/install_worldplan.lua)'
+        kept=range(1,len(manifest['trees'])+1)
+        thinning=path.parent/'forest_thinning.json'
+        if thinning.exists():
+            thinning=json.loads(thinning.read_text())
+            assert (thinning['source_sha256'],thinning['trees_in_manifest'])==(manifest['source_sha256'],len(manifest['trees'])), \
+                'forest_thinning.json is for an older export: run blender/thin_forest.py, then blender/thin_forest.lua'
+            kept=thinning['kept']
+        standing={f'Oak {i:04d}' for i in kept}
+        assert oaks==standing, f'{len(oaks)} oaks stand; {len(standing)} should (blender/thin_forest.lua), {len(oaks^standing)} differ'
+    oaks=len(oaks)
+    portals=next(i for i in items if i.get('class')=='Folder' and name_of(i)=='AcademyPortals')
+    for name in ('Enter','Return'):
+        p=next((n for n in portals.findall('Item') if name_of(n)==name),None)
+        assert p is not None and p.find("Item[@class='CFrameValue']") is not None, f'Academy portal {name} has no destination'
+    return len(meshes),oaks
+
+
 def main():
     place=ROOT/'Wandbound-Ravenmoor-Academy.rbxlx'
     tree=ET.parse(place)
@@ -66,50 +95,57 @@ def main():
         for n in range(1,6):
             intersections=solid((x+(n-3)*5,y+5,z+15),1.25)
             assert not intersections, f'{name}: target intersects {intersections}'
-    # Shop prompts: a clear standing spot, shop walls on both sides of the doorway behind it, and an open doorway.
-    # A moved or rotated map fails here, because the prompts are fixed in Workspace.Markers.
-    for name in ('Oakhart','Bank','Apothecary'):
-        x,y,z=spots[name]; behind=(1.5,2,2.5,3,3.5)
-        assert not any(solid((x+dx,y,z+dz)) for dx,dz in ((0,0),(1.5,0),(-1.5,0),(0,1.5),(0,-1.5))), f'{name}: prompt spot is blocked'
-        for dx in (-6.5,6.5):
-            assert any(solid((x+dx,4,z-k)) for k in behind), f'{name}: no shop wall beside the prompt (was the map moved or rotated?)'
-        assert not any(solid((x,7.5,z-k)) for k in behind), f'{name}: shop doorway is blocked'
-    # Village layout: house plinths stay off roads, lanes, paths, plaza furniture, the dock, Waystone and spawn pad,
-    # and off each other. The shops deliberately sit over the edges of the square's base slab, so it is not checked.
     world=next(i for i in items if i.get('class')=='Model' and name_of(i)=='Map')
-    ground=[]
-    for group in world.findall('Item'):
-        for node in group.iter('Item'):
-            n=name_of(node)
-            if node.get('class')=='Part' and (n in ('Academy approach','Forest path','Forest path link','Shop lane','Garden path','Ferry dock','Planter','Bench seat')
-                                              or (n=='Stone' and name_of(group).endswith('Waystone'))): ground.append((n,box(node)))
-    ground+=[(name_of(s),box(s)) for s in items if s.get('class')=='SpawnLocation']
+    # The WorldPlan map (blender/install_worldplan.lua) is meshes, so the part-built map's checks don't apply to it.
+    worldplan=any(i.get('class')=='Folder' and name_of(i)=='AcademyPortals' for i in items)
     houses={}
-    for group in world.iter('Item'):
-        for node in group.findall('Item'):
-            if name_of(node)=='Plinth' and node.get('class')=='Part': houses[name_of(group)]=box(node)
-    def overlap(a,b): return all(abs(a[0][i]-b[0][i])<a[1][i]+b[1][i]-0.05 for i in (0,2))
-    names=sorted(houses)
-    for i,a in enumerate(names):
-        for b in names[i+1:]: assert not overlap(houses[a],houses[b]), f'{a} overlaps {b}'
-        hits=[n for n,g in ground if overlap(houses[a],g)]
-        assert not hits, f'{a} sits on {hits}'
-    map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart'))
-    # The terraced academy campus (stairs, halls, towers, house quarters) takes the map to about 3,000 parts, and the
-    # long roads, their lamps and the Castle Grounds landmarks (tools/layout.py, tools/grounds.py) to about 4,100.
-    assert map_parts<=4400, f'Map has {map_parts} parts; the budget is 4400'
+    if not worldplan:
+        # Shop prompts: a clear standing spot, shop walls on both sides of the doorway behind it, and an open doorway.
+        # A moved or rotated map fails here, because the prompts are fixed in Workspace.Markers.
+        for name in ('Oakhart','Bank','Apothecary'):
+            x,y,z=spots[name]; behind=(1.5,2,2.5,3,3.5)
+            assert not any(solid((x+dx,y,z+dz)) for dx,dz in ((0,0),(1.5,0),(-1.5,0),(0,1.5),(0,-1.5))), f'{name}: prompt spot is blocked'
+            for dx in (-6.5,6.5):
+                assert any(solid((x+dx,4,z-k)) for k in behind), f'{name}: no shop wall beside the prompt (was the map moved or rotated?)'
+            assert not any(solid((x,7.5,z-k)) for k in behind), f'{name}: shop doorway is blocked'
+        # Village layout: house plinths stay off roads, lanes, paths, plaza furniture, the dock, Waystone and spawn pad,
+        # and off each other. The shops deliberately sit over the edges of the square's base slab, so it is not checked.
+        ground=[]
+        for group in world.findall('Item'):
+            for node in group.iter('Item'):
+                n=name_of(node)
+                if node.get('class')=='Part' and (n in ('Academy approach','Forest path','Forest path link','Shop lane','Garden path','Ferry dock','Planter','Bench seat')
+                                                  or (n=='Stone' and name_of(group).endswith('Waystone'))): ground.append((n,box(node)))
+        ground+=[(name_of(s),box(s)) for s in items if s.get('class')=='SpawnLocation']
+        houses={}
+        for group in world.iter('Item'):
+            for node in group.findall('Item'):
+                if name_of(node)=='Plinth' and node.get('class')=='Part': houses[name_of(group)]=box(node)
+        def overlap(a,b): return all(abs(a[0][i]-b[0][i])<a[1][i]+b[1][i]-0.05 for i in (0,2))
+        names=sorted(houses)
+        for i,a in enumerate(names):
+            for b in names[i+1:]: assert not overlap(houses[a],houses[b]), f'{a} overlaps {b}'
+            hits=[n for n,g in ground if overlap(houses[a],g)]
+            assert not hits, f'{a} sits on {hits}'
+        map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart'))
+        # The terraced academy campus (stairs, halls, towers, house quarters) takes the map to about 3,000 parts, and the
+        # long roads, their lamps and the Castle Grounds landmarks (tools/layout.py, tools/grounds.py) to about 4,100.
+        assert map_parts<=4400, f'Map has {map_parts} parts; the budget is 4400'
     # Night lights (Config.NightLights): every window pane can light up, all are glass by day, and every
     # lantern carries a light for WorldService to switch on.
-    lights=[n for n in world.iter('Item') if n.get('class') in ('Part','WedgePart') and name_of(n) in ('Lit window','Lantern')]
+    lights=[n for n in world.iter('Item') if n.get('class') in ('Part','WedgePart','MeshPart') and name_of(n) in ('Lit window','Lantern')]
     assert lights and all(n.findtext("Properties/token[@name='Material']")=='1568' for n in lights), 'A night light is not glass by day'
     assert all(n.find("Item[@class='PointLight']") is not None for n in lights if name_of(n)=='Lantern'), 'A lantern has no light'
     assert not any(name_of(n)=='Window' for n in world.iter('Item')), 'A window pane is outside the night-light pattern'
     lanterns=sum(1 for n in lights if name_of(n)=='Lantern')
-    validate_academy(world,geometry,spots,box,name_of)
+    if worldplan: meshes,oaks=check_worldplan(world,items)
+    else: validate_academy(world,geometry,spots,box,name_of)
+    map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart') and name_of(i)!='Trunk')
     print(f'PASS: place XML, {len(items)} instances, {len(sources)} embedded sources, {len(required)} interaction anchors, classroom clearance,')
-    print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts,')
+    if worldplan: print(f'      the WorldPlan map with {meshes} meshes, {oaks} oaks and both academy portals, {map_parts} map parts,')
+    else: print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts,')
     print(f'      {len(lights)-lanterns} windows and {lanterns} lanterns that light up at night.')
-    if signature(world)!=signature(ET.fromstring(map_item())):
+    if not worldplan and signature(world)!=signature(ET.fromstring(map_item())):
         print('NOTE: the place map differs from world/Map.rbxmx. Fine if you edited it in Studio on purpose;'
               ' otherwise run python tools/sync_scripts.py --map.')
     libname=os.environ.get('WANDBOUND_LUA_LIBRARY') or ctypes.util.find_library('lua5.4') or ctypes.util.find_library('lua54')

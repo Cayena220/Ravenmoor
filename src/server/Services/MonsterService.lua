@@ -14,11 +14,19 @@ local function part(parent,name,size,cf,color,shape)
 end
 function M:Init(services) self.S=services; self.Spawns={}; self.Alive={}; self.NextId=0 end
 function M:Count() local count=0; for _ in pairs(self.Alive) do count=count+1 end; return count end
+-- The ground under a point, looking down from `from` (8 studs up by default). Whisperwood's floor is not flat
+-- everywhere (the Howler Den rises two studs), so monsters stand and walk on what is under them.
+function M:Ground(x,z,from)
+    from=from or 8
+    local hit=workspace:Raycast(Vector3.new(x,from,z),Vector3.new(0,-from-20,0),self.S.SpellService:Params(self.S.SpellService:WorldIgnore()))
+    return hit and hit.Position.Y or 0
+end
 function M:Spawn(id,pos,spawner,brood)
     if self:Count()>=Config.MaxMonsters then return end
     local def=Data[id]; local stat=F.Monster(def.Level,def.Rank); local size=brood and 1.7 or def.Size
     local model=Instance.new("Model"); model.Name=def.Name; local color=Color3.fromRGB(table.unpack(def.Color))
-    local y=def.Flying and 6 or size/2+0.5; local position=Vector3.new(pos.X,y,pos.Z)
+    local ground=self:Ground(pos.X,pos.Z)
+    local y=ground+(def.Flying and 6 or size/2+0.5); local position=Vector3.new(pos.X,y,pos.Z)
     local root=part(model,"HumanoidRootPart",Vector3.new(size,size,size),CFrame.new(position),color,Enum.PartType.Ball)
     model.PrimaryPart=root
     for side=-1,1,2 do
@@ -69,7 +77,10 @@ function M:Move(s,destination,dt,speed)
         if workspace:Spherecast(s.Root.Position,math.min(1.2,radius),dir*(amount+1),params) then return end
     end
     local p=s.Root.Position+dir*amount
-    if s.Def.Flying then p=Vector3.new(p.X,6+math.sin(os.clock()*2)*0.6,p.Z) end
+    -- Look down from just above the body, so a tree trunk overhead never lifts it.
+    local ground=self:Ground(p.X,p.Z,s.Root.Position.Y-s.Size/2+1.5)
+    if s.Def.Flying then p=Vector3.new(p.X,ground+6+math.sin(os.clock()*2)*0.6,p.Z)
+    else p=Vector3.new(p.X,ground+s.Size/2+0.5,p.Z) end
     s.Model:PivotTo(CFrame.lookAt(p,p+dir))
 end
 function M:Protected(player,position)

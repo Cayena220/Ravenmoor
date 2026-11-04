@@ -767,6 +767,15 @@ function U:UpdateHUD()
     self.Crosshair.Visible=not self:IsOpen() and (not self.C.InputController or self.C.InputController.Locked)
 end
 -- Every frame: the minimap turns with the camera (your arrow points the way you face), and cooldowns drain.
+-- The academy interior stands 1,500 studs above the grounds (blender/install_worldplan.lua). A quest point on the
+-- other side of its door is shown at the door.
+function U:Guide(point)
+    local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
+    if not point or not root then return point end
+    local inside=root.Position.Y>1000
+    if (point[2]>1000)~=inside then return Points[inside and "AcademyExit" or "AcademyEntrance"] end
+    return point
+end
 function U:UpdateFrame()
     if not self.HUD.Visible then return end
     local camera=workspace.CurrentCamera; local root=self.Player.Character and self.Player.Character:FindFirstChild("HumanoidRootPart")
@@ -783,7 +792,7 @@ function U:UpdateFrame()
             gui.Visible=true; gui.Position=UDim2.new(0.5,p.X,0.5,p.Y)
         end
         for letter,way in pairs(CARDINALS) do self.Cardinals[letter].Position=UDim2.new(0.5,way:Dot(r)*radius,0.5,-way:Dot(f)*radius) end
-        local d=self.Data; local q=d and Quests[d.Quest]; local point=q and Points[q.Anchor]
+        local d=self.Data; local q=d and Quests[d.Quest]; local point=q and self:Guide(Points[q.Anchor])
         if point then place(self.MapQuest,point[1]-pos.X,point[3]-pos.Z,true) else self.MapQuest.Visible=false end
         for id,ring in pairs(self.MapWaystones) do
             local at=Points["Waystone_"..id]
@@ -846,7 +855,10 @@ function U:Start()
         elseif kind=="Dialogue" then
             local choices={}
             for i,choice in ipairs(info.Choices) do
-                choices[i]={Label=choice.Label,Run=function() self:Close(); self:Action("Interact",info.Anchor,choice.Id) end}
+                choices[i]={Label=choice.Label,Run=function()
+                    self:Close(); if self.C.InputController then self.C.InputController:PausePrompts() end
+                    self:Action("Interact",info.Anchor,choice.Id)
+                end}
             end
             choices[#choices+1]={Label="Goodbye",Run=function() self:Close() end}
             self:Dialogue(info.Name,info.Text,choices)

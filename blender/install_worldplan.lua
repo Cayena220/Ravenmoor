@@ -10,7 +10,8 @@ decoded blender/exports/RobloxWorld/manifest.json:
     W.Trees(manifest, count)     builds the next `count` oaks from the three templates; run again until all stand
     W.Finish(manifest)           swaps the maps, moves the staff, Mirror and Library into the academy interior,
                                  and adds the portals and lamps
-    W.Patch(manifest)            after an export with --patch: swaps in the meshes from an imported WP_Patch.fbx
+    W.Patch(manifest, seconds)   after an export with --patch: sets up the meshes from its imported WP_Patch*.fbx
+                                 files, then swaps them in; run again until it reports none left
 
 Every stage can run again and skips what is done. Until Finish, nothing outside ServerStorage."WorldPlan Staging"
 changes, and Finish keeps everything it takes off the map in ServerStorage."WorldPlan Recovery".
@@ -100,7 +101,8 @@ local function setUp(part, row)
     part.Anchored, part.CanTouch = true, false
     part.CanCollide = row.collision ~= "none"; part.CanQuery = part.CanCollide
     part.Color, part.Transparency, part.Reflectance = WHITE, 0, 0
-    part.CastShadow = row.material ~= "Glass" and not row.double_sided
+    -- Thin things drawn from both sides (planting, cloth, glass) cast no shadow; buildings drawn from both sides do.
+    part.CastShadow = row.material ~= "Glass" and (row.cast_shadow or not row.double_sided)
     part.RenderFidelity = Enum.RenderFidelity.Automatic
     pcall(function() part.DoubleSided = row.double_sided end)
     if row.material == "Water" then
@@ -269,40 +271,60 @@ function W.SolidWindows(seconds)
     return string.format("%d windows made solid, %d left.", done, left)
 end
 
--- After an export with --patch and an import of WP_Patch.fbx: the patch's meshes take the patched ones' places in
--- the installed map (Nightfang's and Skyquill's glass, split so their windows are solid and their glazed doors open).
-function W.Patch(manifest)
+-- After an export with --patch and an import of its WP_Patch*.fbx files: the patch's meshes take the patched ones'
+-- places in the installed map (first Nightfang's and Skyquill's glass, split so their windows are solid and their
+-- glazed doors open; then the castle and the four houses, rebuilt whole). Each run sets up new meshes in the staging
+-- folder for up to `seconds`. Once every one is set up, it removes the patched meshes from the map and puts the new
+-- ones in their places, so the map never stands half patched.
+function W.Patch(manifest, seconds)
     local found, new = index(), {}
     for _, file in ipairs(manifest.files) do
         if file.replaces then for _, name in ipairs(file.meshes) do new[name] = true end end
     end
-    local removed, added = {}, {}
     for _, row in ipairs(manifest.meshes) do
         if new[row.name] and not (found[row.name] and found[row.name]:IsDescendantOf(workspace.Map)) then
-            assert(found[row.name], "Import WP_Patch.fbx first: " .. row.name)
+            assert(found[row.name], "Import the patch's FBX files first: " .. row.name)
         end
     end
+    local started, staged, left, removed, added, imprecise = os.clock(), 0, 0, 0, {}, {}
     local recording = ChangeHistoryService:TryBeginRecording("Patch WorldPlan meshes")
-    for _, name in ipairs(manifest.patched or {}) do
-        for _, group in ipairs(workspace.Map:GetChildren()) do
-            local old = group:FindFirstChild(name)
-            if old and old:IsA("MeshPart") then old:Destroy(); table.insert(removed, name) end
-        end
-    end
-    for _, row in ipairs(manifest.meshes) do
+    for i, row in ipairs(manifest.meshes) do
         local part = found[row.name]
-        if new[row.name] and not part:IsDescendantOf(workspace.Map) then
-            part = setUp(part, row)
-            part.Parent = workspace.Map[row.group]
-            table.insert(added, row.name .. " (" .. row.collision .. ")")
-        end
+        if not new[row.name] or part:IsDescendantOf(workspace.Map) or part:GetAttribute("WorldPlanMesh") == row.name then continue end
+        if os.clock() - started > (seconds or 120) then left += 1; continue end
+        found[row.name] = setUp(part, row); staged += 1
+        if i % 10 == 0 then task.wait() end
     end
-    for _, o in ipairs(workspace:GetChildren()) do
-        if o.Name:match("^WP_") and not o:FindFirstChildWhichIsA("BasePart", true) then o:Destroy() end
+    if left == 0 then
+        -- By the WorldPlanMesh tag, as night lights are renamed Lit window or Lantern.
+        local patched = {}
+        for _, name in ipairs(manifest.patched or {}) do patched[name] = true end
+        for _, group in ipairs(workspace.Map:GetChildren()) do
+            for _, old in ipairs(group:GetChildren()) do
+                if old:IsA("MeshPart") and (patched[old.Name] or patched[old:GetAttribute("WorldPlanMesh")]) then
+                    old:Destroy(); removed += 1
+                end
+            end
+        end
+        for _, row in ipairs(manifest.meshes) do
+            local part = found[row.name]
+            if new[row.name] and not part:IsDescendantOf(workspace.Map) then
+                part.Parent = workspace.Map[row.group]
+                added[row.group] = (added[row.group] or 0) + 1
+                if part:GetAttribute("WorldPlanImprecise") then table.insert(imprecise, row.name) end
+            end
+        end
+        for _, o in ipairs(workspace:GetChildren()) do
+            if o.Name:match("^WP_") and not o:FindFirstChildWhichIsA("BasePart", true) then o:Destroy() end
+        end
     end
     if recording then ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit) end
-    return string.format("Removed %s; added %s.", #removed > 0 and table.concat(removed, ", ") or "nothing",
-        #added > 0 and table.concat(added, ", ") or "nothing")
+    if left > 0 then return string.format("Set up %d patch meshes; %d left: run Patch again.", staged, left) end
+    local areas = {}
+    for group, n in pairs(added) do table.insert(areas, group .. " " .. n) end
+    table.sort(areas)
+    return string.format("Removed %d meshes; added %s.%s", removed, #areas > 0 and table.concat(areas, ", ") or "nothing",
+        #imprecise > 0 and " Kept the importer's collision on " .. table.concat(imprecise, ", ") .. "." or "")
 end
 
 -- A meadow-green floor just under the ground, over Config.WorldBounds and a little past it. It closes the seams
