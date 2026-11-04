@@ -402,7 +402,7 @@ function W.Finish(manifest)
     end
     stage.Forest:Destroy()
 
-    -- Portals between the academy's door and its interior (WorldService.StartAcademyPortals).
+    -- Portals between the academy's door and its interior (WorldService.StartPortals).
     local portals = folder(workspace, "AcademyPortals")
     local function portal(name, from, to, action)
         local m, spot = manifest.markers[from], manifest.markers[to]

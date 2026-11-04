@@ -32,7 +32,8 @@ def name_of(node): return node.find("Properties/string[@name='Name']").text
 
 def check_worldplan(world, items):
     """The WorldPlan map against its export's manifest (when blender/exports holds one, as it does after an export):
-    every mesh in place, every oak blender/thin_forest.py keeps standing (all of them without its list), both portals set."""
+    every mesh in place, every oak blender/thin_forest.py keeps standing (all of them without its list), both portals set,
+    and every dormitory door leading somewhere."""
     scenery=next((i for i in items if i.get('class')=='Model' and name_of(i)=='Scenery'),None)
     meshes=[n for root in (world,scenery) if root is not None for n in root.iter('Item')
             if n.get('class')=='MeshPart' and (name_of(n).startswith('WP_') or name_of(n) in ('Lit window','Lantern'))]
@@ -56,7 +57,12 @@ def check_worldplan(world, items):
     for name in ('Enter','Return'):
         p=next((n for n in portals.findall('Item') if name_of(n)==name),None)
         assert p is not None and p.find("Item[@class='CFrameValue']") is not None, f'Academy portal {name} has no destination'
-    return len(meshes),oaks
+    # The houses' dormitory doors (blender/place_dormitory_doors.lua), when placed: each one leads somewhere.
+    dorms=next((i for i in items if i.get('class')=='Folder' and name_of(i)=='DormitoryDoors'),None)
+    doors=dorms.findall('Item') if dorms is not None else []
+    for d in doors:
+        assert d.find("Item[@class='CFrameValue']") is not None, f'Dormitory door {name_of(d)} has no destination'
+    return len(meshes),oaks,len(doors)
 
 
 def main():
@@ -138,11 +144,11 @@ def main():
     assert all(n.find("Item[@class='PointLight']") is not None for n in lights if name_of(n)=='Lantern'), 'A lantern has no light'
     assert not any(name_of(n)=='Window' for n in world.iter('Item')), 'A window pane is outside the night-light pattern'
     lanterns=sum(1 for n in lights if name_of(n)=='Lantern')
-    if worldplan: meshes,oaks=check_worldplan(world,items)
+    if worldplan: meshes,oaks,doors=check_worldplan(world,items)
     else: validate_academy(world,geometry,spots,box,name_of)
     map_parts=sum(1 for i in world.iter('Item') if i.get('class') in ('Part','WedgePart') and name_of(i)!='Trunk')
     print(f'PASS: place XML, {len(items)} instances, {len(sources)} embedded sources, {len(required)} interaction anchors, classroom clearance,')
-    if worldplan: print(f'      the WorldPlan map with {meshes} meshes, {oaks} oaks and both academy portals, {map_parts} map parts,')
+    if worldplan: print(f'      the WorldPlan map with {meshes} meshes, {oaks} oaks, both academy portals and {doors} dormitory doors, {map_parts} map parts,')
     else: print(f'      shop doors at their prompts, {len(houses)} houses clear of roads and each other, {map_parts} map parts,')
     print(f'      {len(lights)-lanterns} windows and {lanterns} lanterns that light up at night.')
     if not worldplan and signature(world)!=signature(ET.fromstring(map_item())):

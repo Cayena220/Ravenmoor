@@ -473,7 +473,7 @@ a game budget and writes one FBX per area to `exports/RobloxWorld/`:
   Wood, Metal and so on) are merged in cells of the map, with every Blender material's colour baked into the vertex
   colours. The mountains' slope ramp is baked the same way: green on the flats, grey on the crags.
 - **The academy interior** is its own scene in WorldPlan. In the game it stands 1,500 studs above the campus, and the
-  academy's door leads there (`WorldService.StartAcademyPortals`). The teachers, the Mirror of Choosing and the Library
+  academy's door leads there (`WorldService.StartPortals`). The teachers, the Mirror of Choosing and the Library
   move into it; `src/shared/WorldPoints.lua` has their new points, and the quest marker and minimap guide a student to
   the door when the goal is on the other side of it.
 - **Left out on purpose:** the staff, chests, monsters, training dummies, Waystones, the duel arena and the road lamps.
@@ -509,6 +509,19 @@ slopes, outside `Config.WorldBounds`), and any whose crown reaches into the acad
 numbers to `exports/RobloxWorld/forest_thinning.json`. After `Finish`, run [thin_forest.lua](thin_forest.lua) with
 that file; it removes the other oaks as one undoable change. `tools/validate.py` checks the standing oaks against the
 list, and fails once an export changes the manifest: then run both again. `--inside` and `--outside` set the spacings.
+
+### Dormitory doors
+
+Each house keeps its bedrooms in two residential wings either side of its common room, on a ground and an upper
+floor, but the house models give the wings no doorway and no stair. [place_dormitory_doors.lua](place_dormitory_doors.lua)
+stands doors in for them, in `workspace.DormitoryDoors`: on each side wall of the common room a door to that wing's
+ground floor and, in the wing, a door back; at the wing's far end a door upstairs and, above it, one down. That is 32
+doors, each a wooden slab in its house's colours with a `Destination`. `WorldService.StartPortals` gives each a prompt
+("Go to the dormitory", "Back to the common room", "Go upstairs", "Go downstairs"). Unlike the academy's door, a
+dormitory door opens only from its prompt, within 8 studs and in sight of it, as its partner stands just behind the
+same wall. Paste the script into the Command Bar in Edit mode; it rebuilds the folder, stands each door on the floor
+under it and warns of anything in the way. Its numbers are in each house builder's own studs, so a rebuilt house
+needs its row checked. `tools/validate.py` checks that every door leads somewhere.
 
 After this, `tools/build.py --world-only` and `tools/sync_scripts.py --map` would put the old part-built map back, so
 don't run them. `tools/validate.py` sees the WorldPlan map and checks it against the manifest instead.

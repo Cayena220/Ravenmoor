@@ -780,7 +780,8 @@ do
     local f=assert(io.open(ROOT.."/src/server/Services/ProgressionService.lua")); local text=f:read("a"); f:close()
     check(text:find("Music = true",1,true),"players can switch the music off")
 end
--- The academy's door leads to its interior, 1,500 studs up, and back (WorldService.StartAcademyPortals).
+-- The academy's door leads to its interior, 1,500 studs up, and back; each house's common room has doors to its
+-- dormitories (WorldService.StartPortals).
 do
     local oldGame,oldWorkspace,oldInstance,oldCFrame,oldRequire=game,workspace,Instance,CFrame,require
     local function signal() return {Connect=function(self,fn) self.Callback=fn end} end
@@ -791,7 +792,13 @@ do
     local door={Name="Enter",Position=Vector3.new(85,13.6,-525.7),Touched=signal(),IsA=function(_,c) return c=="BasePart" end,
         GetAttribute=function(_,k) return k=="ActionText" and "Enter the academy" or nil end,
         FindFirstChild=function(_,k) return k=="Destination" and {Value=inside,IsA=function(_,c) return c=="CFrameValue" end} or nil end}
-    workspace={StreamingEnabled=false,FindFirstChild=function(_,k) return k=="AcademyPortals" and {GetChildren=function() return {door} end} or nil end}
+    local dormitory={Position=Vector3.new(-189.7,22.6,-779.3)}
+    local attributes={ActionText="Go to the dormitory",ObjectText="EmberClaw dormitory"}
+    local dorm={Name="EmberClaw east: Go to the dormitory",Position=Vector3.new(-198.7,8.5,-743.3),Touched=signal(),IsA=function(_,c) return c=="BasePart" end,
+        GetAttribute=function(_,k) return attributes[k] end,
+        FindFirstChild=function(_,k) return k=="Destination" and {Value=dormitory,IsA=function(_,c) return c=="CFrameValue" end} or nil end}
+    workspace={StreamingEnabled=false,FindFirstChild=function(_,k)
+        return k=="AcademyPortals" and {GetChildren=function() return {door} end} or k=="DormitoryDoors" and {GetChildren=function() return {dorm} end} or nil end}
     local character,pivot={},nil
     local root={Position=Vector3.new(85,9,-522)}
     character.HumanoidRootPart=root; character.FindFirstChild=function(_,k) return character[k] end
@@ -805,8 +812,13 @@ do
     W.S={CombatService={States={[player]={Humanoid={Health=100}}}},DuelService={IsBusy=function() return busy end},
         ClassService={Cancel=function() cancelled=cancelled+1 end}}
     W.Movement={}
-    W:StartAcademyPortals()
-    check(#prompts==1 and prompts[1].ActionText=="Enter the academy" and prompts[1].Parent==door,"the academy door has its prompt")
+    W:StartPortals()
+    check(#prompts==2 and prompts[1].ActionText=="Enter the academy" and prompts[1].Parent==door,"the academy door has its prompt")
+    check(prompts[1].ObjectText=="Ravenmoor Academy" and prompts[1].RequiresLineOfSight==false and door.Touched.Callback,"walking into the academy door also opens it")
+    local p=prompts[2]
+    check(p.Parent==dorm and p.ActionText=="Go to the dormitory" and p.ObjectText=="EmberClaw dormitory","a dormitory door names its house")
+    check(p.RequiresLineOfSight==true and p.MaxActivationDistance<=8 and dorm.Touched.Callback==nil,
+        "a dormitory door opens only from its prompt, in sight of it, so its partner behind the wall stays hidden")
     busy=true; prompts[1].Triggered.Callback(player); check(pivot==nil,"no entering the academy mid-duel")
     busy=false; prompts[1].Triggered.Callback(player)
     check(pivot==inside and cancelled==1,"the door takes a student into the interior and ends their lesson")
@@ -814,6 +826,15 @@ do
     root.Position=Vector3.new(85,9,-522); pivot=nil
     door.Touched.Callback({FindFirstAncestorOfClass=function() return character end})
     check(pivot==nil,"just through the door, it does not send them straight back")
+    -- A second student, as the first is still on the portals' cooldown.
+    local character2,pivot2={},nil
+    local root2={Position=Vector3.new(-196.5,8.5,-741.6)}
+    character2.HumanoidRootPart=root2; character2.FindFirstChild=function(_,k) return character2[k] end
+    character2.PivotTo=function(_,cf) pivot2=cf; root2.Position=cf.Position end
+    local player2={Character=character2}
+    W.S.CombatService.States[player2]={Humanoid={Health=100}}
+    p.Triggered.Callback(player2)
+    check(pivot2==dormitory and cancelled==2,"the dormitory door takes a student to the dormitory")
     game,workspace,Instance,CFrame,require=oldGame,oldWorkspace,oldInstance,oldCFrame,oldRequire
 end
-print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing, sounds, music and the academy portals).")
+print("PASS: "..total.." headless assertions (formulas, catalogue, gestures, PvP, CC, shielding, cast validation, spark lance, unit interactions, wands, named wands, skill tree, progression, locks, rate limits, client startup, NPC prompts and services, inventory, broom flight, input routing, sounds, music, the academy portals and the dormitory doors).")

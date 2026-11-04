@@ -29,19 +29,23 @@ function W:Teleport(player, position)
     player.Character:PivotTo(CFrame.new(position))
     root.AssemblyLinearVelocity = Vector3.zero
 end
--- Portal parts are installed with the WorldPlan map; older maps remain compatible.
-function W:StartAcademyPortals()
-    local portals=workspace:FindFirstChild("AcademyPortals")
-    if not portals then return end
+-- Portal parts: the academy's door and the way back, installed with the WorldPlan map, and the doors between each
+-- house's common room and its dormitories (blender/place_dormitory_doors.lua). Older maps have neither.
+function W:StartPortals()
     local cooldown, pending={},{}
     Players.PlayerRemoving:Connect(function(player) cooldown[player]=nil; pending[player]=nil end)
-    for _,portal in ipairs(portals:GetChildren()) do
-        local destination=portal:IsA("BasePart") and portal:FindFirstChild("Destination")
-        if destination and destination:IsA("CFrameValue") then self:Portal(portal,destination,cooldown,pending) end
+    for _,name in ipairs({"AcademyPortals","DormitoryDoors"}) do
+        local portals=workspace:FindFirstChild(name)
+        for _,portal in ipairs(portals and portals:GetChildren() or {}) do
+            local destination=portal:IsA("BasePart") and portal:FindFirstChild("Destination")
+            if destination and destination:IsA("CFrameValue") then self:Portal(portal,destination,cooldown,pending,name=="DormitoryDoors") end
+        end
     end
 end
--- A portal part sends a student who touches it, or uses its prompt, to its Destination.
-function W:Portal(portal,destination,cooldown,pending)
+-- A portal part sends a student who uses its prompt to its Destination. The academy's door also sends one who walks
+-- into it. A dormitory door stands against a wall students walk along, with its partner just behind that wall, so it
+-- answers only its prompt, and only in sight of it.
+function W:Portal(portal,destination,cooldown,pending,door)
     local function enter(player)
         if pending[player] or os.clock()<(cooldown[player] or 0) then return end
         local root=self:Root(player)
@@ -60,10 +64,11 @@ function W:Portal(portal,destination,cooldown,pending)
         pending[player]=nil
     end
     local prompt=Instance.new("ProximityPrompt")
-    prompt.Name="AcademyEntrance"; prompt.ActionText=portal:GetAttribute("ActionText") or "Enter"
-    prompt.ObjectText="Ravenmoor Academy"; prompt.MaxActivationDistance=12
-    prompt.RequiresLineOfSight=false; prompt.HoldDuration=.2; prompt.Parent=portal
+    prompt.Name=door and "DormitoryDoor" or "AcademyEntrance"; prompt.ActionText=portal:GetAttribute("ActionText") or "Enter"
+    prompt.ObjectText=portal:GetAttribute("ObjectText") or "Ravenmoor Academy"; prompt.MaxActivationDistance=door and 8 or 12
+    prompt.RequiresLineOfSight=door; prompt.HoldDuration=.2; prompt.Parent=portal
     prompt.Triggered:Connect(enter)
+    if door then return end
     portal.Touched:Connect(function(hit)
         local character=hit:FindFirstAncestorOfClass("Model")
         local player=character and Players:GetPlayerFromCharacter(character)
@@ -93,7 +98,7 @@ function W:SetNightLights(night)
     end
 end
 function W:Start()
-    self:StartAcademyPortals()
+    self:StartPortals()
     self.S.NetworkService.Handlers.Travel = function(player, id) if type(id) == "string" then self:Travel(player, id) end end
     Players.PlayerRemoving:Connect(function(player) self.Movement[player] = nil end)
     self.NightLights = {}

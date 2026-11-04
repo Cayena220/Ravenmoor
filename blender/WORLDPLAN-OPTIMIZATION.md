@@ -120,7 +120,7 @@ identical runtime instancing in Roblox. A fresh export/import and profiling in
 Studio are still required to measure game performance and verify uploaded maps.
 
 The installer targets the already integrated local game. Its academy portal setup
-depends on that game's `WorldService.StartAcademyPortals` and `WorldPoints` wiring;
+depends on that game's `WorldService.StartPortals` and `WorldPoints` wiring;
 those separate gameplay edits are not part of this optimization commit. A checkout
 of this commit supplies the Blender assets and exporter, not a complete new game
 deployment. The pre-optimization Blender backup is local and cannot be regenerated
