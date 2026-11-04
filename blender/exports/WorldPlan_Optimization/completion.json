@@ -1,0 +1,12 @@
+{
+  "file": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.blend",
+  "backup": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.before-optimization.blend",
+  "source_sha256": "411bf2b86eea4d3277240aaf841126ed10deb43fd35d08d12e96da739fb1d946",
+  "optimized_sha256": "9e40ec89f24c98d444061c997e6ba4fccd33013fc60aded15fa0c998b4273d8e",
+  "original_bytes": 203888322,
+  "optimized_bytes": 162480743,
+  "saved_scene_validation": true,
+  "export_helper_validation": true,
+  "render_review": "Original and optimized facade colors/structure compared; grass cutout silhouettes and shadows inspected.",
+  "roblox_reimported": false
+}

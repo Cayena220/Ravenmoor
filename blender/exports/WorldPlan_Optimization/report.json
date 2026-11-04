@@ -1,0 +1,1050 @@
+{
+  "source": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.blend",
+  "backup": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.before-optimization.blend",
+  "before": {
+    "objects": 5066,
+    "mesh_datablocks": 536,
+    "stored_triangles": 9513258,
+    "materials": 383,
+    "images": 16,
+    "rgba8_texture_bytes": 132116800,
+    "collection_instances": 4332
+  },
+  "images_merged": [
+    [
+      "Oak_Bark_BaseColor.001",
+      "Oak_Bark_BaseColor"
+    ],
+    [
+      "Oak_Bark_Normal.001",
+      "Oak_Bark_Normal"
+    ],
+    [
+      "Oak_Bark_Roughness.001",
+      "Oak_Bark_Roughness"
+    ],
+    [
+      "Oak_Leaf_BaseColor.001",
+      "Oak_Leaf_BaseColor"
+    ],
+    [
+      "Oak_Leaf_Normal.001",
+      "Oak_Leaf_Normal"
+    ],
+    [
+      "Oak_Leaf_Roughness.001",
+      "Oak_Leaf_Roughness"
+    ]
+  ],
+  "materials_merged": [
+    [
+      "Dueling Club",
+      "Arrival"
+    ],
+    [
+      "East classroom wing",
+      "Arrival"
+    ],
+    [
+      "EC / Skyquill blackened silver",
+      "EC / Nightfang blackened silver"
+    ],
+    [
+      "EC / Skyquill polished engraved silver",
+      "EC / Nightfang polished engraved silver"
+    ],
+    [
+      "Flying pitch",
+      "Arrival"
+    ],
+    [
+      "Grand Stair",
+      "Arrival"
+    ],
+    [
+      "Greenhouses",
+      "Arrival"
+    ],
+    [
+      "Healer Fenn",
+      "Arrival"
+    ],
+    [
+      "House quarters",
+      "Arrival"
+    ],
+    [
+      "Kestrel Vey",
+      "Arrival"
+    ],
+    [
+      "Lesson target",
+      "Arrival"
+    ],
+    [
+      "Lesson target.001",
+      "Arrival"
+    ],
+    [
+      "Lesson target.002",
+      "Arrival"
+    ],
+    [
+      "Lesson target.003",
+      "Arrival"
+    ],
+    [
+      "Lesson target.004",
+      "Arrival"
+    ],
+    [
+      "Lesson target.005",
+      "Arrival"
+    ],
+    [
+      "Lesson target.006",
+      "Arrival"
+    ],
+    [
+      "Lesson target.007",
+      "Arrival"
+    ],
+    [
+      "Lesson target.008",
+      "Arrival"
+    ],
+    [
+      "Lesson target.009",
+      "Arrival"
+    ],
+    [
+      "Lesson target.010",
+      "Arrival"
+    ],
+    [
+      "Lesson target.011",
+      "Arrival"
+    ],
+    [
+      "Lesson target.012",
+      "Arrival"
+    ],
+    [
+      "Lesson target.013",
+      "Arrival"
+    ],
+    [
+      "Lesson target.014",
+      "Arrival"
+    ],
+    [
+      "Lesson target.015",
+      "Arrival"
+    ],
+    [
+      "Lesson target.016",
+      "Arrival"
+    ],
+    [
+      "Lesson target.017",
+      "Arrival"
+    ],
+    [
+      "Lesson target.018",
+      "Arrival"
+    ],
+    [
+      "Lesson target.019",
+      "Arrival"
+    ],
+    [
+      "Lesson target.020",
+      "Arrival"
+    ],
+    [
+      "Lesson target.021",
+      "Arrival"
+    ],
+    [
+      "Lesson target.022",
+      "Arrival"
+    ],
+    [
+      "Lesson target.023",
+      "Arrival"
+    ],
+    [
+      "Lesson target.024",
+      "Arrival"
+    ],
+    [
+      "Living oak foliage - PBR.001",
+      "Living oak foliage - PBR"
+    ],
+    [
+      "Meadow",
+      "Arrival"
+    ],
+    [
+      "Mirror of Choosing",
+      "Arrival"
+    ],
+    [
+      "Mirrorlake",
+      "Arrival"
+    ],
+    [
+      "NF / charcoal granite foundations",
+      "EC / charcoal granite foundations"
+    ],
+    [
+      "NF / forged black iron",
+      "EC / forged black iron"
+    ],
+    [
+      "NF / fumed oak",
+      "EC / fumed oak"
+    ],
+    [
+      "NF / honey oak boards",
+      "EC / honey oak boards"
+    ],
+    [
+      "NF / ivory fabric",
+      "EC / ivory fabric"
+    ],
+    [
+      "NF / polished walnut joinery",
+      "EC / polished walnut joinery"
+    ],
+    [
+      "NF / warm fire",
+      "EC / warm fire"
+    ],
+    [
+      "North gardens",
+      "Arrival"
+    ],
+    [
+      "Odric Oakhart",
+      "Arrival"
+    ],
+    [
+      "Professor Ashgrove",
+      "Arrival"
+    ],
+    [
+      "Professor Holloway",
+      "Arrival"
+    ],
+    [
+      "Professor Quill",
+      "Arrival"
+    ],
+    [
+      "Professor Rook",
+      "Arrival"
+    ],
+    [
+      "RA / antique bronze statuary",
+      "EC / antique bronze statuary"
+    ],
+    [
+      "RA / antique bronze statuary.001",
+      "EC / antique bronze statuary"
+    ],
+    [
+      "RA / blue black marble.001",
+      "RA / blue black marble"
+    ],
+    [
+      "RA / carved pale sandstone.001",
+      "RA / carved pale sandstone"
+    ],
+    [
+      "RA / charcoal granite foundations",
+      "EC / charcoal granite foundations"
+    ],
+    [
+      "RA / charcoal granite foundations.001",
+      "EC / charcoal granite foundations"
+    ],
+    [
+      "RA / EMBERCLAW velvet.001",
+      "RA / EMBERCLAW velvet"
+    ],
+    [
+      "RA / evergreen foliage",
+      "NF / evergreen foliage"
+    ],
+    [
+      "RA / evergreen foliage.001",
+      "NF / evergreen foliage"
+    ],
+    [
+      "RA / forged black iron",
+      "EC / forged black iron"
+    ],
+    [
+      "RA / forged black iron.001",
+      "EC / forged black iron"
+    ],
+    [
+      "RA / fumed oak",
+      "EC / fumed oak"
+    ],
+    [
+      "RA / fumed oak.001",
+      "EC / fumed oak"
+    ],
+    [
+      "RA / honey oak boards",
+      "EC / honey oak boards"
+    ],
+    [
+      "RA / ivory fabric",
+      "EC / ivory fabric"
+    ],
+    [
+      "RA / ivory fabric.001",
+      "EC / ivory fabric"
+    ],
+    [
+      "RA / midnight blue stained glass.001",
+      "RA / midnight blue stained glass"
+    ],
+    [
+      "RA / NIGHTFANG velvet.001",
+      "RA / NIGHTFANG velvet"
+    ],
+    [
+      "RA / pale amber stained glass",
+      "EC / pale amber stained glass"
+    ],
+    [
+      "RA / pale amber stained glass.001",
+      "EC / pale amber stained glass"
+    ],
+    [
+      "RA / polished walnut joinery",
+      "EC / polished walnut joinery"
+    ],
+    [
+      "RA / polished walnut joinery.001",
+      "EC / polished walnut joinery"
+    ],
+    [
+      "RA / sapphire cathedral glass.001",
+      "RA / sapphire cathedral glass"
+    ],
+    [
+      "RA / SKYQUILL velvet.001",
+      "RA / SKYQUILL velvet"
+    ],
+    [
+      "RA / STONEROOT velvet.001",
+      "RA / STONEROOT velvet"
+    ],
+    [
+      "RA / violet cathedral glass.001",
+      "RA / violet cathedral glass"
+    ],
+    [
+      "RA / warm fire",
+      "EC / warm fire"
+    ],
+    [
+      "RA / warm fire.001",
+      "EC / warm fire"
+    ],
+    [
+      "RA / warm leaded glass",
+      "EC / warm leaded glass"
+    ],
+    [
+      "RA / warm leaded glass.001",
+      "EC / warm leaded glass"
+    ],
+    [
+      "RA / warm limestone 0.001",
+      "RA / warm limestone 0"
+    ],
+    [
+      "RA / warm limestone 1.001",
+      "RA / warm limestone 1"
+    ],
+    [
+      "RA / warm limestone 2.001",
+      "RA / warm limestone 2"
+    ],
+    [
+      "RA / warm limestone 3.001",
+      "RA / warm limestone 3"
+    ],
+    [
+      "RA / warm limestone 4.001",
+      "RA / warm limestone 4"
+    ],
+    [
+      "RA / warm oxblood leather",
+      "EC / warm oxblood leather"
+    ],
+    [
+      "RA / worn gilded bronze",
+      "EC / worn gilded bronze"
+    ],
+    [
+      "RA / worn gilded bronze.001",
+      "EC / worn gilded bronze"
+    ],
+    [
+      "Ruins of Old Ravenmoor",
+      "Arrival"
+    ],
+    [
+      "Spellbook",
+      "Arrival"
+    ],
+    [
+      "SQ / charcoal granite foundations",
+      "EC / charcoal granite foundations"
+    ],
+    [
+      "SQ / evergreen foliage",
+      "NF / evergreen foliage"
+    ],
+    [
+      "SQ / forged black iron",
+      "EC / forged black iron"
+    ],
+    [
+      "SQ / fumed oak",
+      "EC / fumed oak"
+    ],
+    [
+      "SQ / honey oak boards",
+      "EC / honey oak boards"
+    ],
+    [
+      "SQ / ivory fabric",
+      "EC / ivory fabric"
+    ],
+    [
+      "SQ / ivory fabric.002",
+      "EC / ivory fabric"
+    ],
+    [
+      "SQ / pale amber stained glass",
+      "EC / pale amber stained glass"
+    ],
+    [
+      "SQ / polished walnut joinery.002",
+      "EC / polished walnut joinery"
+    ],
+    [
+      "SQ / Skyquill sapphire velvet.002",
+      "SQ / Skyquill sapphire velvet"
+    ],
+    [
+      "SQ / warm fire",
+      "EC / warm fire"
+    ],
+    [
+      "SQ / warm leaded glass",
+      "EC / warm leaded glass"
+    ],
+    [
+      "SR / antique bronze statuary",
+      "EC / antique bronze statuary"
+    ],
+    [
+      "SR / charcoal granite foundations",
+      "EC / charcoal granite foundations"
+    ],
+    [
+      "SR / evergreen foliage",
+      "NF / evergreen foliage"
+    ],
+    [
+      "SR / forged black iron",
+      "EC / forged black iron"
+    ],
+    [
+      "SR / fumed oak",
+      "EC / fumed oak"
+    ],
+    [
+      "SR / honey oak boards",
+      "EC / honey oak boards"
+    ],
+    [
+      "SR / ivory fabric",
+      "EC / ivory fabric"
+    ],
+    [
+      "SR / polished walnut joinery",
+      "EC / polished walnut joinery"
+    ],
+    [
+      "SR / warm leaded glass",
+      "EC / warm leaded glass"
+    ],
+    [
+      "SR / warm warm amber leather",
+      "EC / warm oxblood leather"
+    ],
+    [
+      "SR / worn gilded bronze",
+      "EC / worn gilded bronze"
+    ],
+    [
+      "Tobb Brambleworth",
+      "Arrival"
+    ],
+    [
+      "Upper terrace",
+      "Arrival"
+    ],
+    [
+      "Weathered oak bark - PBR.001",
+      "Weathered oak bark - PBR"
+    ],
+    [
+      "West classroom wing",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.001",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.002",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.003",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.004",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.005",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.006",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.007",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.008",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.009",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.010",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.011",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.012",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.013",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.014",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.015",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.016",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.017",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.018",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.019",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.020",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.021",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.022",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.023",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.024",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.025",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.026",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.027",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.028",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.029",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.030",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.031",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.032",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.033",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.034",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.035",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.036",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.037",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.038",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.039",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.040",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.041",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.042",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.043",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.044",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.045",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.046",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.047",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.048",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.049",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.050",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.051",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.052",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.053",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.054",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.055",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.056",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.057",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.058",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.059",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.060",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.061",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.062",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.063",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.064",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.065",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.066",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.067",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.068",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.069",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.070",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.071",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.072",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.073",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.074",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.075",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.076",
+      "Arrival"
+    ],
+    [
+      "Whisperwood tree.077",
+      "Arrival"
+    ],
+    [
+      "Woods",
+      "Arrival"
+    ]
+  ],
+  "meshes_linked": [
+    [
+      "Crystal.002",
+      "Crystal.002",
+      "Crystal.001"
+    ],
+    [
+      "Crystal.003",
+      "Crystal.003",
+      "Crystal.001"
+    ],
+    [
+      "Dash shock ring",
+      "Ring.001",
+      "Ring.002"
+    ],
+    [
+      "Healer Fenn | Academy interior",
+      "Healer Fenn.001",
+      "Healer Fenn"
+    ],
+    [
+      "Ironwork.002",
+      "Ironwork.002",
+      "Ironwork.001"
+    ],
+    [
+      "Ironwork.003",
+      "Ironwork.003",
+      "Ironwork.001"
+    ],
+    [
+      "Mirror of Choosing | Academy interior",
+      "Mirror of Choosing.001",
+      "Mirror of Choosing"
+    ],
+    [
+      "Professor Ashgrove | Academy interior",
+      "Professor Ashgrove.001",
+      "Professor Ashgrove"
+    ],
+    [
+      "Professor Holloway | Academy interior",
+      "Professor Holloway.001",
+      "Professor Holloway"
+    ],
+    [
+      "Professor Quill | Academy interior",
+      "Professor Quill.001",
+      "Professor Quill"
+    ],
+    [
+      "Professor Rook | Academy interior",
+      "Professor Rook.001",
+      "Professor Rook"
+    ],
+    [
+      "Runes.002",
+      "Runes.002",
+      "Runes.001"
+    ],
+    [
+      "Runes.003",
+      "Runes.003",
+      "Runes.001"
+    ],
+    [
+      "Stone.002",
+      "Stone.002",
+      "Stone.001"
+    ],
+    [
+      "Stone.003",
+      "Stone.003",
+      "Stone.001"
+    ]
+  ],
+  "groundcover": {
+    "leaf_instances": 10400,
+    "stored_triangles_before": 832000,
+    "stored_triangles_after": 160,
+    "realized_triangles": 832000,
+    "max_vertex_error": 6.055550670680532e-05,
+    "prototypes": [
+      {
+        "material": "EC / Garden young leaves",
+        "instances": 4160,
+        "triangles": 80
+      },
+      {
+        "material": "EC / Garden box and laurel foliage",
+        "instances": 6240,
+        "triangles": 80
+      }
+    ]
+  },
+  "grass": {
+    "version": 1,
+    "converted": [
+      {
+        "name": "Individual mixed meadow grass blades",
+        "tufts": 29116,
+        "triangles_before": 436740,
+        "triangles_after_realization": 116464,
+        "source_vertices_before": 727900,
+        "source_points_after": 29116,
+        "prototype_triangles_shared": 4,
+        "positions": "existing tuft footprint centers and original base heights"
+      }
+    ],
+    "skipped": [],
+    "textures": [
+      {
+        "name": "OPT_GrassCards_Color",
+        "path": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan_Optimization\\textures\\GrassCards_Color.png",
+        "size": [
+          512,
+          512
+        ],
+        "packed": true
+      },
+      {
+        "name": "OPT_GrassCards_Normal",
+        "path": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan_Optimization\\textures\\GrassCards_Normal.png",
+        "size": [
+          512,
+          512
+        ],
+        "packed": true
+      }
+    ],
+    "method": "Geometry Nodes instances; two crossed cards per planted tuft",
+    "particle_systems_added": 0,
+    "prototype": "OPT | Grass crossed card prototype"
+  },
+  "trims": {
+    "objects": [
+      {
+        "name": "Ashlar facade blocks",
+        "blocks": 5742,
+        "triangles_before": 68904,
+        "triangles_after": 11484,
+        "bevel_modifiers_removed": [
+          "Soft weathered edges"
+        ]
+      },
+      {
+        "name": "Ashlar facade blocks.001",
+        "blocks": 5014,
+        "triangles_before": 60168,
+        "triangles_after": 10028,
+        "bevel_modifiers_removed": [
+          "Soft weathered edges"
+        ]
+      },
+      {
+        "name": "Ashlar facade blocks.002",
+        "blocks": 4290,
+        "triangles_before": 51480,
+        "triangles_after": 8580,
+        "bevel_modifiers_removed": [
+          "Soft weathered edges"
+        ]
+      },
+      {
+        "name": "Ashlar facade blocks.003",
+        "blocks": 9797,
+        "triangles_before": 117564,
+        "triangles_after": 19594,
+        "bevel_modifiers_removed": [
+          "Soft weathered edges"
+        ]
+      },
+      {
+        "name": "Ashlar facade blocks.004",
+        "blocks": 14503,
+        "triangles_before": 174036,
+        "triangles_after": 29006,
+        "bevel_modifiers_removed": []
+      },
+      {
+        "name": "Ashlar facade blocks.005",
+        "blocks": 4264,
+        "triangles_before": 51168,
+        "triangles_after": 8528,
+        "bevel_modifiers_removed": []
+      }
+    ],
+    "skipped": [],
+    "triangles_before": 523320,
+    "triangles_after": 87220,
+    "method": "Validated outer face per shallow ashlar block; border bevel and grain use tangent normal trim sheet. Structural walls remain unchanged.",
+    "texture_size": [
+      512,
+      2048
+    ],
+    "shared_material": "OPT / shared limestone trim sheet",
+    "source_material_count": 25,
+    "unique_color_bands": 25,
+    "texture_paths": {
+      "base_color": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan_Optimization\\textures\\WP_Limestone_Trim_BaseColor.png",
+      "normal": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan_Optimization\\textures\\WP_Limestone_Trim_Normal.png",
+      "roughness": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan_Optimization\\textures\\WP_Limestone_Trim_Roughness.png"
+    }
+  },
+  "unused_removed": {
+    "meshes": 0,
+    "materials": 14,
+    "images": 0
+  },
+  "after": {
+    "objects": 5071,
+    "mesh_datablocks": 526,
+    "stored_triangles": 7793774,
+    "materials": 174,
+    "images": 15,
+    "rgba8_texture_bytes": 93319488,
+    "collection_instances": 4332
+  },
+  "staged_file": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.optimized.blend",
+  "staged_bytes": 162480743
+}

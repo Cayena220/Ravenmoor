@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "source": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.blend",
+  "realization": [
+    {
+      "object": "Common garden | Layered perennial groundcover",
+      "triangles": 832000,
+      "uv_layers": 0,
+      "materials": 2
+    },
+    {
+      "object": "Individual mixed meadow grass blades",
+      "triangles": 116464,
+      "uv_layers": 1,
+      "materials": 1
+    }
+  ],
+  "materials": [
+    {
+      "source": "OPT / shared limestone trim sheet",
+      "maps": {
+        "Base Color": "WP_Limestone_Trim_BaseColor",
+        "Normal": "WP_Limestone_Trim_Normal",
+        "Roughness": "WP_Limestone_Trim_Roughness"
+      },
+      "roughness": 0.5,
+      "normal_strength": 1.0
+    },
+    {
+      "source": "OPT | Meadow grass cards",
+      "maps": {
+        "Alpha": "OPT_GrassCards_Color",
+        "Base Color": "OPT_GrassCards_Color",
+        "Normal": "OPT_GrassCards_Normal"
+      },
+      "roughness": 0.7799999713897705,
+      "normal_strength": 0.6000000238418579
+    }
+  ]
+}

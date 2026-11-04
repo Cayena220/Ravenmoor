@@ -1,0 +1,154 @@
+{
+  "backup": "C:\\Users\\user\\Downloads\\Wandbound-Ravenmoor-Source\\Wandbound\\blender\\exports\\WorldPlan.before-academy-integration.blend",
+  "exterior_placement": {
+    "location": [
+      -85.0,
+      -560.0,
+      0.4000000059604645
+    ],
+    "rotation_z": 3.141592653589793,
+    "scale": 0.88
+  },
+  "interior_scene": "Academy Interior | Teleport destination",
+  "portals": [
+    {
+      "trigger": "PORTAL_Academy_Enter",
+      "scene": "Scene",
+      "destination_scene": "Academy Interior | Teleport destination",
+      "destination_marker": "SPAWN_Academy_Interior",
+      "destination_position": [
+        0.0,
+        -18.0,
+        0.20000000298023224
+      ]
+    },
+    {
+      "trigger": "PORTAL_Academy_Return",
+      "scene": "Academy Interior | Teleport destination",
+      "destination_scene": "Scene",
+      "destination_marker": "SPAWN_Academy_Exterior",
+      "destination_position": [
+        -85.0,
+        -522.1599731445312,
+        5.855999946594238
+      ]
+    }
+  ],
+  "retired_objects": [
+    "Arrival",
+    "Grand Stair",
+    "West classroom wing",
+    "East classroom wing",
+    "Upper terrace",
+    "SpellbookRig",
+    "Spellbook",
+    "Lesson target",
+    "Lesson target.001",
+    "Lesson target.002",
+    "Lesson target.003",
+    "Lesson target.004",
+    "Lesson target.005",
+    "Lesson target.006",
+    "Lesson target.007",
+    "Lesson target.008",
+    "Lesson target.009",
+    "Lesson target.010",
+    "Lesson target.011",
+    "Lesson target.012",
+    "Lesson target.013",
+    "Lesson target.014",
+    "Lesson target.015",
+    "Lesson target.016",
+    "Lesson target.017",
+    "Lesson target.018",
+    "Lesson target.019",
+    "Lesson target.020",
+    "Lesson target.021",
+    "Lesson target.022",
+    "Lesson target.023",
+    "Lesson target.024",
+    "Professor Rook",
+    "Professor Holloway",
+    "Professor Quill",
+    "Healer Fenn",
+    "Professor Ashgrove",
+    "Mirror of Choosing"
+  ],
+  "staff_and_props": [
+    {
+      "source": "Professor Rook",
+      "copy": "Professor Rook | Academy interior",
+      "feet_position": [
+        65,
+        20,
+        0.15
+      ]
+    },
+    {
+      "source": "Professor Holloway",
+      "copy": "Professor Holloway | Academy interior",
+      "feet_position": [
+        65,
+        44,
+        0.15
+      ]
+    },
+    {
+      "source": "Professor Quill",
+      "copy": "Professor Quill | Academy interior",
+      "feet_position": [
+        65,
+        68,
+        0.15
+      ]
+    },
+    {
+      "source": "Healer Fenn",
+      "copy": "Healer Fenn | Academy interior",
+      "feet_position": [
+        65,
+        92,
+        0.15
+      ]
+    },
+    {
+      "source": "Professor Ashgrove",
+      "copy": "Professor Ashgrove | Academy interior",
+      "feet_position": [
+        65,
+        116,
+        0.15
+      ]
+    },
+    {
+      "source": "Mirror of Choosing",
+      "copy": "Mirror of Choosing | Academy interior",
+      "feet_position": [
+        -31,
+        113,
+        0.1
+      ]
+    },
+    {
+      "source": "SpellbookRig",
+      "copy": "SpellbookRig | Academy interior",
+      "feet_position": [
+        -63,
+        34,
+        3.6
+      ]
+    },
+    {
+      "source": "Spellbook",
+      "copy": "Spellbook | Academy interior",
+      "feet_position": [
+        -63,
+        34,
+        3.6
+      ]
+    }
+  ],
+  "unchanged_world_objects": 4767,
+  "house_and_garden_objects": 151,
+  "issues": []
+}

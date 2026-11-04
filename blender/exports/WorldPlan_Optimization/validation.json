@@ -1,0 +1,150 @@
+{
+  "ok": true,
+  "errors": [],
+  "protected_objects_checked": 5058,
+  "realization": {
+    "Common garden | Layered perennial groundcover": {
+      "vertices": 499200,
+      "triangles": 832000,
+      "uv_layers": 0,
+      "materials": 2
+    },
+    "Individual mixed meadow grass blades": {
+      "vertices": 232928,
+      "triangles": 116464,
+      "uv_layers": 1,
+      "materials": 1
+    }
+  },
+  "images": [
+    {
+      "name": "EmberClaw_Logo.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "packed": true
+    },
+    {
+      "name": "Nightfang_Logo.png",
+      "size": [
+        1286,
+        1223
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Bark_BaseColor",
+      "size": [
+        2048,
+        2048
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Bark_Normal",
+      "size": [
+        2048,
+        2048
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Bark_Roughness",
+      "size": [
+        2048,
+        2048
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Leaf_BaseColor",
+      "size": [
+        512,
+        512
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Leaf_Normal",
+      "size": [
+        512,
+        512
+      ],
+      "packed": true
+    },
+    {
+      "name": "Oak_Leaf_Roughness",
+      "size": [
+        512,
+        512
+      ],
+      "packed": true
+    },
+    {
+      "name": "OPT_GrassCards_Color",
+      "size": [
+        512,
+        512
+      ],
+      "packed": true
+    },
+    {
+      "name": "OPT_GrassCards_Normal",
+      "size": [
+        512,
+        512
+      ],
+      "packed": true
+    },
+    {
+      "name": "Skyquill_Logo.png",
+      "size": [
+        1214,
+        1295
+      ],
+      "packed": true
+    },
+    {
+      "name": "Stoneroot_Logo.png",
+      "size": [
+        1312,
+        1199
+      ],
+      "packed": true
+    },
+    {
+      "name": "WP_Limestone_Trim_BaseColor",
+      "size": [
+        512,
+        2048
+      ],
+      "packed": true
+    },
+    {
+      "name": "WP_Limestone_Trim_Normal",
+      "size": [
+        512,
+        2048
+      ],
+      "packed": true
+    },
+    {
+      "name": "WP_Limestone_Trim_Roughness",
+      "size": [
+        512,
+        2048
+      ],
+      "packed": true
+    }
+  ],
+  "metrics": {
+    "objects": 5071,
+    "mesh_datablocks": 526,
+    "stored_triangles": 7793774,
+    "materials": 174,
+    "images": 15,
+    "rgba8_texture_bytes": 93319488,
+    "collection_instances": 4332
+  }
+}

@@ -2,3 +2,5 @@
 # tools/sync_scripts.py compares script text byte for byte, so mixed line endings show up as false changes.
 * text=auto eol=lf
 *.png binary
+# Authored world exceeds normal Git hosting limits; keep its binary in Git LFS.
+blender/exports/WorldPlan.blend filter=lfs diff=lfs merge=lfs -text
